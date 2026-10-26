@@ -1,0 +1,454 @@
+---
+name: extend-mizer
+description: >-
+  Extend or customise mizer's dynamics — add external food or mortality, replace
+  a built-in rate calculation, or add an ecosystem component. Use for
+  setExtEncounter(), setExtDiffusion() or setExtMort(); replacing
+  mizerEncounter(), mizerPredRate(), mizerMort(), mizerEReproAndGrowth() or
+  another rate with setRateFunction(); new dynamical pools with setComponent();
+  extension subclasses; or second_order_w-aware custom quadrature. Pick the
+  lightest mechanism that works. To change only an existing rate's parameters
+  use the change-parameters skill; to load, save or share a model using an
+  existing extension package use the use-extension-packages skill.
+---
+
+# Extending mizer
+
+This is for changing how mizer works **without editing the package source**.
+Pick the **lightest** mechanism that expresses your change, and reach for a
+heavier one only when the lighter one cannot do the job. All setters return a new
+`MizerParams` — reassign the result.
+
+| Goal | Use |
+|---|---|
+| Add a fixed external food or mortality source (no new state variable) | `ext_encounter()` / `ext_mort()` |
+| Add an extra encounter or mortality that depends on the model state but has no state of its own | `other_encounter()` / `other_mort()` |
+| Change how one built-in rate is calculated | `setRateFunction()` |
+| Add a new dynamical pool (detritus, carrion, oxygen, second resource…) | `setComponent()` |
+| Store parameters for your custom code | `other_params()` (model-wide) or `component_params` (one component) |
+| Extend plots/summaries for a custom model type | S3 methods on an S3 extension class |
+| Replace arbitrary internal mizer code (last resort) | `customFunction()` |
+
+If you only need to change one rate, prefer `setRateFunction()` over replacing
+`mizerRates()` or patching internal functions. If you only need to change a
+*number* the rates are computed from, you do not need this skill at all — see the
+`change-parameters` skill.
+
+## External encounter and mortality (lightest)
+
+For a background process that affects fish but needs no state of its own. Both
+are **species × size** arrays: `ext_encounter` (mass/year, added to
+`getEncounter()`) and `ext_mort` (1/year, added to mortality).
+
+```r
+ext_mort(params) <- my_mort_array        # e.g. outside predators
+ext_encounter(params) <- my_food_array   # extra unmodelled food
+```
+
+Build the array from the model's own grid rather than from literal dimensions,
+so its shape and dimnames come out right, and **add to** what is already there
+rather than overwriting it. An extra food source scaling allometrically with
+body size:
+
+```{r ext-encounter-example}
+params_ext <- NS_params
+extra_food <- outer(rep(0.1, nrow(species_params(params_ext))),
+                    w(params_ext)^(3/4))
+ext_encounter(params_ext) <- ext_encounter(params_ext) + extra_food
+```
+
+This is the right choice when the extra process is not itself depleted or
+replenished, and the fish do not feed back on it. If it needs to respond to the
+fish, you need a component instead.
+
+External encounter changes the realised encounter and feeding level, but it does
+not enter the power-law reference state used by `get_gamma_default()` and
+`get_f0_default()`. Those defaults likewise exclude functions registered with
+`other_encounter()`, including a component's `encounter_fun`: they describe
+feeding on the reference resource alone, before extra food sources are added.
+
+## Replacing a rate function
+
+Use when the model still follows mizer's standard flow but one step should be
+computed differently — a time-dependent encounter, an alternative growth or
+recruitment formulation, and so on. Mizer stores the **function name**, so the
+function must be findable by name in the global environment or an installed
+package; a function defined inside another function cannot be found.
+
+```r
+params <- setRateFunction(params, "Mort", "myMort")
+getRateFunction(params)      # list the current rate functions
+```
+
+Replaceable rates include `Rates`, `Encounter`, `FeedingLevel`, `PredRate`,
+`PredMort`, `Mort`, `ResourceMort`, `EReproAndGrowth`, `ERepro`, `EGrowth`,
+`Diffusion`, `FMort`, `RDI` (density-independent recruitment), and `RDD`
+(density-dependent recruitment). Resource dynamics is set separately via
+`resource_dynamics()`.
+
+**Write your function by starting from the built-in** (`mizerMort()`,
+`mizerEncounter()`, …): copy it, change what you need, and keep the same
+signature and return dimensions/dimnames. Custom rate functions receive
+`params`, the current state (`n`, `n_pp`, `n_other`), `t`, and previously
+computed rates via `...` — accept `...` and pull what you need from it.
+
+```r
+# Add a size-independent extra mortality, its size stored in other_params
+myMort <- function(params, n, n_pp, n_other, t, f_mort, pred_mort, ...) {
+    base <- mizerMort(params, n, n_pp, n_other, t, f_mort, pred_mort, ...)
+    base + other_params(params)$extra_mort  # a scalar or species × size array
+}
+other_params(params)$extra_mort <- 0.1     # store the parameter
+params <- setRateFunction(params, "Mort", "myMort")
+```
+
+**Time-dependent rates are the key reason to reach for `setRateFunction()`.**
+Species parameters and rate arrays are fixed for the whole simulation, but a rate
+*function* receives the current time `t` and can therefore change as the run
+proceeds — seasonal forcing, a warming trend, a management measure that switches
+on in a given year. Wrap the built-in and scale its result by `t`:
+
+```r
+seasonalMort <- function(params, t, ...) {
+    mizerMort(params, t = t, ...) * (1 + 0.3 * sin(2 * pi * t))   # t in years
+}
+params <- setRateFunction(params, "Mort", "seasonalMort")
+```
+
+Under the second-order time steppers your function is evaluated a second time
+within each step, at `t + dt` and on a predicted state, so write it as a
+function of the `t` it is given: one that assumes time advances once per call,
+or caches the last `t` it saw, gives a different trajectory under
+`project(method = "second_order")` than under the default.
+
+**Never let a rate jump as a function of abundance.** Depending on `t` or `w`
+discontinuously is fine; depending on `n`, `n_pp` or `n_other` discontinuously
+is not. Mizer's time steppers freeze the rates during each density update, so
+they cannot see a threshold being crossed within a step. A rule like
+`if (biomass < threshold) effort <- 0` gives a trajectory that keeps changing as
+`dt` is refined, makes `solver = "newton"` stall, and makes `getStability()` return
+a confident but meaningless answer — with no warning from mizer. Choosing
+`method = "tr_bdf2"` does not help. Give the switch a finite width instead:
+
+```r
+# Bad: jumps. Good: ramps linearly between two thresholds.
+frac <- (biomass - b_lim) / (b_trigger - b_lim)
+effort <- effort * min(1, max(0, frac))
+```
+
+`max()`/`min()` kinks are continuous and much less troublesome — they cost some
+accuracy, not correctness. See the
+[Discontinuous rate functions](discontinuous_rates.html) article.
+
+### Signatures and return shapes
+
+Each replaceable rate has its own signature and its own expected return shape.
+`setRateFunction()` calls your function with test inputs at registration and
+checks the dimensions, so a mistake here surfaces immediately rather than
+mid-projection.
+
+| Rate | Signature | Return value |
+|---|---|---|
+| `Encounter` | `function(params, n, n_pp, n_other, t, ...)` | numeric matrix, species × size |
+| `FeedingLevel` | `function(params, n, n_pp, n_other, t, encounter, ...)` | numeric matrix, species × size |
+| `EReproAndGrowth` | `function(params, n, n_pp, n_other, t, encounter, feeding_level, ...)` | numeric matrix, species × size |
+| `ERepro` | `function(params, n, n_pp, n_other, t, e, ...)` | numeric matrix, species × size |
+| `EGrowth` | `function(params, n, n_pp, n_other, t, e_repro, e, ...)` | numeric matrix, species × size |
+| `PredRate` | `function(params, n, n_pp, n_other, t, feeding_level, ...)` | numeric matrix, species × **full** size grid |
+| `PredMort` | `function(params, n, n_pp, n_other, t, pred_rate, ...)` | numeric matrix, species × size |
+| `FMort` | `function(params, n, n_pp, n_other, t, effort, e_growth, pred_mort, ...)` | numeric matrix, species × size |
+| `Mort` | `function(params, n, n_pp, n_other, t, f_mort, pred_mort, ...)` | numeric matrix, species × size |
+| `RDI` | `function(params, n, n_pp, n_other, t, e_growth, mort, e_repro, diffusion, ...)` | numeric vector, one value per species |
+| `RDD` | `function(rdi, species_params, params, t, ...)` | numeric vector, one value per species |
+| `ResourceMort` | `function(params, n, n_pp, n_other, t, pred_rate, ...)` | numeric vector, one value per full size bin |
+| `Diffusion` | `function(params, n, n_pp, n_other, t, feeding_level, ...)` | numeric matrix, species × size |
+| `Rates` | `function(params, n, n_pp, n_other, t, effort, rates_fns, ...)` | named list with all standard rate components |
+
+Three rules that follow from the table:
+
+- **Return plain numeric objects.** Never return an `ArraySpeciesBySize` or
+  `ArrayTimeBySpecies` from a function registered with `setRateFunction()`; the
+  `get…()` wrappers add those classes afterwards where they belong.
+- **Most size-resolved rates match `initialN(params)`** in both dimensions and
+  dimnames. The exceptions are `PredRate`, which is on the full prey grid
+  (`w_full`), and `ResourceMort`, which is one value per `w_full` bin rather than
+  one per species.
+- **Build outputs from existing mizer arrays** so dimensions and dimnames are
+  inherited. Most bugs in extension code are the right numbers in the wrong
+  shape.
+
+## Respecting the model's quadrature scheme
+
+A model may be on either of two quadrature schemes, selected by the
+`bin_average` entry of `second_order_w()` (see the `run-simulation` skill). Code
+that ignores this looks correct and passes its tests, because the default is the
+first-order scheme — and is then silently wrong by around 10% for anyone who has
+switched the second-order scheme on. Three rules:
+
+- **Build derived quantities from the rate functions, don't re-derive them.**
+  `getEncounter()`, `getFeedingLevel()`, `getPredRate()`, `getEGrowth()` already
+  carry the right quadrature for whichever scheme the model is on. Re-deriving a
+  rate from the species parameters is how this goes wrong.
+- **To go inside the encounter convolution, use `encounter_kernel()`, not
+  `pred_kernel()`.** `pred_kernel()` returns the kernel point-sampled on the
+  grid — right for plotting, and the form in which you *supply* a custom kernel,
+  but not the bin-integrated coefficients the convolution consumes. Pair
+  `encounter_kernel()` with the plain point prey weight
+  `w_full(params) * dw_full(params)`, which is a normalisation the kernel is built
+  to cancel, so it must not itself be bin-averaged.
+- **If your setter precomputes an array from a size-dependent parameter,** gate
+  it on `params@second_order_w[["bin_average"]]` the way `setExtMort()` and
+  `setResource()` do, and do the integral once at setup so projection cost is
+  unchanged.
+
+For a summary-style integral $\int N_i(w) K_i(w) dw$, do not write the sum at
+all: `sizeIntegral(params, weighting = K, min_w = ..., max_w = ...)` does the
+integral under whichever scheme the model is on and wraps the result — see
+"Writing your own indicator" in the `analyse-and-plot` skill. If you need the
+gating on its own, for a weight you are not integrating, that is
+`bin_average_weight(K, params)`. Test any new integral with the flag **on** as
+well as off; a test on the default path alone proves nothing.
+
+## Adding a component
+
+Use `setComponent()` for a new dynamical quantity — any R object: a scalar, a
+vector on the size grid, or a list. A component may contribute in up to three
+ways:
+
+- `dynamics_fun` — updates the component's own state during projection,
+- `encounter_fun` — adds to `getEncounter()`,
+- `mort_fun` — adds to `getMort()`.
+
+```r
+params <- setComponent(
+    params, "detritus",
+    initial_value    = 1e5,
+    dynamics_fun     = "detritus_dynamics",
+    encounter_fun    = "detritus_encounter",  # optional
+    component_params = list(rho = 0.1)
+)
+```
+
+Access components with `getComponent()`, remove them with `removeComponent()`.
+Component state is available to all custom functions as `n_other[["detritus"]]`,
+and its parameters via `component_params`.
+
+If there is nothing for `dynamics_fun` to update — a starvation or senescence
+mortality reads the state but keeps none of its own — do not invent a component
+for it. Register the function on its own instead:
+
+```r
+other_mort(params)[["starvation"]] <- "starvMort"
+other_encounter(params)[["scavenging"]] <- "scavengingEncounter"
+```
+
+`getMort()` and `getEncounter()` add the result of every function registered
+this way, exactly as they do for a component's `mort_fun` and `encounter_fun`.
+The two registries do not overlap: an entry that belongs to a component is
+owned by `setComponent()`, reported by `getComponent()` and removed by
+`removeComponent()`, and `other_mort()` deliberately does not list it — the
+same split `other_params()` makes for component parameters. Assigning `NULL`
+removes a free-standing entry.
+
+The functions named in that call take the component's name as a `component`
+argument, so one implementation can serve several components, and reach their
+own state as `n_other[[component]]` and their own parameters as
+`params@other_params[[component]]`. A dynamics function additionally receives
+the current `rates` and the step length `dt`, and returns the component's **new
+state** — not a rate of change, so integrate the step yourself. This pair makes
+a detritus pool that fish eat and that relaxes back towards a capacity:
+
+```{r detritus-functions}
+detritusEncounter <- function(params, n, n_pp, n_other, component, ...) {
+    params2 <- params
+    # Drop this component before delegating, or mizerEncounter() calls back
+    # into this function and recurses.
+    params2@other_encounter[[component]] <- NULL
+    mizerEncounter(params2, n = n, n_pp = n_other[[component]],
+                   n_other = n_other, ...)
+}
+
+detritusDynamics <- function(params, n_other, rates, dt, component, ...) {
+    detritus <- n_other[[component]]
+    p <- params@other_params[[component]]
+    interaction <- params@species_params$interaction_resource
+    mort <- as.vector(interaction %*% rates$pred_rate)
+    target <- p$rate * p$capacity / (p$rate + mort)
+    # Exact over the step, so the result does not depend on dt
+    target - (target - detritus) * exp(-(p$rate + mort) * dt)
+}
+```
+
+Passing the component's own abundance to `mizerEncounter()` as `n_pp`, as
+`detritusEncounter()` does, is the trick for making a component act as an extra
+prey spectrum: it is then eaten through the ordinary predation kernel and shows
+up in `getDiet()` without further work.
+
+### Components and the time stepper
+
+Under the second-order time steppers — `project(method = "second_order")`, and
+the superseded `"predictor_corrector"`, which behaves the same way here — a
+`dynamics_fun` is called **twice per time step**:
+once as the predictor with the start-of-step rates, and once as the corrector
+with the midpoint rates, so that the component reaches the same order of
+accuracy as the spectra. Both calls receive the same `t` and the same
+start-of-step state, and only the corrector's return value survives. The same
+holds for a custom `resource_dynamics` function.
+
+The repeated `t` is deliberate: you are handed the start of the step and its
+length and asked for the state at the end, so both calls are advancing the same
+interval and the second one is simply redoing it with better rates. The rate
+functions, which return an instantaneous rate rather than a step, are the other
+case and are evaluated at `t` and then at `t + dt`.
+
+That makes purity a requirement rather than a matter of taste:
+
+- **Return the new state, computed from the state you were handed.** Anything
+  that instead accumulates into a store outside the function — `<<-`, writing
+  into `other_params(params)`, a running total, a log file — happens twice per
+  step and comes out wrong by a factor of two, while looking correct under the
+  default `"euler"`.
+- **Take the rates from the `rates` argument.** Recomputing them from `n` hands
+  the corrector the start-of-step rates a second time, which quietly drops the
+  run back to first order rather than failing.
+
+`detritusDynamics()` above satisfies both: it reads the pool out of `n_other`
+and the predation rate out of `rates`, and returns the new pool size.
+
+What the corrector buys you is part of the **coupling to the rest of the
+model**, and it is worth knowing exactly how much: five entries of the rate list
+are replaced by their midpoint values — `e_growth`, `mort`, `diffusion`, `rdd`
+and `resource_mort`, the ones the consumer and resource steppers consume. Every
+other entry, `encounter`, `feeding_level`, `pred_rate`, `pred_mort`, `f_mort`,
+`e` and `rdi` among them, is still the start-of-step value in the corrector
+call. A component coupling through one of those — `detritusDynamics()` above
+reads `rates$pred_rate` — is first order in that coupling however carefully it
+integrates, and on `NS_params` a single `dt = 0.1` step moves `pred_rate` by
+nearly 30%. Prefer a coupling through the five averaged rates where the choice
+is yours.
+
+The rest of the step is yours,
+because the interface asks for the new state rather than for a rate of change —
+mizer never evaluates your right-hand side and so cannot integrate it for you. A
+component written as `state + dt * f(state, rates)` is therefore first order
+even under `"second_order"`, however good the rates are. Two ways to be second order,
+both using the rates frozen at the values you were given:
+
+- **Solve the step exactly.** For a relaxation towards a target — much the
+  commonest shape — this is the one-liner `detritusDynamics()` uses above, and
+  mizer's own `resource_semichemostat()` is the same pattern. Exact for frozen
+  coefficients, so the only error left is the O(dt^2) in the rates themselves,
+  and it is unconditionally stable into the bargain.
+- **Take an RK2 step inside your function**: `y + dt * f(y + dt / 2 * f(y))`.
+  General, and enough for anything non-linear.
+
+Explicit time dependence of your own goes the same way, since `t` is the start
+of the step in both calls: integrate the forcing across the step or evaluate it
+at `t + dt / 2`. None of this gains anything under the default `"euler"`, where
+the rates are the start-of-step ones and the step is first order whatever you do
+inside, but neither does it cost anything there.
+
+Test any new component under `method = "second_order"` as well as the default;
+halving `dt` should then move the answer by roughly a quarter rather than a
+half.
+
+### Components and the steady state
+
+A component you give a `dynamics_fun` is outside mizer's steady-state
+machinery, in both directions, and a model with one needs checking accordingly:
+
+- `tuneSteadyState()`, `findSteadyState(solver = "newton")` and `getStability()`
+  hold the component at its stored value and solve the consumer-resource
+  subsystem around it. Mizer warns when it meets a component with dynamics of
+  its own.
+- `isSteady()`, the `summary()` drift line and `project(check_steady = TRUE)`
+  judge that same subsystem. A component's state can be any object at all, so
+  mizer cannot form a biomass for it and does not fold its rate of change into
+  the number. **A model can be `isSteady()` while your component is moving.**
+
+Mizer names any component that is moving whenever it reports on the drift, and
+`attr(getSteadyResidual(params), "other")` holds the per-cell relative rates of
+change it measured, reduced by `max(abs(...))` for reporting — an overestimate
+whenever the component has fast cells holding almost nothing, which is why that
+number is reported rather than compared against a tolerance.
+
+To settle a component along with everything else, use `projectUntilSettled()`,
+which advances it like every other state variable; its stopping rule does wait
+for the component. Issue #589 tracks giving components a way to declare their
+own reduction and so re-enter the criterion.
+
+
+## Extending plots and summaries: S3 methods on an S3 extension class
+
+This is the most flexible route that still works with mizer's public generics.
+`MizerParams` and `MizerSim` are S3 classes, and an extension package defines S3
+methods for its own extension class — `getBiomass.MyMizerSim()`,
+`plotBiomass.MyMizerSim()`, `summary.MyMizerParams()` — which is what makes a
+summary or plot account for components the extension added. Every such method
+must call `NextMethod()`, so that several extensions loaded at once compose
+instead of overwriting each other.
+
+Writing that package — the extension class, recording with `recordExtension()`
+and the methods — is the subject of the `create-extension-package` skill, and
+the order the methods then run in is the subject of the
+`use-extension-packages` skill.
+
+## Storing parameters
+
+- **`other_params(params)$foo <- value`** — model-wide parameters your custom
+  functions can read.
+- **`component_params`** (a `setComponent()` argument) — parameters scoped to one
+  component.
+
+Keeping the two separate is what keeps `params@other_params` readable when
+several custom functions are in play.
+
+## `customFunction()` (last resort)
+
+`customFunction()` replaces an internal mizer function inside the package
+namespace. Reach for it only after confirming that `setRateFunction()`,
+`setComponent()`, `resource_dynamics()<-` and `setReproduction()` cannot express
+the change: a replacement that is not fully compatible breaks the package, and
+nothing checks that it is.
+
+## Testing and packaging
+
+- Test **both** halves: that `setRateFunction()` or `setComponent()` succeeds,
+  and that the downstream function you actually care about — `getEncounter()`,
+  `getDiet()`, `project()` — uses your extension as intended.
+- After registering a custom rate, run `project()` on a short horizon and check
+  the affected `get…()` output looks right; write a `testthat` test that compares
+  against a hand-computed value on a small model.
+- If a custom rate depends on the abundances through a threshold, read
+  [Discontinuous rate functions](discontinuous_rates.html) before trusting any
+  results.
+- Once an extension is useful in more than one project, or you want to give it
+  to someone else, make it a package: a stable namespace mizer can resolve
+  function names in, somewhere for tests and documentation to live, and a version
+  that gets recorded in the model metadata. Everything that only matters once
+  you share — S3 extension classes, `recordExtension()`, dispatch via
+  `NextMethod()`, bundled data objects, reporting through `info_level`, and
+  upgrading objects saved by an earlier version — is in the
+  `create-extension-package` skill. For the other side of it, loading and saving
+  a model that needs an extension package, see the
+  `use-extension-packages` skill.
+- For a larger design, it is worth discussing the interface on the
+  [mizer issue tracker](https://github.com/sizespectrum/mizer/issues) before
+  committing to it.
+
+---
+
+## Project notes
+
+If a `NOTES.md` file sits beside this one, read it too before you start: it
+records what earlier work in *this* project found, and wins over the guidance
+above wherever the two disagree.
+
+Write what you learn about this project into that `NOTES.md`, creating it if
+it is not there. Do not edit `SKILL.md`: it is installed by
+`mizerAgents::setup_mizer_agent()` and your edits would be reported as a
+conflict on the next run rather than kept.
+
+A lesson that is true of mizer in general, rather than of this project,
+belongs upstream where every project gets it. Tell the user, and offer to
+report it at <https://github.com/sizespectrum/mizerAgents/issues>.

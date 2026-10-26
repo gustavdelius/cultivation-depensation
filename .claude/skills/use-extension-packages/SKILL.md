@@ -1,0 +1,248 @@
+---
+name: use-extension-packages
+description: >-
+  Work with a mizer model that uses extension packages — mizerExperimental,
+  mizerEcopath, mizerShelf, therMizer, mizerMR, mizerSeasonal and the rest. Use
+  whenever a project loads such a package, whenever a MizerParams or MizerSim
+  object has to be written to disk or read back (saveParams/readParams,
+  saveSim/readSim), whenever a saved model has to be shared with or received
+  from a collaborator, or whenever an extension's methods are not being called,
+  a model fails to load for want of a package, or two extensions have to be
+  combined and the library() order matters. Never write a params object with
+  saveRDS(). To write an extension rather than use one, see the extend-mizer
+  skill.
+---
+
+# Using mizer extension packages
+
+Extension packages add new biology to mizer — extra mortality terms, additional
+components such as detritus and carrion, overridden plotting functions. You do
+not need to know how they are built to use them, but you do need to know how
+mizer keeps track of them, because the bookkeeping is invisible until it goes
+wrong.
+
+Two rules cover almost everything:
+
+1. **Load the extension packages with `library()` before you build, read or use
+   a model that needs them.** The chain is rebuilt in load order every session.
+2. **Persist models with `saveParams()`/`readParams()` (or
+   `saveSim()`/`readSim()`) rather than bare `saveRDS()`/`readRDS()`.** The S3
+   class is preserved either way, but mizer's helpers also validate and upgrade
+   the object, check its custom functions, and load any extension packages it
+   needs. A bare `readRDS()` does none of that, so the class can be present while
+   its extension methods are not registered in the session.
+
+## Available extension packages
+
+- **[mizerExperimental](https://github.com/sizespectrum/mizerExperimental)** —
+  A community-driven collection of experimental features being refined before
+  potential inclusion in the core mizer package.
+- **[mizerShiny](https://github.com/gustavdelius/mizerShiny)** — Provides a
+  web-based Shiny interface for running and exploring mizer models without
+  writing R code.
+- **[therMizer](https://github.com/sizespectrum/therMizer)** — Incorporates
+  temperature-dependent metabolic rates and aerobic scope into mizer, with
+  support for size- and depth-varying thermal exposure.
+- **[mizerEcopath](https://github.com/gustavdelius/mizerEcopath)** — Provides
+  tools for calibrating mizer models using Ecopath biomass estimates, bridging
+  the two modelling frameworks.
+- **[mizerStarvation](https://github.com/sizespectrum/mizerStarvation)** —
+  Implements starvation mortality, allowing fish to die when food availability
+  is insufficient to sustain their metabolic needs.
+- **[mizerMR](https://github.com/sizespectrum/mizerMR)** — Supports multiple
+  size-structured background resource spectra, enabling species to have
+  different prey preferences and ontogenetic dietary shifts.
+- **[mizerShelf](https://github.com/sizespectrum/mizerShelf)** — Adds detritus
+  and carrion components for more realistic benthic ecosystem modelling on
+  continental shelves.
+- **[mizerEvolution](https://github.com/baldrech/mizerEvolution)** — Enables
+  simulation of evolutionary trait changes and species invasions by treating
+  species as pools of phenotypes subject to natural selection.
+- **[mizerSeasonal](https://github.com/gustavdelius/mizerSeasonal)** —
+  Introduces seasonal dynamics by simulating gonadal mass accumulation and
+  spawning events over the course of a year.
+- **[mizerStomach](https://github.com/gustavdelius/mizerStomach)** — Helps
+  determine predator size-selectivity functions by fitting them to stomach
+  content data.
+
+## The extension record and S3 dispatch
+
+When an extension package creates or modifies a model, it stamps itself on the
+model's metadata. Inspect that record through the public metadata accessor:
+
+```r
+getMetadata(params)$extensions
+```
+
+The entries record each attached extension, its installation specification,
+and its version stamp. The model's S3 class vector (e.g.
+`c("mizerShelf", "MizerParams")`) determines how R dispatches method calls.
+When you call generic functions like `getBiomass(params)` or `projectRates(params)`,
+R executes the extension's method first. Calling `NextMethod()` in that method
+passes control down to the next extension in the class vector, and finally to
+base mizer.
+
+## Combining multiple extensions
+
+When two extensions both override the same mizer function — say `getBiomass()` —
+the order of classes in `class(params)` decides which version runs first. The
+outermost extension gets the first say, calls `NextMethod()`, and extends the
+result returned by the inner extensions.
+
+```r
+params <- setMultipleResources(params, ...) # adds mizerMR
+params <- setShelf(params, ...)             # adds mizerShelf on top
+class(params)
+# [1] "mizerShelf" "mizerMR" "MizerParams"
+```
+
+## Params objects and the extension chain
+
+When an extension package creates a `MizerParams` object (for example
+`mizerShelf::newDetritusCarrionParams()`), it records the extension packages
+actually applied to that object in its metadata:
+
+```r
+getMetadata(params)$extensions
+```
+
+That record serves two purposes:
+
+1. **Reproducibility.** It says which extension packages built the model, the
+   installation requirement for each, and the package version whose object
+   layout each component conforms to.
+2. **Class consistency.** Mizer uses it to construct and validate the S3 class
+   vector, so that functions like `getBiomass()` dispatch to the right extension
+   methods. This also repairs legacy files in which the extension classes were
+   not stored.
+
+### Saving and loading
+
+```r
+saveParams(params, "my_model.rds")
+params <- readParams("my_model.rds")
+```
+
+Before saving, `saveParams()` warns if the model relies on custom functions
+defined only in your R session — a custom rate function, selectivity function or
+predation kernel written in a script. Those functions are not stored in the
+file, so the script has to travel with the `.rds`.
+
+`saveParams()` stores the object's complete S3 class vector. `readParams()`
+upgrades the object if it was written by an older mizer, loads the required
+extension packages, and validates that class vector against the recorded
+extension chain. As long as the required packages are installed, this is
+seamless; if one is missing, `readParams()` stops with an error naming it.
+
+`MizerSim` objects carry their params object inside them, so the extensions are
+embedded there too. Use `saveSim()` and `readSim()`, which do the same
+loading and coercion:
+
+```r
+sim <- project(params, t_max = 10)
+saveSim(sim, "my_simulation.rds")
+sim <- readSim("my_simulation.rds")
+```
+
+For the metadata that should accompany a model you intend to share
+(`setMetadata()`), see the `build-model` skill.
+
+## Sharing models with collaborators
+
+A collaborator needs the same extension packages installed. `readParams()` and
+`readSim()` tell them which are missing. To install them automatically from the
+specifications stored in the model's extension metadata:
+
+```r
+params <- readParams("my_model.rds", install_extensions = TRUE)
+```
+
+This installs each package from the recorded requirement specification, such as
+a CRAN version requirement or a GitHub repository. The separate recorded
+version stamp describes the object layout for upgrade purposes; it does not
+necessarily pin installation to that exact package release.
+
+## Built-in example models from extension packages
+
+Extension packages often ship ready-made `MizerParams` or `MizerSim` objects as
+example models. As long as the package follows mizer's conventions, these work
+as soon as the package is loaded:
+
+```r
+library(mizerShelf)
+NWMed_params   # already has the correct extension class -- no extra steps needed
+```
+
+If an object from an older package does not behave as expected, load that
+package and repair the object with `validParams()` (or `validSim()` for a
+simulation). Direct calls to `coerceToExtensionClass()` and `recordExtension()`
+are for extension package authors, not model users.
+
+## Common scenarios
+
+### A model fails to load for want of a package
+
+```
+Error in readParams("my_model.rds") :
+  Some required extension packages are not installed: mizerShelf
+```
+
+Install it manually (`pak::pkg_install("sizespectrum/mizerShelf")`) or reload
+with `readParams("my_model.rds", install_extensions = TRUE)`.
+
+### Checking what a params object requires
+
+```r
+getMetadata(params)$extensions
+```
+
+The names are the extension identifiers. Current entries each contain a
+`requirement` (where or at what minimum version to install the package) and a
+`version` stamp (the package version whose object layout the component conforms
+to). Legacy objects may still show the older named-character-vector form;
+mizer accepts both.
+
+### Making a script reproducible
+
+Put the `library()` calls at the top in a fixed order, and use `saveParams()` and
+`readParams()` to persist and reload models.
+
+<!-- agent-only -->
+## Symptom index
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `readParams()`/`readSim()` errors "Some required extension packages are not installed" | The extensions recorded in the file name a package this library does not have | Install it, or re-read with `install_extensions = TRUE` |
+| An extension's method is not called: results match plain mizer, no error | The extension package was not loaded, or the object has a stale or legacy class vector | `library(<pkg>)`, then `params <- validParams(params)`; use `readParams()` rather than bare `readRDS()` in future |
+| `getMetadata(params)$extensions` is empty on a model an extension built | The extension's setup function did not record itself, or the object predates that mechanism | Load the package and rerun its setup/conversion function or rebuild the model; coercion alone does not persist the missing record |
+| `saveParams()` warns "Your model is using the functions …" | A custom rate, selectivity or kernel function lives only in the session | Ship the defining script alongside the `.rds`; the warning is not a failure |
+
+Before writing a params object to disk in a project that loads any extension
+package, check that the code path uses `saveParams()`. Although `saveRDS()` now
+preserves the S3 class, it skips mizer's validation, portability checks and
+custom-function warning; `readRDS()` also skips extension loading and upgrades.
+<!-- /agent-only -->
+
+## See also
+
+- The `extend-mizer` skill — the mechanisms an extension is built from.
+- [Creating a mizer extension package](guide-create-extension-package.html) — how to
+  package your own extension and make it composable with others.
+- `?saveParams`, `?readParams`, `?saveSim`, `?readSim`
+
+---
+
+## Project notes
+
+If a `NOTES.md` file sits beside this one, read it too before you start: it
+records what earlier work in *this* project found, and wins over the guidance
+above wherever the two disagree.
+
+Write what you learn about this project into that `NOTES.md`, creating it if
+it is not there. Do not edit `SKILL.md`: it is installed by
+`mizerAgents::setup_mizer_agent()` and your edits would be reported as a
+conflict on the next run rather than kept.
+
+A lesson that is true of mizer in general, rather than of this project,
+belongs upstream where every project gets it. Tell the user, and offer to
+report it at <https://github.com/sizespectrum/mizerAgents/issues>.
