@@ -952,11 +952,11 @@ html.touring .viewer { position: static; }
       id: "ban",
       tab: "The fishing ban",
       title: "Bring the predator back with a fishing ban",
-      brief: "This sea was overfished. The predators are gone and forage fish have taken over. Predator fishing is now banned. You may also release young predators from a hatchery.",
+      brief: "This sea was overfished. The predators are gone and forage fish have taken over. Predator fishing is now banned and the forage fish stay unfished, so the ban is tested on its own. Your only tool is a hatchery: release young predators up to three times.",
       start: "State_C", Fp: 0, Ff: 0,
       locks: {
         Fp: "Banned. No predator fishing.",
-        Ff: "Not part of this plan.",
+        Ff: "Fixed at zero: this mission tests the ban on its own.",
       },
       restock: 3,
       goals: () => ["Rebuild the predator stock to half its healthy level", "Within 80 years"],
