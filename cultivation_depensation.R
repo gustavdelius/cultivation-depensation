@@ -80,17 +80,32 @@ R0_from_rates <- function(p, g, mort, e_repro, D, species) {
 #' maturity; the default 0.9 gives a 25-75% maturation range of about 20% of
 #' that length, whereas mizer's default ogive (`ogive_l25 = NA`) is much steeper.
 #'
+#' The resource capacity tapers off smoothly around `w_pp_cutoff`,
+#' kappa w^-lambda / (1 + (w / w_pp_cutoff)^taper); a sharp cutoff
+#' (`taper = NA`) puts a discontinuity into the prey spectrum whose position
+#' relative to the size grid makes the feeding integrals only first-order
+#' accurate.
+#'
+#' Size diffusion continues where mean growth stops, so without further
+#' mortality adults spread far beyond w_inf and the results depend on where
+#' the grid ends (`w_max = w_max_factor * w_inf`). A senescence mortality
+#' z_sen (w / w_inf)^k_sen removes that tail.
+#'
 #' `flux = "upwind"` switches to mizer's original first-order scheme; together
 #' with `no_w = 80`, `c_diff = 0`, `min_w_pp = 1e-6`,
-#' `selectivity = "knife_edge"` and `ogive_l25 = NA` it reproduces the model of
-#' the first version of this study.
+#' `selectivity = "knife_edge"`, `ogive_l25 = NA`, `taper = NA`,
+#' `w_max_factor = 1` and `z_sen = 0` it reproduces the model of the first
+#' version of this study.
 build_cultivation_model <- function(no_w = 320, theta_FF = 0.05, theta_PP = 0.05,
                                     w_pp_cutoff = 10, c_diff = 0.1,
                                     flux = "centred", min_w_pp = 1e-9,
-                                    selectivity = "sigmoid", ogive_l25 = 0.9) {
+                                    selectivity = "sigmoid", ogive_l25 = 0.9,
+                                    taper = 4, w_max_factor = 2,
+                                    z_sen = 0.5, k_sen = 10) {
   sp <- data.frame(
     species          = c("Forage", "Predator"),
     w_inf            = c(20, 2000),
+    w_max            = w_max_factor * c(20, 2000),
     w_mat            = c(4, 250),
     w_min            = c(0.001, 0.001),
     beta             = c(200, 100),
@@ -141,12 +156,30 @@ build_cultivation_model <- function(no_w = 320, theta_FF = 0.05, theta_PP = 0.05
     no_w             = no_w,
     min_w_pp         = min_w_pp,
     kappa            = 100,
-    w_pp_cutoff      = w_pp_cutoff,
+    w_pp_cutoff      = if (is.na(taper)) w_pp_cutoff else 100 * w_pp_cutoff,
     resource_rate    = 10,
     second_order_w   = flux != "upwind",
     info_level       = 0
   )
   if (flux != "upwind") second_order_w(params) <- flux
+  if (!is.na(taper)) {
+    # Capacity values are bin averages; apply the taper at the bin centres
+    wf <- w_full(params)
+    w_centre <- wf * exp(log(wf[2] / wf[1]) / 2)
+    cap <- resource_capacity(params) / (1 + (w_centre / w_pp_cutoff)^taper)
+    params <- setResource(params, resource_capacity = cap, balance = FALSE)
+    initialNResource(params) <- cap
+  }
+  if (z_sen > 0) {
+    # Senescence: without it the size diffusion, which continues where mean
+    # growth stops, spreads adults far beyond w_inf and the results depend on
+    # w_max. Bin averages of (w / w_inf)^k_sen on a second-order grid.
+    w_l <- w(params); w_r <- w_l + dw(params)
+    sen <- outer(z_sen / species_params(params)$w_inf^k_sen,
+                 if (flux == "upwind") w_l^k_sen else
+                   (w_r^(k_sen + 1) - w_l^(k_sen + 1)) / ((k_sen + 1) * dw(params)))
+    ext_mort(params) <- ext_mort(params) + sen
+  }
   sp_p <- species_params(params)
   given_species_params(params)$D_ext <-
     c_diff * (sp_p$alpha * sp_p$f0 * sp_p$h - sp_p$ks)
@@ -535,14 +568,27 @@ if (sys.nframe() == 0) {
   wf <- w_full(params_A)
   cc <- resource_capacity(params_A)
   rp <- resource_params(params_A)
+  bf <- formals(build_cultivation_model)
+  # The capacity exceeds the State A resource by the factor 1 + mu_R / r_R;
+  # report its maximum over the sizes that fish feed on
+  nr <- initialNResource(params_A)
+  fed <- nr > 0 & wf >= min(w(params_A)) / 1e4
   res$resource <- list(
     kappa = rp$kappa, lambda = rp$lambda, n = rp$n, r_pp = rp$r_pp,
-    w_pp_cutoff = rp$w_pp_cutoff, min_w_pp = min(wf),
-    capacity_ratio_max = max(cc[cc > 0] / (rp$kappa * wf[cc > 0]^(-rp$lambda)))
+    w_taper = bf$w_pp_cutoff, taper = bf$taper, max_w_pp = rp$w_pp_cutoff,
+    min_w_pp = min(wf),
+    capacity_ratio_max = max(cc[fed] / nr[fed]),
+    w_at_capacity_ratio_max = wf[fed][which.max(cc[fed] / nr[fed])]
   )
   res$grid <- list(no_w = length(w(params_A)), dx = log(w(params_A)[2] / w(params_A)[1]))
   em <- ext_mort(params_A)
   res$ext_mort_wmin <- em[, params_A@w_min_idx[1]]
+  res$senescence <- list(z_sen = bf$z_sen, k_sen = bf$k_sen,
+                         w_max_factor = bf$w_max_factor)
+  # Share of each species' biomass above w_inf at State A
+  bw <- sweep(initialN(params_A), 2, w(params_A) * dw(params_A), "*")
+  res$biomass_above_w_inf <- sapply(rownames(bw), function(s)
+    sum(bw[s, w(params_A) > species_params(params_A)[s, "w_inf"]]) / sum(bw[s, ]))
 
   # -------------------------------------------------------------------------
   # Fixed points, R0 and eigenvalues
@@ -704,12 +750,13 @@ if (sys.nframe() == 0) {
   #   Phase 1 (0-50):    Unfished State A (F_Pred = 0, F_Forage = 0)
   #   Phase 2 (50-200):  Predator overfished (F_Pred = 0.25, F_Forage = 0) -> Collapse to State C
   #   Phase 3 (200-320): Predator moratorium + re-introduction seed (F_Pred = 0, F_Forage = 0) -> Cannot re-enter
-  #   Phase 4 (320-470): Harvest Forage fish + seed (F_Pred = 0, F_Forage = 0.30) -> Predator recovers
+  #   Phase 4 (320-470): Harvest Forage fish + seed (F_Pred = 0, F_Forage = 0.40, above
+  #                      the recovery threshold F_forage_rec) -> Predator recovers
   #   Phase 5 (470-570): All fishing stopped (F_Pred = 0, F_Forage = 0) -> Coexistence State A self-sustains
   # -------------------------------------------------------------------------
   cat("Management time series...\n")
   f_over <- 0.25
-  f_forage_restore <- 0.30
+  f_forage_restore <- 0.40
   sim1 <- project(params_A, effort = F0, t_max = 50, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
   sim2 <- project(finalParams(sim1), effort = c(Forage = 0, Predator = f_over), t_max = 150, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
 
@@ -771,7 +818,7 @@ if (sys.nframe() == 0) {
   # Plot 5: Predator Invasion Fitness in State C & 2D Exploitation Regime Diagram
   # -------------------------------------------------------------------------
   cat("Predator R0 in State C along F_Forage...\n")
-  Ff_fine <- seq(0, 0.50, by = 0.025)
+  Ff_fine <- seq(0, 0.70, by = 0.025)
   r0_pred_C <- numeric(length(Ff_fine))
   b_for_C <- numeric(length(Ff_fine))
   p_C_curr <- params_C
@@ -792,7 +839,7 @@ if (sys.nframe() == 0) {
   res$B_forage_C_at_inv <- unname(getBiomass(settle(params_C, c(Forage = res$F_forage_inv, Predator = 0)))["Forage"])
 
   cat("Mapping regime boundaries in the (F_Forage, F_Pred) plane...\n")
-  Ff_map <- seq(0, 0.50, by = 0.025)
+  Ff_map <- seq(0, 0.70, by = 0.025)
   bounds <- do.call(rbind, parallel::mclapply(Ff_map, function(Ff) {
     map_regime(params_A, params_C, Ff)
   }, mc.cores = n_cores))
@@ -809,7 +856,7 @@ if (sys.nframe() == 0) {
 
   # The boundaries vary smoothly with F_Forage, so interpolate them onto a finer
   # grid for drawing; F_inv starts from zero at F_Forage,inv.
-  Ff_draw <- seq(0, 0.5, by = 0.0025)
+  Ff_draw <- seq(0, 0.7, by = 0.0025)
   has_inv <- !is.na(bounds$F_inv)
   inv_x <- c(res$F_forage_inv, bounds$F_Forage[has_inv])
   inv_y <- c(0, bounds$F_inv[has_inv])
@@ -869,7 +916,7 @@ if (sys.nframe() == 0) {
     geom_line(data = bound_lines, aes(x = F_Forage, y = F_Pred, linetype = Boundary), linewidth = 0.8) +
     scale_fill_manual(values = regime_cols) +
     scale_linetype_manual(values = boundary_types) +
-    coord_cartesian(xlim = c(0, 0.50), ylim = c(0, 0.6), expand = FALSE) +
+    coord_cartesian(xlim = c(0, 0.70), ylim = c(0, 0.6), expand = FALSE) +
     labs(
       title = "B. Two-Parameter Exploitation Regime Diagram",
       x = "Forage fishing mortality F_Forage [1/year]",
@@ -904,8 +951,9 @@ if (sys.nframe() == 0) {
     list("640 size classes", no_w = 640),
     list("Original model (first-order, 80 classes, no diffusion)",
          no_w = 80, flux = "upwind", c_diff = 0, min_w_pp = 1e-6,
-         selectivity = "knife_edge", ogive_l25 = NA),
-    list("Resource cut off at 1 g", w_pp_cutoff = 1)
+         selectivity = "knife_edge", ogive_l25 = NA, taper = NA,
+         w_max_factor = 1, z_sen = 0),
+    list("Resource tapered at 1 g", w_pp_cutoff = 1)
   )
   res$robustness <- run_jobs(variants, thresholds = TRUE)
   print(res$robustness, row.names = FALSE)
