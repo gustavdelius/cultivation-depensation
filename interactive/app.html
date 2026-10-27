@@ -1,0 +1,1935 @@
+<title>The Nursery Trap</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="A playable size-spectrum model of cultivation-depensation: why an overfished predator may not recover under a fishing ban, and how fishing its prey can bring it back.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a ship's bridge. The sea window and the control deck sit side by side;
+   the chart table (logbook, policy chart, nursery chart) runs beneath. */
+:root {
+  --bg: #e7eff0;
+  --panel: #f8fbfb;
+  --panel-2: #dde8ea;
+  --ink: #0d2730;
+  --ink-2: #41606a;
+  --ink-3: #6b8790;
+  --line: #c2d3d7;
+  --accent: #0b6476;
+  --accent-ink: #f3fbfc;
+  --predator: #c4520a;
+  --forage: #0a6aa6;
+  --safe: #2f8f63;
+  --tip: #cf8d12;
+  --lost: #3d67a6;
+  --good: #22724a;
+  --bad: #b23a22;
+  --fog: rgba(13, 39, 48, 0.78);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", Verdana, "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #071519; --panel: #0d2229; --panel-2: #143039; --ink: #e1edef; --ink-2: #a5bec5;
+    --ink-3: #7d979e; --line: #24444e; --accent: #4fb3c6; --accent-ink: #061418;
+    --predator: #e06a2c; --forage: #3593d4; --safe: #47b884; --tip: #e6a83a; --lost: #6d93d6;
+    --good: #5cc48c; --bad: #ef7a5e; --fog: rgba(4, 14, 18, 0.82);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #071519; --panel: #0d2229; --panel-2: #143039; --ink: #e1edef; --ink-2: #a5bec5;
+  --ink-3: #7d979e; --line: #24444e; --accent: #4fb3c6; --accent-ink: #061418;
+  --predator: #e06a2c; --forage: #3593d4; --safe: #47b884; --tip: #e6a83a; --lost: #6d93d6;
+  --good: #5cc48c; --bad: #ef7a5e; --fog: rgba(4, 14, 18, 0.82);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 18px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.eyebrow {
+  font: 600 11px/1.2 var(--font-data);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---- Masthead ---- */
+.masthead { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.masthead-top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: end; justify-content: space-between; }
+.title-block { display: grid; gap: 6px; max-width: 760px; }
+h1 {
+  font-size: clamp(34px, 5vw, 56px);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  font-variation-settings: "opsz" 96;
+}
+h1 .hook { color: var(--predator); }
+.lede { font-size: 17px; color: var(--ink-2); max-width: 66ch; }
+.missions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mission-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.mission-tab .badge {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--panel-2); color: var(--ink-2);
+  font: 600 12px/1 var(--font-data);
+}
+.mission-tab[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.mission-tab[aria-pressed="true"] .badge { background: var(--bg); color: var(--ink); }
+.mission-tab.done .badge { background: var(--good); color: var(--panel); }
+.mission-tab:hover { border-color: var(--ink-3); }
+
+/* ---- Console: sea + deck ---- */
+.console { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); align-items: start; }
+.console .left { display: grid; gap: 14px; min-width: 0; }
+@media (max-width: 980px) {
+  .console { grid-template-columns: minmax(0, 1fr); }
+  .console .left { display: contents; }
+  .sea-frame { order: 1; }
+  .deck { order: 2; }
+  .status-strip { order: 3; }
+}
+.status-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.7fr); gap: 12px 18px; align-items: start; }
+@media (max-width: 1180px) { .status-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); } .status-strip .gauge { grid-column: 1 / -1; } }
+@media (max-width: 620px) { .status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.sea-frame {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #0b3446;
+  aspect-ratio: 16 / 10;
+  max-width: 100%;
+  min-height: 300px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 12px 30px -18px rgba(5, 30, 40, 0.6);
+}
+#sea { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sea-hud {
+  position: absolute; inset: 0 0 auto 0;
+  display: flex; justify-content: space-between; align-items: start; gap: 10px;
+  padding: 10px;
+  pointer-events: none;
+}
+.sea-hud > * { pointer-events: auto; }
+.transport {
+  display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+  background: rgba(4, 24, 32, 0.62);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 4px;
+  color: #e8f4f6;
+}
+.transport button {
+  border: 0; background: transparent; color: inherit; cursor: pointer;
+  padding: 5px 9px; border-radius: 6px; font-size: 13px; line-height: 1.2;
+}
+.transport button:hover { background: rgba(255,255,255,0.12); }
+.transport button[aria-pressed="true"] { background: #e8f4f6; color: #0b3446; }
+.transport .play { font-weight: 700; min-width: 74px; }
+.transport .sep { width: 1px; align-self: stretch; background: rgba(255,255,255,0.2); margin: 2px 3px; }
+.clock {
+  background: rgba(4, 24, 32, 0.62);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: #e8f4f6;
+  text-align: right;
+}
+.clock .label { font: 600 10px/1 var(--font-data); letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7; }
+.clock .year { font: 500 22px/1.1 var(--font-data); }
+.sea-legend {
+  position: absolute; left: 10px; bottom: 10px;
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  background: rgba(4, 24, 32, 0.55);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 5px 10px;
+  color: #dcecef;
+  font-size: 12px;
+  max-width: calc(100% - 20px);
+}
+.sea-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sea-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.toast-stack {
+  position: absolute; right: 10px; bottom: 10px;
+  display: grid; gap: 6px; justify-items: end;
+  max-width: min(360px, calc(100% - 20px));
+  pointer-events: none;
+}
+.toast {
+  background: rgba(250, 253, 253, 0.94);
+  color: #0d2730;
+  border-left: 4px solid var(--tip);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px -8px rgba(0,0,0,0.5);
+  animation: toast-in 0.35s ease-out;
+}
+.toast.bad { border-left-color: #c4402a; }
+.toast.good { border-left-color: #2f8f63; }
+.toast b { font-family: var(--font-data); font-weight: 500; margin-right: 4px; }
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.debrief {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  padding: 16px;
+  background: rgba(4, 20, 27, 0.55);
+  backdrop-filter: blur(2px);
+}
+.debrief-card {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  display: grid; gap: 12px;
+  box-shadow: 0 20px 50px -20px rgba(0,0,0,0.6);
+}
+.debrief-card h2 { font-size: 26px; line-height: 1.1; }
+.debrief-card .verdict { font: 600 12px/1 var(--font-data); letter-spacing: 0.1em; text-transform: uppercase; }
+.debrief-card .verdict.win { color: var(--good); }
+.debrief-card .verdict.lose { color: var(--bad); }
+.debrief-card p { color: var(--ink-2); }
+.debrief-card .actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+
+/* ---- Deck ---- */
+.deck { display: grid; gap: 14px; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.mission-card { border-top: 4px solid var(--accent); }
+.mission-card h2 { font-size: 22px; line-height: 1.15; }
+.mission-card .brief { color: var(--ink-2); font-size: 15px; }
+.objective {
+  display: grid; gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.objective ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.objective li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; align-items: start; }
+.objective li::before { content: "○"; color: var(--ink-3); font-family: var(--font-data); }
+.objective li.met::before { content: "●"; color: var(--good); }
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+.hint { font-size: 14px; color: var(--ink); padding-left: 10px; border-left: 3px solid var(--tip); }
+.hint:empty { display: none; }
+
+.lever { display: grid; gap: 6px; }
+.lever-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lever-head label { font-weight: 700; display: inline-flex; gap: 8px; align-items: center; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.lever-value { font: 500 14px/1.2 var(--font-data); white-space: nowrap; }
+.lever-sub { font-size: 13px; color: var(--ink-2); min-height: 1.4em; }
+.lever.locked .lever-sub { color: var(--ink-3); }
+input[type="range"] { width: 100%; margin: 4px 0; cursor: pointer; }
+input[type="range"]:disabled { cursor: not-allowed; opacity: 0.45; }
+#fp-slider { accent-color: var(--predator); }
+#ff-slider { accent-color: var(--forage); }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.btn:hover:not(:disabled) { border-color: var(--ink-3); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.btn .count { font-family: var(--font-data); font-size: 12px; opacity: 0.75; margin-left: 4px; }
+
+.readout { display: grid; gap: 2px; min-width: 0; }
+.readout .value { font: 500 22px/1.15 var(--font-data); font-variant-numeric: tabular-nums; }
+.readout .value small { font-size: 13px; color: var(--ink-2); margin-left: 3px; }
+.readout .note { font-size: 13px; color: var(--ink-2); }
+.readout .note.bad { color: var(--bad); font-weight: 700; }
+.readout .note.good { color: var(--good); }
+
+.gauge { display: grid; gap: 6px; }
+.gauge-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.gauge-head strong { font-family: var(--font-display); font-size: 16px; }
+.gauge-track { position: relative; height: 14px; border-radius: 7px; background: var(--panel-2); overflow: visible; }
+.gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: 7px; background: var(--predator); transition: width 0.25s; }
+.gauge-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.gauge-mark span {
+  position: absolute; top: 20px; transform: translateX(-50%);
+  font: 500 10px/1 var(--font-data); color: var(--ink-2); white-space: nowrap;
+}
+.gauge-scale { height: 14px; }
+.gauge-text { font-size: 13px; color: var(--ink-2); }
+.state-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font: 600 11px/1.5 var(--font-data); letter-spacing: 0.05em; text-transform: uppercase;
+}
+.state-pill.good { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.state-pill.bad { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+
+/* ---- Chart table ---- */
+.charts { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+@media (max-width: 1180px) { .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .charts .wide { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+figure.panel { margin: 0; }
+.fig-head { display: grid; gap: 4px; }
+.fig-head h2 { font-size: 19px; line-height: 1.2; }
+.fig-head p { font-size: 14px; color: var(--ink-2); max-width: 62ch; }
+.chart { position: relative; width: 100%; min-width: 0; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--ink-3); }
+.chart .row-title { font-family: var(--font-body); font-size: 12px; font-weight: 700; fill: var(--ink-2); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--ink-3); stroke-width: 1; }
+.chart .ref { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
+.chart .s-pred { stroke: var(--predator); stroke-width: 2; fill: none; stroke-linejoin: round; }
+.chart .s-forage { stroke: var(--forage); stroke-width: 2; fill: none; stroke-linejoin: round; }
+.chart .a-pred { fill: var(--predator); opacity: 0.12; }
+.chart .a-forage { fill: var(--forage); opacity: 0.12; }
+.chart .crosshair { stroke: var(--ink); stroke-width: 1; opacity: 0.5; }
+.chart .label-pred { fill: var(--predator); font-weight: 500; }
+.chart .label-forage { fill: var(--forage); font-weight: 500; }
+.chart .region-safe { fill: var(--safe); opacity: 0.22; }
+.chart .region-tip { fill: url(#hatch); }
+.chart .region-tip-base { fill: var(--tip); opacity: 0.2; }
+.chart .region-lost { fill: var(--lost); opacity: 0.2; }
+.chart .line-fold { stroke: var(--bad); stroke-width: 2.5; fill: none; }
+.chart .line-inv { stroke: var(--safe); stroke-width: 2.5; fill: none; stroke-dasharray: 7 5; }
+.chart .region-label { font-family: var(--font-display); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.chart .region-sub { font-family: var(--font-body); font-size: 11.5px; fill: var(--ink-2); }
+.chart .track-on { fill: var(--predator); }
+.chart .track-off { fill: var(--forage); }
+.chart .boat { fill: var(--ink); stroke: var(--panel); stroke-width: 2; }
+.chart .boat-halo { fill: none; stroke: var(--ink); stroke-width: 1.5; opacity: 0.35; }
+.chart .click-layer { fill: transparent; cursor: crosshair; }
+.chart .click-layer.locked { cursor: not-allowed; }
+.chart .fog-rect { fill: var(--fog); }
+.chart .fog-text { font-family: var(--font-display); font-size: 16px; font-weight: 700; fill: #f1f8f9; }
+.chart .fog-sub { font-family: var(--font-body); font-size: 12.5px; fill: #c9dde1; }
+.chart .zone-band { fill: var(--forage); opacity: 0.08; }
+.tooltip {
+  position: absolute; pointer-events: none;
+  background: var(--ink); color: var(--bg);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font: 12px/1.45 var(--font-data);
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 10px));
+  z-index: 3;
+}
+.tooltip[hidden] { display: none; }
+.tooltip .k { opacity: 0.7; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; }
+.legend i.dash { border-top-style: dashed; }
+.legend i.box { width: 12px; height: 12px; border: 0; border-radius: 2px; }
+.big-stat { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.big-stat .n { font: 500 34px/1 var(--font-data); color: var(--predator); }
+.big-stat .t { font-size: 14px; color: var(--ink-2); max-width: 36ch; }
+details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
+details.table-view .scroll { overflow-x: auto; max-height: 220px; margin-top: 8px; }
+details.table-view table { border-collapse: collapse; font: 12px/1.4 var(--font-data); font-variant-numeric: tabular-nums; }
+details.table-view th, details.table-view td { padding: 3px 10px 3px 0; text-align: right; border-bottom: 1px solid var(--line); }
+details.table-view th { position: sticky; top: 0; background: var(--panel); color: var(--ink-2); font-weight: 500; }
+
+/* ---- Explainer ---- */
+.explainer { display: grid; gap: 18px; }
+.explainer > h2 { font-size: 28px; line-height: 1.1; }
+.loop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .loop { grid-template-columns: minmax(0, 1fr); } }
+.loop .panel h3 { font-size: 18px; }
+.loop .panel p { color: var(--ink-2); font-size: 15px; }
+.loop .step { font: 600 12px/1 var(--font-data); color: var(--accent); letter-spacing: 0.08em; }
+.science { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 860px) { .science { grid-template-columns: minmax(0, 1fr); } }
+.science p, .science li { color: var(--ink-2); font-size: 15px; max-width: 68ch; }
+.science ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.science h3 { font-size: 18px; }
+.facts { width: 100%; border-collapse: collapse; font-size: 14px; }
+.facts td { padding: 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.facts td:last-child { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; padding-left: 12px; white-space: nowrap; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 560px) {
+  .readout .value { font-size: 19px; }
+  .sea-frame { aspect-ratio: 4 / 5; }
+  .sea-legend { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+  .progress > div, .gauge-fill { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="masthead-top">
+      <div class="title-block">
+        <p class="eyebrow">A playable fisheries model</p>
+        <h1>The Nursery <span class="hook">Trap</span></h1>
+        <p class="lede">Big predatory fish protect their own young by eating the small fish that would otherwise eat their babies. Fish the predators too hard and that protection fails. Then a fishing ban alone will not bring them back. Steer a live ecosystem model and see it happen.</p>
+      </div>
+    </div>
+    <nav class="missions" aria-label="Missions" id="mission-tabs"></nav>
+  </header>
+
+  <section class="console">
+    <div class="left">
+    <div class="sea-frame" id="sea-frame">
+      <canvas id="sea" aria-label="Animated view of the sea: plankton, forage fish, predators and fishing boats" role="img"></canvas>
+      <div class="sea-hud">
+        <div class="transport" role="group" aria-label="Simulation controls">
+          <button class="play" id="play-btn" aria-label="Pause simulation">❚❚ Pause</button>
+          <span class="sep" aria-hidden="true"></span>
+          <span class="visually-hidden" id="speed-label">Speed in model years per second</span>
+          <div id="speed-group" role="group" aria-labelledby="speed-label" style="display:flex;gap:2px"></div>
+        </div>
+        <div class="clock" aria-live="off">
+          <div class="label">Year</div>
+          <div class="year num" id="year">0</div>
+        </div>
+      </div>
+      <div class="sea-legend" aria-hidden="true">
+        <span><i style="background:#ef8a4c"></i>Predators</span>
+        <span><i style="background:#ffc39a;width:6px;height:6px"></i>Predator young</span>
+        <span><i style="background:#b9dbef"></i>Forage fish</span>
+        <span><i style="background:#8fd69a;width:6px;height:6px"></i>Plankton</span>
+      </div>
+      <div class="toast-stack" id="toasts" aria-live="polite"></div>
+      <div class="debrief" id="debrief" hidden>
+        <div class="debrief-card" role="dialog" aria-modal="false" aria-labelledby="debrief-title">
+          <div class="verdict" id="debrief-verdict"></div>
+          <h2 id="debrief-title"></h2>
+          <div id="debrief-body" style="display:grid;gap:10px"></div>
+          <div class="actions" id="debrief-actions"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel status-strip" aria-label="State of the sea">
+      <div class="readout">
+        <span class="eyebrow">Predator stock</span>
+        <span class="value" id="r-bp">–</span>
+        <span class="note" id="r-bp-note"></span>
+      </div>
+      <div class="readout">
+        <span class="eyebrow">Forage fish stock</span>
+        <span class="value" id="r-bf">–</span>
+        <span class="note" id="r-bf-note"></span>
+      </div>
+      <div class="readout">
+        <span class="eyebrow">Predator catch</span>
+        <span class="value" id="r-yp">–</span>
+        <span class="note" id="r-yp-note"></span>
+      </div>
+      <div class="readout">
+        <span class="eyebrow">Forage fish catch</span>
+        <span class="value" id="r-yf">–</span>
+        <span class="note" id="r-yf-note"></span>
+      </div>
+      <div class="gauge">
+        <div class="gauge-head">
+          <strong>Comeback number</strong>
+          <span><span class="num" id="r0-value">–</span> <span class="state-pill" id="r0-pill"></span></span>
+        </div>
+        <div class="gauge-track" aria-hidden="true">
+          <div class="gauge-fill" id="r0-fill"></div>
+          <div class="gauge-mark" id="r0-mark-1"><span>1</span></div>
+        </div>
+        <div class="gauge-scale" aria-hidden="true"></div>
+        <p class="gauge-text" id="r0-text"></p>
+      </div>
+    </div>
+    </div>
+
+    <aside class="deck">
+      <div class="panel mission-card" id="mission-card">
+        <p class="eyebrow" id="mission-eyebrow">Mission</p>
+        <h2 id="mission-title"></h2>
+        <p class="brief" id="mission-brief"></p>
+        <div class="objective" id="objective">
+          <ul id="objective-list"></ul>
+          <div class="progress" aria-hidden="true"><div id="objective-progress"></div></div>
+        </div>
+        <p class="hint" id="hint" aria-live="polite"></p>
+      </div>
+
+      <div class="panel" role="group" aria-label="Fishing policy">
+        <div class="lever" id="fp-lever">
+          <div class="lever-head">
+            <label for="fp-slider"><span class="swatch" style="background:var(--predator)"></span>Predator fishing</label>
+            <span class="lever-value" id="fp-value">F 0.00</span>
+          </div>
+          <input type="range" id="fp-slider" min="0" max="0.5" step="0.005" value="0">
+          <p class="lever-sub" id="fp-sub"></p>
+        </div>
+        <div class="lever" id="ff-lever">
+          <div class="lever-head">
+            <label for="ff-slider"><span class="swatch" style="background:var(--forage)"></span>Forage fish fishing</label>
+            <span class="lever-value" id="ff-value">F 0.00</span>
+          </div>
+          <input type="range" id="ff-slider" min="0" max="0.6" step="0.005" value="0">
+          <p class="lever-sub" id="ff-sub"></p>
+        </div>
+        <div class="btn-row" id="action-row">
+          <button class="btn" id="restock-btn">Restock young predators<span class="count" id="restock-count"></span></button>
+          <button class="btn" id="release-pred-btn" hidden>Release predators</button>
+          <button class="btn" id="release-forage-btn" hidden>Release forage fish</button>
+          <button class="btn" id="reset-btn">Restart mission</button>
+        </div>
+        <div class="btn-row" id="preset-row" hidden>
+          <span class="eyebrow" style="align-self:center">Start from</span>
+          <button class="btn" data-preset="State_A">Healthy sea</button>
+          <button class="btn" data-preset="State_C">Collapsed sea</button>
+          <button class="btn" data-preset="State_B">Predators only</button>
+          <button class="btn" data-preset="State_0">Empty sea</button>
+        </div>
+      </div>
+
+    </aside>
+  </section>
+
+  <section class="charts" aria-label="Instruments">
+    <figure class="panel wide">
+      <div class="fig-head">
+        <p class="eyebrow">Logbook</p>
+        <h2>Stocks, catches and fishing over time</h2>
+        <p>Hover to read any year. The dashed lines mark the healthy, unfished sea.</p>
+      </div>
+      <div class="legend">
+        <span><i style="border-color:var(--predator)"></i>Predator</span>
+        <span><i style="border-color:var(--forage)"></i>Forage fish</span>
+        <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy unfished level</span>
+      </div>
+      <div class="chart" id="logbook"></div>
+      <details class="table-view">
+        <summary>Show the logbook as a table</summary>
+        <div class="scroll" id="log-table"></div>
+      </details>
+    </figure>
+      <figure class="panel">
+        <div class="fig-head">
+          <p class="eyebrow">Policy chart</p>
+          <h2>Where your fishing policy sits</h2>
+          <p>Each point is one year of your policy, coloured by whether predators were still there. Click the chart to set both fishing pressures at once.</p>
+        </div>
+        <div class="chart" id="regime-chart"></div>
+        <div class="legend">
+          <span><i class="box" style="background:color-mix(in srgb, var(--safe) 40%, transparent)"></i>Safe: predators always recover</span>
+          <span><i class="box" style="background:color-mix(in srgb, var(--tip) 45%, transparent)"></i>Tipping zone: two possible seas</span>
+          <span><i class="box" style="background:color-mix(in srgb, var(--lost) 40%, transparent)"></i>Predators lost</span>
+        </div>
+      </figure>
+      <figure class="panel">
+        <div class="fig-head">
+          <p class="eyebrow">Nursery</p>
+          <h2>How dangerous is it to be a young predator?</h2>
+        </div>
+        <div class="big-stat">
+          <span class="n" id="nursery-n">–</span>
+          <span class="t" id="nursery-t">of every 1,000 young predators survive to 1 gram</span>
+        </div>
+        <div class="chart" id="nursery-chart"></div>
+        <div class="legend">
+          <span><i style="border-color:var(--predator)"></i>Now</span>
+          <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy sea</span>
+          <span><i class="dash" style="border-color:var(--forage)"></i>Forage-dominated sea</span>
+        </div>
+      </figure>
+  </section>
+
+  <section class="explainer" aria-labelledby="how-title">
+    <h2 id="how-title">What is going on under the surface</h2>
+    <div class="loop">
+      <div class="panel">
+        <p class="step">CULTIVATION</p>
+        <h3>Adult predators tend their own nursery</h3>
+        <p>Predators like cod eat forage fish like herring and sprat. By keeping forage fish scarce, the adults make the sea safe for their own larvae, which start life at one milligram, small enough to be eaten by a forage fish.</p>
+      </div>
+      <div class="panel">
+        <p class="step">DEPENSATION</p>
+        <h3>Remove the adults and the nursery turns hostile</h3>
+        <p>Fish the adults down and forage fish multiply, up to 24 times their usual abundance. They eat the predator larvae: danger in the nursery rises from about 1 to almost 40 deaths per larva per year. Too few young survive to replace their parents, and the decline feeds itself.</p>
+      </div>
+      <div class="panel">
+        <p class="step">RESTORATION</p>
+        <h3>Fishing the prey reopens the door</h3>
+        <p>A fishing ban does not remove the forage fish, so the nursery stays hostile and predators cannot return. Fishing the forage fish does the adults' old job. Once the predators are back, they take over and the forage fishery can stop again.</p>
+      </div>
+    </div>
+    <div class="science">
+      <div class="panel">
+        <h3>About the model</h3>
+        <p>The simulation runs, live in your browser, the three-group size-spectrum model of the accompanying paper (built with the <a href="https://sizespectrum.org/mizer/" target="_blank" rel="noopener">mizer</a> R package): a plankton resource, a forage fish that grows to 20 g and a predator that grows to 2 kg. Both fish species hatch at 1 mg, and who eats whom is set by body size, so roles reverse as the predator grows up.</p>
+        <ul>
+          <li>Every number you see is computed by the model as you play. Nothing is scripted. The engine is a line-by-line port of mizer's equations and reproduces mizer's own simulations to about 15 significant digits.</li>
+          <li>Fishing pressure F is the yearly fishing mortality rate. The percentage beside it is the share of catchable fish removed per year. Predators are caught from 400 g, forage fish from 1 g.</li>
+          <li>Stock sizes are model biomasses, shown as thousand tonnes (kt) to make them easier to read. Compare them with each other and with the healthy level, not with any real fishery.</li>
+          <li>The comeback number is how many offspring a predator would leave over its lifetime if predators were rare in the current sea. Above 1 a small population grows. Below 1 it shrinks, however few are caught.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Key numbers from the model</h3>
+        <table class="facts" id="facts"></table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="model_data.js"></script>
+<script src="regimes_data.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+  "use strict";
+  const M = window.MODEL, R = window.REGIMES;
+  const eng = SizeSpectrumEngine.createEngine(M);
+  const DT = 0.2, STEPS_PER_YEAR = 5;
+  const FORAGE = 0, PRED = 1;
+  const B_A = M.states.State_A.biomass;          // healthy unfished biomass [forage, predator]
+  const B_C = M.states.State_C.biomass;
+  const NW = eng.dims.NW;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (x, d = 0) => Number.isFinite(x) ? x.toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d }) : "–";
+  const pctCatch = (F) => Math.round(100 * (1 - Math.exp(-F)));
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+
+  // ---------------------------------------------------------------------
+  // Reference rates: the healthy sea (A) and the forage-dominated sea (C)
+  // ---------------------------------------------------------------------
+  const refEng = SizeSpectrumEngine.createEngine(M);
+  function referenceDiag(name) {
+    refEng.loadState(name);
+    refEng.state.effort.set([0, 0]);
+    const d = refEng.diagnostics();
+    return {
+      predMort: Array.from(d.rates.pred_mort.slice(NW, 2 * NW)),
+      S1: d.cohort[PRED].survivalTo(1),
+      R0: d.cohort[PRED].R0,
+      rdd: d.rates.rdd[PRED],
+    };
+  }
+  const REF_A = referenceDiag("State_A");
+  const REF_C = referenceDiag("State_C");
+
+  // Interpolated regime boundaries (F_forage -> F_pred)
+  const foldPts = R.fold.map((r) => [r.Ff, r.F_crit]);
+  const invPts = R.branchC.map((r) => [r.Ff, r.F_inv]);
+  function interp(pts, x) {
+    if (x <= pts[0][0]) return pts[0][1];
+    for (let i = 1; i < pts.length; i++) {
+      if (x <= pts[i][0]) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+      }
+    }
+    return pts[pts.length - 1][1];
+  }
+  const Fcrit = (Ff) => Math.max(interp(foldPts, Ff), interp(invPts, Ff));
+  // Forage fishing at which a rare predator can invade the collapsed sea (R0 = 1, no predator fishing)
+  const FF_INV = (() => {
+    const c = R.branchC;
+    for (let i = 1; i < c.length; i++) {
+      if (c[i - 1].R0_pred < 1 && c[i].R0_pred >= 1) {
+        return c[i - 1].Ff + (c[i].Ff - c[i - 1].Ff) * (1 - c[i - 1].R0_pred) / (c[i].R0_pred - c[i - 1].R0_pred);
+      }
+    }
+    return NaN;
+  })();
+  const Finv = (Ff) => interp(invPts, Ff);
+  function regimeAt(Ff, Fp) {
+    if (Fp < Finv(Ff)) return "safe";
+    if (Fp < Fcrit(Ff)) return "tip";
+    return "lost";
+  }
+  // Largest sustained predator catch with no forage fishing (on the coexistence branch)
+  const branch0 = R.branchA.filter((r) => r.Ff === 0);
+  const MSY0 = branch0.reduce((a, r) => (r.Yp > a.Yp ? r : a), branch0[0]);
+  const TARGET1 = Math.floor(MSY0.Yp * 0.9);   // mission 1 catch target, about 90% of the maximum
+
+  // ---------------------------------------------------------------------
+  // Simulation state
+  // ---------------------------------------------------------------------
+  const sim = {
+    running: true,
+    speed: 5,
+    acc: 0,
+    steps: 0,
+    year: 0,
+    history: [],
+    diag: null,
+    flags: {},
+    restocks: 0,
+  };
+  const policy = { Ff: 0, Fp: 0 };
+
+  function computeDiag() {
+    const d = eng.diagnostics();
+    const c = d.cohort[PRED];
+    let plank = 0, cap = 0;
+    for (let k = 0; k < M.w_full.length; k++) {
+      const wk = M.w_full[k];
+      if (wk > 0.01 && wk < 1) {
+        const f = wk * M.dw_full[k];
+        plank += eng.state.n_pp[k] * f;
+        cap += M.cc_pp[k] * f;
+      }
+    }
+    return {
+      Bf: eng.biomass(FORAGE), Bp: eng.biomass(PRED),
+      Yf: eng.yieldRate(FORAGE), Yp: eng.yieldRate(PRED),
+      R0: c.R0, S1: c.survivalTo(1),
+      predMort: d.rates.pred_mort.slice(NW, 2 * NW),
+      rdd: d.rates.rdd[PRED],
+      plankton: cap > 0 ? plank / cap : 1,
+    };
+  }
+
+  function record() {
+    const d = sim.diag;
+    sim.history.push({
+      t: sim.year, Bf: d.Bf, Bp: d.Bp, Yf: d.Yf, Yp: d.Yp,
+      Ff: policy.Ff, Fp: policy.Fp, R0: d.R0, S1: d.S1,
+    });
+    if (sim.history.length > 2000) sim.history.shift();
+  }
+
+  function applyEffort() {
+    eng.state.effort[FORAGE] = policy.Ff;
+    eng.state.effort[PRED] = policy.Fp;
+  }
+
+  function loadStart(name) {
+    eng.loadState(name);
+    sim.steps = 0; sim.year = 0; sim.acc = 0;
+    sim.history = [];
+    sim.flags = {};
+    sim.restocks = 0;
+    applyEffort();
+    sim.diag = computeDiag();
+    record();
+    sea.resetPopulation();
+  }
+
+  // ---------------------------------------------------------------------
+  // Events: plain-language news from the model
+  // ---------------------------------------------------------------------
+  function toast(text, kind = "") {
+    const el = document.createElement("div");
+    el.className = "toast " + kind;
+    el.innerHTML = `<b>Year ${sim.year}</b>${text}`;
+    const stack = $("toasts");
+    stack.appendChild(el);
+    while (stack.children.length > 3) stack.removeChild(stack.firstChild);
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 7000);
+  }
+
+  function detectEvents() {
+    const d = sim.diag, f = sim.flags;
+    const bp = d.Bp / B_A[PRED], bf = d.Bf / B_A[FORAGE];
+    const was = f.prev || { bp, bf, R0: d.R0 };
+    if (was.bp >= 0.5 && bp < 0.5) toast("Predator stock has fallen below half its healthy level.", "");
+    if (was.bp >= 0.05 && bp < 0.05) toast("The predator stock has collapsed.", "bad");
+    if (was.bp < 0.5 && bp >= 0.5 && f.everLow) toast("Predators are back above half their healthy level.", "good");
+    if (bp < 0.5) f.everLow = true;
+    if (was.bf < 5 && bf >= 5) toast("Forage fish boom: five times their healthy level.", "bad");
+    if (was.bf >= 5 && bf < 5 && f.boomed) toast("The forage fish boom is easing.", "good");
+    if (bf >= 5) f.boomed = true;
+    if (was.R0 >= 1 && d.R0 < 1) toast("The nursery trap has closed. Too few young predators survive to replace their parents.", "bad");
+    if (was.R0 < 1 && d.R0 >= 1) toast("The nursery has reopened. Predators can multiply again.", "good");
+    f.prev = { bp, bf, R0: d.R0 };
+  }
+
+  // ---------------------------------------------------------------------
+  // Missions
+  // ---------------------------------------------------------------------
+  const pctA = (b) => b / B_A[PRED];
+  const streak = (key, cond) => {
+    const f = sim.flags;
+    f[key] = cond ? (f[key] || 0) + 1 : 0;
+    return f[key];
+  };
+
+  const MISSIONS = [
+    {
+      id: "edge",
+      tab: "Find the edge",
+      title: "How hard can you fish the predator?",
+      brief: "The sea is healthy and nobody fishes it yet. You run the predator fishery. Raise the fishing pressure to land a big catch, but keep the stock alive.",
+      start: "State_A", Fp: 0, Ff: 0,
+      locks: { Ff: "Closed in this mission: no forage fishery yet." },
+      restock: 0, fog: true,
+      goals: () => [
+        `Land at least ${fmt(TARGET1)} kt of predator a year`,
+        "Keep it up for 50 years in a row",
+      ],
+      check(d) {
+        const n = streak("good", d.Yp >= TARGET1 && pctA(d.Bp) > 0.05);
+        if (pctA(d.Bp) < 0.05) return { lose: true };
+        if (n >= 50) return { win: true };
+        return { met: [d.Yp >= TARGET1, n >= 50], progress: n / 50 };
+      },
+      hint(d) {
+        if (policy.Fp === 0 && sim.year > 8) return "Drag the predator fishing lever to the right to start fishing.";
+        if (policy.Fp > 0 && d.Yp < TARGET1 && sim.year > 30 && policy.Fp < 0.12) return "Your catch is below target. Try fishing harder.";
+        return "";
+      },
+      overEdge: {
+        title: "Target met. For now.",
+        body: () => [
+          `You landed over ${fmt(TARGET1)} kt a year for 50 years. But your fishing pressure, F ${policy.Fp.toFixed(3)}, is past the edge at F ${Fcrit(0).toFixed(3)}.`,
+          "The stock has been sliding so slowly that nothing looked wrong. Keep watching: within decades the forage fish take over and the predator collapses.",
+        ],
+      },
+      win: {
+        title: "You found the edge without going over",
+        body: () => [
+          `The largest catch this sea can sustain with no forage fishery is about ${fmt(MSY0.Yp)} kt a year, at a fishing pressure of F ${MSY0.Fp.toFixed(2)}. The cliff is at F ${Fcrit(0).toFixed(3)}, only a little further.`,
+          "Try nudging the pressure up a bit more and watch what happens, or move on to the next mission, which starts from a sea where the edge was crossed.",
+        ],
+      },
+      lose: {
+        title: "The predator stock collapsed",
+        body: () => [
+          `Above a fishing pressure of about F ${Fcrit(0).toFixed(2)} (${pctCatch(Fcrit(0))}% of catchable predators a year) the predator cannot hold the forage fish down. The forage fish multiply, eat the predator's young, and the stock spirals down.`,
+          "Notice how long the stock looked fine after you crossed the line. The policy chart is now uncovered. Your track shows where the edge was.",
+        ],
+      },
+    },
+    {
+      id: "ban",
+      tab: "The fishing ban",
+      title: "Bring the predator back with a fishing ban",
+      brief: "This sea was overfished. The predators are gone and forage fish have taken over. Predator fishing is now banned. You may also release young predators from a hatchery.",
+      start: "State_C", Fp: 0, Ff: 0,
+      locks: {
+        Fp: "Banned. No predator fishing.",
+        Ff: "Not part of this plan.",
+      },
+      restock: 3,
+      goals: () => ["Rebuild the predator stock to half its healthy level", "Within 80 years"],
+      check(d) {
+        if (pctA(d.Bp) >= 0.5) return { win: true };
+        if (sim.year >= 80) return { lose: true };
+        return { met: [false, false], progress: sim.year / 80 };
+      },
+      hint(d) {
+        if (sim.restocks === 0 && sim.year > 5) return "Try releasing young predators from the hatchery.";
+        if (sim.restocks > 0 && d.Bp > 0.01 && d.R0 < 1) return `The released predators are dying out. Look at the nursery chart: only ${fmt(1000 * d.S1)} of every 1,000 young survive to 1 g.`;
+        return "";
+      },
+      win: { title: "The predators returned", body: () => ["That should not have happened in this sea. If you found a way, tell the authors."] },
+      lose: {
+        title: "The ban was not enough",
+        body: () => [
+          `With no predators to keep them in check, forage fish are ${fmt(B_C[FORAGE] / B_A[FORAGE], 0)} times more abundant than in a healthy sea. They eat almost every predator larva: only ${fmt(1000 * REF_C.S1)} of 1,000 survive to 1 g, against ${fmt(1000 * REF_A.S1)} in a healthy sea.`,
+          `So each predator leaves fewer than one replacement (comeback number ${REF_C.R0.toFixed(2)}). Released fish die out however many you add. The sea is stuck in its new state, even though nobody fishes the predator any more.`,
+        ],
+      },
+    },
+    {
+      id: "restore",
+      tab: "Restore the nursery",
+      title: "Make the sea safe for young predators again",
+      brief: "Same collapsed sea, same predator fishing ban. This time you may also fish the forage fish, and release young predators.",
+      start: "State_C", Fp: 0, Ff: 0,
+      locks: { Fp: "Banned. No predator fishing." },
+      restock: 5,
+      goals: () => [
+        "Rebuild predators to half their healthy level",
+        "Then close the forage fishery again",
+        "Predators stay above half for 30 more years",
+      ],
+      check(d) {
+        const f = sim.flags;
+        if (pctA(d.Bp) >= 0.5) f.rebuilt = true;
+        if (f.rebuilt && policy.Ff === 0) f.closed = true;
+        const n = streak("hold", f.closed && policy.Ff === 0 && pctA(d.Bp) >= 0.5);
+        if (n >= 30) return { win: true };
+        return { met: [!!f.rebuilt, !!f.closed && policy.Ff === 0, n >= 30],
+                 progress: (f.rebuilt ? 0.4 : 0.4 * pctA(d.Bp) / 0.5) + (f.closed && policy.Ff === 0 ? 0.1 : 0) + 0.5 * n / 30 };
+      },
+      hint(d) {
+        if (sim.flags.rebuilt && policy.Ff > 0) return "Predators are back. Now set forage fishing to zero and see whether they hold on.";
+        if (d.R0 >= 1 && d.Bp < 0.5) return "The nursery is safe enough now, but there are no predators left to use it. Release some young predators.";
+        if (policy.Ff === 0 && sim.year > 6) return "The ban alone failed last time. What eats the predator's young?";
+        if (d.R0 < 1 && policy.Ff > 0) return `Not yet. The comeback number is ${d.R0.toFixed(2)}, still below 1. Fish the forage fish harder.`;
+        return "";
+      },
+      win: {
+        title: "The nursery is restored, and it stays restored",
+        body: () => [
+          `Fishing the forage fish above about F ${FF_INV.toFixed(2)} (${pctCatch(FF_INV)}% a year) made the nursery safe enough for released predators to multiply. Once grown, the predators took over the job of keeping forage fish in check.`,
+          "That is why the forage fishery could close again without the predators collapsing. The same policy (no fishing at all) now gives a healthy sea, where before it gave a collapsed one. The history of the sea decides which one you get.",
+        ],
+      },
+    },
+    {
+      id: "balance",
+      tab: "Balanced harvest",
+      title: "Fish the predator hard without losing it",
+      brief: `Back to a healthy sea. Fishing only the predator, the stock collapses above F ${Fcrit(0).toFixed(2)}. This time you may fish both species.`,
+      start: "State_A", Fp: 0, Ff: 0,
+      locks: {},
+      restock: 0,
+      goals: () => [
+        "Fish the predator at F 0.25 or more (22% a year)",
+        "Keep predators above a quarter of their healthy level",
+        "For 60 years in a row",
+      ],
+      check(d) {
+        if (pctA(d.Bp) < 0.05) return { lose: true };
+        const ok = policy.Fp >= 0.25 - 1e-9 && pctA(d.Bp) >= 0.25;
+        const n = streak("good", ok);
+        if (n >= 60) return { win: true };
+        return { met: [policy.Fp >= 0.25 - 1e-9, pctA(d.Bp) >= 0.25, n >= 60], progress: n / 60 };
+      },
+      hint(d) {
+        if (policy.Fp >= 0.25 && policy.Ff < 0.1 && pctA(d.Bp) < 0.6) return "On its own, that predator pressure crosses the edge. What else could keep forage fish down?";
+        return "";
+      },
+      overEdge: {
+        title: "Target met. For now.",
+        body: () => [
+          `The predator held on for 60 years, but at forage fishing F ${policy.Ff.toFixed(2)} the edge is at predator F ${Fcrit(policy.Ff).toFixed(3)}, below your F ${policy.Fp.toFixed(2)}.`,
+          "It is sliding slowly towards collapse. Keep watching, or try again with a little more forage fishing.",
+        ],
+      },
+      win: {
+        title: "Balanced fishing moved the edge",
+        body: () => [
+          `Fishing forage fish does part of the predators' job of keeping them scarce, so the predator survives much harder fishing. At F ${(0.35).toFixed(2)} on forage fish, the predator copes with about F ${Fcrit(0.35).toFixed(2)} instead of F ${Fcrit(0).toFixed(2)}.`,
+          `You are landing ${fmt(sim.diag.Yp)} kt of predator and ${fmt(sim.diag.Yf)} kt of forage fish a year. Fishing the predator alone, the most this sea could sustain was ${fmt(MSY0.Yp)} kt.`,
+          "Look at the policy chart: as forage fishing rises, the tipping zone narrows and then disappears. Past that point there is no cliff, only a gradual decline that reverses when fishing eases.",
+        ],
+      },
+      lose: {
+        title: "The predator collapsed",
+        body: () => ["Fishing only the predator this hard crosses the edge. Try fishing the forage fish as well."],
+      },
+    },
+    {
+      id: "assembly",
+      tab: "Build a sea",
+      title: "Who should arrive first?",
+      brief: "An empty sea with only plankton. Release predators and forage fish to build a full food web. The order matters.",
+      start: "State_0", Fp: 0, Ff: 0,
+      locks: {},
+      restock: 0, release: true,
+      goals: () => ["Predators above half their healthy level", "Forage fish above half their healthy level", "Both together for 20 years"],
+      check(d) {
+        const okP = pctA(d.Bp) >= 0.5, okF = d.Bf >= 0.5 * B_A[FORAGE];
+        const n = streak("both", okP && okF && policy.Ff === 0 && policy.Fp === 0);
+        if (n >= 20) return { win: true };
+        return { met: [okP, okF, n >= 20], progress: n / 20 };
+      },
+      hint(d) {
+        if (d.Bf > 200 && d.Bp < 1 && sim.flags.releasedPred) return "The forage fish got there first and their numbers make the nursery deadly. Restart and try the other order, or think about mission 3.";
+        if (d.Bp > 0.5 * B_A[PRED] && d.Bf < 1 && !sim.flags.releasedForage) return "The predators have settled in. Now release forage fish.";
+        if ((policy.Ff > 0 || policy.Fp > 0) && d.Bp > 0.5 * B_A[PRED] && d.Bf > 0.5 * B_A[FORAGE]) return "Both are here. Set fishing to zero to finish.";
+        return "";
+      },
+      win: {
+        title: "A full food web",
+        body: () => [
+          "Predators that arrive first live on plankton and on each other's young, and later keep the incoming forage fish in check. Forage fish that arrive first become so many that predators cannot get a foothold.",
+          "Order of arrival decides which sea you end up with, even with the same fish and the same fishing rules.",
+        ],
+      },
+    },
+    {
+      id: "free",
+      tab: "Free play",
+      title: "Free play",
+      brief: "All levers unlocked. Pick a starting sea and explore. Try entering the tipping zone from below and from above.",
+      start: "State_A", Fp: 0, Ff: 0,
+      locks: {}, restock: 99, release: true, presets: true,
+      goals: () => [],
+      check() { return {}; },
+      hint() { return ""; },
+    },
+  ];
+
+  let mission = MISSIONS[0];
+  let missionStatus = "active";
+  const completed = new Set(store.get("nursery-trap-completed", []));
+
+  function renderTabs() {
+    const nav = $("mission-tabs");
+    nav.innerHTML = "";
+    MISSIONS.forEach((m, i) => {
+      const b = document.createElement("button");
+      b.className = "mission-tab" + (completed.has(m.id) ? " done" : "");
+      b.setAttribute("aria-pressed", m === mission ? "true" : "false");
+      b.innerHTML = `<span class="badge">${m.id === "free" ? "∞" : (completed.has(m.id) ? "✓" : i + 1)}</span>${m.tab}`;
+      b.addEventListener("click", () => startMission(m));
+      nav.appendChild(b);
+    });
+  }
+
+  function startMission(m) {
+    mission = m;
+    missionStatus = "active";
+    policy.Fp = m.Fp; policy.Ff = m.Ff;
+    loadStart(m.start);
+    hideDebrief();
+    renderTabs();
+    $("mission-eyebrow").textContent = m.id === "free" ? "Sandbox" : `Mission ${MISSIONS.indexOf(m) + 1} of ${MISSIONS.length - 1}`;
+    $("mission-title").textContent = m.title;
+    $("mission-brief").textContent = m.brief;
+    const goals = m.goals();
+    $("objective").hidden = goals.length === 0;
+    $("objective-list").innerHTML = goals.map((g) => `<li>${g}</li>`).join("");
+    $("hint").textContent = "";
+    $("preset-row").hidden = !m.presets;
+    $("release-pred-btn").hidden = !m.release;
+    $("release-forage-btn").hidden = !m.release;
+    $("restock-btn").hidden = !m.restock || m.release;
+    regimeChart.setFog(!!m.fog);
+    syncControls();
+    sim.running = true;
+    syncPlay();
+    renderAll(true);
+  }
+
+  function evaluateMission() {
+    if (missionStatus !== "active") return;
+    const d = sim.diag;
+    const res = mission.check(d) || {};
+    if (res.win || res.lose) {
+      missionStatus = res.win ? "won" : "lost";
+      const overEdge = res.win && mission.overEdge && policy.Fp > Fcrit(policy.Ff) + 1e-4;
+      if (res.win && mission.id !== "free") {
+        completed.add(mission.id);
+        store.set("nursery-trap-completed", Array.from(completed));
+      }
+      if (mission.fog) regimeChart.setFog(false);
+      showDebrief(overEdge ? "overEdge" : res.win ? "win" : "lose");
+      renderTabs();
+      return;
+    }
+    const items = $("objective-list").children;
+    (res.met || []).forEach((m, i) => { if (items[i]) items[i].classList.toggle("met", !!m); });
+    $("objective-progress").style.width = `${Math.round(100 * clamp(res.progress || 0, 0, 1))}%`;
+    $("hint").textContent = mission.hint(d) || "";
+  }
+
+  function showDebrief(kind) {
+    const spec = mission[kind];
+    if (!spec) return;
+    sim.running = false;
+    syncPlay();
+    $("debrief-verdict").textContent = kind === "win" ? "Mission complete" : kind === "overEdge" ? "Goal reached, but" : "Mission failed";
+    $("debrief-verdict").className = "verdict " + (kind === "win" ? "win" : "lose");
+    $("debrief-title").textContent = spec.title;
+    $("debrief-body").innerHTML = spec.body().map((p) => `<p>${p}</p>`).join("");
+    const actions = $("debrief-actions");
+    actions.innerHTML = "";
+    const idx = MISSIONS.indexOf(mission);
+    const next = MISSIONS[idx + 1];
+    const keepWatching = () => { hideDebrief(); missionStatus = "done"; sim.running = true; syncPlay(); };
+    if (kind === "overEdge") {
+      const w = document.createElement("button");
+      w.className = "btn primary";
+      w.textContent = "Keep watching";
+      w.addEventListener("click", keepWatching);
+      actions.appendChild(w);
+    }
+    if (next) {
+      const b = document.createElement("button");
+      b.className = kind === "overEdge" ? "btn" : "btn primary";
+      b.textContent = next.id === "free" ? "Go to free play" : `Next: ${next.tab}`;
+      b.addEventListener("click", () => startMission(next));
+      actions.appendChild(b);
+    }
+    const again = document.createElement("button");
+    again.className = "btn";
+    again.textContent = "Try again";
+    again.addEventListener("click", () => startMission(mission));
+    actions.appendChild(again);
+    const keep = document.createElement("button");
+    keep.className = "btn";
+    keep.textContent = "Keep exploring this sea";
+    keep.addEventListener("click", keepWatching);
+    if (kind !== "overEdge") actions.appendChild(keep);
+    $("debrief").hidden = false;
+    (actions.firstChild || again).focus({ preventScroll: true });
+  }
+  function hideDebrief() { $("debrief").hidden = true; }
+
+  // ---------------------------------------------------------------------
+  // Controls
+  // ---------------------------------------------------------------------
+  const fpSlider = $("fp-slider"), ffSlider = $("ff-slider");
+  function describeF(F, sp) {
+    if (F === 0) return sp === PRED ? "No predator fishing." : "No forage fishing.";
+    return `${pctCatch(F)}% of catchable ${sp === PRED ? "predators (over 400 g)" : "forage fish (over 1 g)"} taken each year.`;
+  }
+  function syncControls() {
+    const locks = mission.locks || {};
+    fpSlider.value = policy.Fp; ffSlider.value = policy.Ff;
+    fpSlider.disabled = !!locks.Fp; ffSlider.disabled = !!locks.Ff;
+    $("fp-lever").classList.toggle("locked", !!locks.Fp);
+    $("ff-lever").classList.toggle("locked", !!locks.Ff);
+    $("fp-value").textContent = `F ${policy.Fp.toFixed(2)}`;
+    $("ff-value").textContent = `F ${policy.Ff.toFixed(2)}`;
+    $("fp-sub").textContent = locks.Fp ? "🔒 " + locks.Fp : describeF(policy.Fp, PRED);
+    $("ff-sub").textContent = locks.Ff ? "🔒 " + locks.Ff : describeF(policy.Ff, FORAGE);
+    const left = Math.max(0, mission.restock - sim.restocks);
+    $("restock-btn").disabled = left === 0;
+    $("restock-count").textContent = mission.restock && mission.restock < 99 ? `${left} left` : "";
+    applyEffort();
+  }
+  function setPolicy(Ff, Fp) {
+    const locks = mission.locks || {};
+    if (!locks.Ff && Ff !== undefined) policy.Ff = Math.round(clamp(Ff, 0, 0.6) / 0.005) * 0.005;
+    if (!locks.Fp && Fp !== undefined) policy.Fp = Math.round(clamp(Fp, 0, 0.5) / 0.005) * 0.005;
+    policy.Ff = Number(policy.Ff.toFixed(3)); policy.Fp = Number(policy.Fp.toFixed(3));
+    syncControls();
+    regimeChart.draw();
+  }
+  fpSlider.addEventListener("input", () => setPolicy(undefined, Number(fpSlider.value)));
+  ffSlider.addEventListener("input", () => setPolicy(Number(ffSlider.value), undefined));
+
+  $("restock-btn").addEventListener("click", () => {
+    if (sim.restocks >= mission.restock) return;
+    sim.restocks++;
+    eng.seed(PRED, 0.005);
+    sea.burst("pred");
+    toast("Released young predators from the hatchery.", "");
+    syncControls();
+  });
+  $("release-pred-btn").addEventListener("click", () => {
+    eng.seed(PRED, 0.01); sim.flags.releasedPred = true; sea.burst("pred");
+    toast("Released predators.", "");
+  });
+  $("release-forage-btn").addEventListener("click", () => {
+    eng.seed(FORAGE, 0.01); sim.flags.releasedForage = true; sea.burst("forage");
+    toast("Released forage fish.", "");
+  });
+  $("reset-btn").addEventListener("click", () => startMission(mission));
+  document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+    loadStart(b.dataset.preset);
+    renderAll(true);
+  }));
+
+  const SPEEDS = [1, 2, 5, 10, 25];
+  const speedGroup = $("speed-group");
+  SPEEDS.forEach((s) => {
+    const b = document.createElement("button");
+    b.textContent = `${s}×`;
+    b.title = `${s} model year${s > 1 ? "s" : ""} per second`;
+    b.setAttribute("aria-pressed", s === sim.speed ? "true" : "false");
+    b.addEventListener("click", () => {
+      sim.speed = s;
+      speedGroup.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    });
+    speedGroup.appendChild(b);
+  });
+  function syncPlay() {
+    const b = $("play-btn");
+    b.textContent = sim.running ? "❚❚ Pause" : "▶ Play";
+    b.setAttribute("aria-label", sim.running ? "Pause simulation" : "Play simulation");
+  }
+  $("play-btn").addEventListener("click", () => {
+    if (!$("debrief").hidden) { hideDebrief(); if (missionStatus !== "active") missionStatus = "done"; }
+    sim.running = !sim.running;
+    syncPlay();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && !/INPUT|BUTTON|TEXTAREA|SELECT|SUMMARY/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      $("play-btn").click();
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Readouts
+  // ---------------------------------------------------------------------
+  function renderReadouts() {
+    const d = sim.diag;
+    const bpPct = 100 * d.Bp / B_A[PRED];
+    $("r-bp").innerHTML = `${fmt(d.Bp)}<small>kt</small>`;
+    const bpNote = $("r-bp-note");
+    bpNote.textContent = bpPct < 5 ? "Collapsed" : `${fmt(bpPct)}% of healthy level`;
+    bpNote.className = "note" + (bpPct < 5 ? " bad" : bpPct >= 80 ? " good" : "");
+    const bfX = d.Bf / B_A[FORAGE];
+    $("r-bf").innerHTML = `${fmt(d.Bf)}<small>kt</small>`;
+    const bfNote = $("r-bf-note");
+    bfNote.textContent = d.Bf < 1 ? "Absent" : `${fmt(bfX, bfX < 10 ? 1 : 0)}× healthy level`;
+    bfNote.className = "note" + (bfX >= 5 ? " bad" : "");
+    $("r-yp").innerHTML = `${fmt(d.Yp, d.Yp < 10 && d.Yp > 0 ? 1 : 0)}<small>kt/yr</small>`;
+    $("r-yp-note").textContent = policy.Fp > 0 ? `max ${fmt(MSY0.Yp)} if forage unfished` : "not fished";
+    $("r-yf").innerHTML = `${fmt(d.Yf, d.Yf < 10 && d.Yf > 0 ? 1 : 0)}<small>kt/yr</small>`;
+    $("r-yf-note").textContent = policy.Ff > 0 ? "" : "not fished";
+
+    // Comeback number on a log scale from 0.1 to 10
+    const R0 = d.R0;
+    const pos = (x) => 100 * (Math.log10(clamp(x, 0.1, 10)) + 1) / 2;
+    $("r0-value").textContent = R0.toFixed(2);
+    $("r0-fill").style.width = `${pos(R0)}%`;
+    $("r0-fill").style.background = R0 >= 1 ? "var(--good)" : "var(--bad)";
+    $("r0-mark-1").style.left = `calc(${pos(1)}% - 1px)`;
+    const pill = $("r0-pill");
+    pill.textContent = R0 >= 1 ? "can rebuild" : "trapped";
+    pill.className = "state-pill " + (R0 >= 1 ? "good" : "bad");
+    $("r0-text").textContent = R0 >= 1
+      ? `If predators were rare here, each would leave ${R0.toFixed(1)} offspring that reach adulthood and breed. A small stock grows.`
+      : `If predators were rare here, each would leave only ${R0.toFixed(2)} replacements. A small stock dies out, even with no fishing on it.`;
+
+    $("nursery-n").textContent = fmt(1000 * d.S1);
+    $("nursery-t").textContent = `of every 1,000 young predators survive to 1 gram (healthy sea: ${fmt(1000 * REF_A.S1)}; forage-dominated sea: ${fmt(1000 * REF_C.S1)})`;
+    $("year").textContent = sim.year;
+  }
+
+  // ---------------------------------------------------------------------
+  // SVG helpers
+  // ---------------------------------------------------------------------
+  const svgNS = "http://www.w3.org/2000/svg";
+  function niceMax(v) {
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+    return 10 * p;
+  }
+  function ticks(max, n = 3) {
+    const step = niceMax(max / n);
+    const out = [];
+    for (let v = 0; v <= max + 1e-9; v += step) out.push(Number(v.toPrecision(6)));
+    return out;
+  }
+  function path(pts) {
+    return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("");
+  }
+  function makeTooltip(container) {
+    const tip = document.createElement("div");
+    tip.className = "tooltip";
+    tip.hidden = true;
+    container.appendChild(tip);
+    return tip;
+  }
+
+  // ---------------------------------------------------------------------
+  // Logbook chart: four rows sharing one time axis
+  // ---------------------------------------------------------------------
+  const logbook = (() => {
+    const el = $("logbook");
+    const tip = makeTooltip(el);
+    let W = 600, layout = null, hoverX = null;
+    const WINDOW = 200;
+    const rows = [
+      { key: "Bp", title: "Predator stock (kt)", cls: "pred", ref: B_A[PRED], min: 700 },
+      { key: "Bf", title: "Forage fish stock (kt)", cls: "forage", ref: B_A[FORAGE], min: 400 },
+      { key: "Y", title: "Catch (kt per year)", min: 40 },
+      { key: "F", title: "Fishing pressure F", min: 0.3 },
+    ];
+    const ro = new ResizeObserver(() => { W = Math.max(280, el.clientWidth); draw(); });
+    ro.observe(el);
+
+    function draw() {
+      const h = sim.history;
+      if (!h.length) return;
+      const ml = 44, mr = 12, rowH = 66, gap = 36, top = 24;
+      const H = top + rows.length * (rowH + gap) - gap + 26;
+      const t1 = Math.max(h[h.length - 1].t, 40);
+      const t0 = Math.max(0, t1 - WINDOW);
+      const vis = h.filter((r) => r.t >= t0);
+      const x = (t) => ml + (W - ml - mr) * (t - t0) / (t1 - t0 || 1);
+      let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Logbook of stocks, catches and fishing pressure over time">`;
+      layout = { ml, mr, t0, t1, W, H, x, vis };
+      rows.forEach((row, ri) => {
+        const y0 = top + ri * (rowH + gap);
+        let max;
+        if (row.key === "Y") max = Math.max(row.min, ...vis.map((r) => Math.max(r.Yp, r.Yf)));
+        else if (row.key === "F") max = Math.max(row.min, ...vis.map((r) => Math.max(r.Fp, r.Ff)));
+        else max = Math.max(row.min, row.ref * 1.15, ...vis.map((r) => r[row.key]));
+        max = niceMax(max * 1.05);
+        const y = (v) => y0 + rowH - rowH * v / max;
+        s += `<text class="row-title" x="0" y="${y0 - 12}">${row.title}</text>`;
+        for (const tv of ticks(max, 2)) {
+          s += `<line class="grid" x1="${ml}" x2="${W - mr}" y1="${y(tv)}" y2="${y(tv)}"/>`;
+          s += `<text x="${ml - 6}" y="${y(tv) + 4}" text-anchor="end">${row.key === "F" ? tv.toFixed(1) : fmt(tv)}</text>`;
+        }
+        if (row.ref) s += `<line class="ref" x1="${ml}" x2="${W - mr}" y1="${y(row.ref)}" y2="${y(row.ref)}"/>`;
+        const series = row.key === "Y" ? [["Yp", "pred"], ["Yf", "forage"]]
+          : row.key === "F" ? [["Fp", "pred"], ["Ff", "forage"]]
+          : [[row.key, row.cls]];
+        for (const [k, cls] of series) {
+          let pts;
+          if (row.key === "F") {
+            pts = [];
+            vis.forEach((r, i) => { if (i) pts.push([x(r.t), y(vis[i - 1][k])]); pts.push([x(r.t), y(r[k])]); });
+          } else pts = vis.map((r) => [x(r.t), y(r[k])]);
+          if (series.length === 1 && pts.length > 1) {
+            s += `<path class="a-${cls}" d="${path(pts)}L${pts[pts.length - 1][0]} ${y0 + rowH}L${pts[0][0]} ${y0 + rowH}Z"/>`;
+          }
+          s += `<path class="s-${cls}" d="${path(pts)}"/>`;
+        }
+        s += `<line class="axis" x1="${ml}" x2="${W - mr}" y1="${y0 + rowH}" y2="${y0 + rowH}"/>`;
+      });
+      // time axis labels
+      const yb = top + rows.length * (rowH + gap) - gap + 18;
+      const step = niceMax((t1 - t0) / 5);
+      for (let t = Math.ceil(t0 / step) * step; t <= t1; t += step) {
+        s += `<text x="${x(t)}" y="${yb}" text-anchor="middle">yr ${t}</text>`;
+      }
+      if (hoverX !== null) s += `<line class="crosshair" x1="${hoverX}" x2="${hoverX}" y1="${top - 4}" y2="${H - 20}"/>`;
+      s += `<rect x="${ml}" y="0" width="${W - ml - mr}" height="${H}" fill="transparent" id="log-hit"/>`;
+      s += "</svg>";
+      el.querySelectorAll("svg").forEach((n) => n.remove());
+      el.insertAdjacentHTML("afterbegin", s);
+      if (hoverX !== null) showTip(hoverX);
+    }
+
+    function showTip(px) {
+      if (!layout) return;
+      const { t0, t1, ml, mr, W: w, vis } = layout;
+      const t = Math.round(t0 + (t1 - t0) * (px - ml) / (w - ml - mr));
+      const r = vis.find((v) => v.t === t) || vis[vis.length - 1];
+      if (!r) return;
+      tip.hidden = false;
+      tip.innerHTML = `<div>Year ${r.t}</div>` +
+        `<div><span class="k">Predator</span> ${fmt(r.Bp)} kt · catch ${fmt(r.Yp, 1)} · F ${r.Fp.toFixed(2)}</div>` +
+        `<div><span class="k">Forage&nbsp;&nbsp;</span> ${fmt(r.Bf)} kt · catch ${fmt(r.Yf, 1)} · F ${r.Ff.toFixed(2)}</div>` +
+        `<div><span class="k">Comeback number</span> ${r.R0.toFixed(2)}</div>`;
+      const left = clamp(px, 120, w - 120);
+      tip.style.left = `${left}px`;
+      tip.style.top = `40px`;
+    }
+    el.addEventListener("pointermove", (e) => {
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      if (!layout || px < layout.ml || px > layout.W - layout.mr) { hoverX = null; tip.hidden = true; draw(); return; }
+      hoverX = px; draw();
+    });
+    el.addEventListener("pointerleave", () => { hoverX = null; tip.hidden = true; draw(); });
+    return { draw };
+  })();
+
+  function renderTable() {
+    const det = document.querySelector("details.table-view");
+    if (!det.open) return;
+    const rows = sim.history.slice(-120).reverse();
+    $("log-table").innerHTML = `<table><thead><tr><th>Year</th><th>Predator kt</th><th>Forage kt</th><th>Predator catch</th><th>Forage catch</th><th>F pred</th><th>F forage</th><th>Comeback</th></tr></thead><tbody>` +
+      rows.map((r) => `<tr><td>${r.t}</td><td>${fmt(r.Bp, 1)}</td><td>${fmt(r.Bf, 1)}</td><td>${fmt(r.Yp, 1)}</td><td>${fmt(r.Yf, 1)}</td><td>${r.Fp.toFixed(3)}</td><td>${r.Ff.toFixed(3)}</td><td>${r.R0.toFixed(2)}</td></tr>`).join("") +
+      "</tbody></table>";
+  }
+  document.querySelector("details.table-view").addEventListener("toggle", renderTable);
+
+  // ---------------------------------------------------------------------
+  // Policy chart (regime map)
+  // ---------------------------------------------------------------------
+  const regimeChart = (() => {
+    const el = $("regime-chart");
+    const tip = makeTooltip(el);
+    let W = 420, fog = false, geom = null;
+    const XMAX = 0.6, YMAX = 0.5;
+    const ro = new ResizeObserver(() => { W = Math.max(260, el.clientWidth); draw(); });
+    ro.observe(el);
+
+    function draw() {
+      const H = Math.round(Math.min(W * 0.78, 380));
+      const ml = 46, mr = 12, mt = 10, mb = 40;
+      const x = (v) => ml + (W - ml - mr) * v / XMAX;
+      const y = (v) => mt + (H - mt - mb) * (1 - v / YMAX);
+      geom = { ml, mr, mt, mb, W, H, x, y };
+      const xs = [];
+      for (let v = 0; v <= XMAX + 1e-9; v += 0.01) xs.push(Number(v.toFixed(3)));
+      const top = xs.map((v) => [x(v), y(Math.min(YMAX, Fcrit(v)))]);
+      const inv = xs.map((v) => [x(v), y(Math.min(YMAX, Finv(v)))]);
+      let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Policy chart of forage fishing against predator fishing, with safe, tipping and lost regions">`;
+      s += `<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="region-tip-base"/><line x1="0" y1="0" x2="0" y2="7" style="stroke:var(--tip)" stroke-width="2.2" opacity="0.55"/></pattern></defs>`;
+      // grid and axes
+      for (let v = 0; v <= XMAX + 1e-9; v += 0.1) {
+        s += `<line class="grid" x1="${x(v)}" x2="${x(v)}" y1="${y(0)}" y2="${y(YMAX)}" opacity="0.6"/>`;
+        s += `<text x="${x(v)}" y="${y(0) + 15}" text-anchor="middle">${v.toFixed(1)}</text>`;
+      }
+      for (let v = 0; v <= YMAX + 1e-9; v += 0.1) {
+        s += `<line class="grid" x1="${x(0)}" x2="${x(XMAX)}" y1="${y(v)}" y2="${y(v)}" opacity="0.6"/>`;
+        s += `<text x="${x(0) - 6}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(1)}</text>`;
+      }
+      s += `<text x="${(x(0) + x(XMAX)) / 2}" y="${H - 6}" text-anchor="middle" class="label-forage">Forage fish fishing F →</text>`;
+      s += `<text transform="translate(12 ${(y(0) + y(YMAX)) / 2}) rotate(-90)" text-anchor="middle" class="label-pred">Predator fishing F →</text>`;
+      if (!fog) {
+        // regions
+        s += `<path class="region-lost" d="M${x(0)} ${y(YMAX)}L${x(XMAX)} ${y(YMAX)}${top.slice().reverse().map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("")}Z"/>`;
+        s += `<path class="region-tip" d="${path(top)}${inv.slice().reverse().map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("")}Z"/>`;
+        s += `<path class="region-safe" d="${path(inv)}L${x(XMAX)} ${y(0)}L${x(0)} ${y(0)}Z"/>`;
+        // boundaries
+        const foldOnly = xs.filter((v) => interp(foldPts, v) > Finv(v) + 1e-4).map((v) => [x(v), y(interp(foldPts, v))]);
+        if (foldOnly.length) s += `<path class="line-fold" d="${path(foldOnly)}"/>`;
+        const invOnly = xs.filter((v) => Finv(v) > 0).map((v) => [x(v), y(Math.min(YMAX, Finv(v)))]);
+        if (invOnly.length) s += `<path class="line-inv" d="${path(invOnly)}"/>`;
+        // labels
+        s += `<text class="region-label" x="${x(0.03)}" y="${y(0.43)}">Predators lost</text>`;
+        s += `<text class="region-sub" x="${x(0.03)}" y="${y(0.43) + 15}">Forage fish take over</text>`;
+        s += `<text class="region-label" x="${x(0.015)}" y="${y(0.1)}">Tipping zone</text>`;
+        s += `<text class="region-sub" x="${x(0.015)}" y="${y(0.1) + 15}">The past decides</text>`;
+        s += `<text class="region-label" x="${x(0.40)}" y="${y(0.06)}" text-anchor="middle">Safe</text>`;
+        // cusp marker
+        const cusp = R.fold.find((r, i) => i > 0 && r.F_crit - Finv(r.Ff) < 2e-3 && R.fold[i - 1].F_crit - Finv(R.fold[i - 1].Ff) >= 2e-3);
+        if (cusp) s += `<circle cx="${x(cusp.Ff)}" cy="${y(cusp.F_crit)}" r="4" style="fill:var(--ink)"/><text x="${x(cusp.Ff) + 7}" y="${y(cusp.F_crit) - 7}" class="region-sub">cliff ends</text>`;
+      }
+      if (fog) {
+        s += `<rect class="fog-rect" x="${x(0)}" y="${y(YMAX)}" width="${x(XMAX) - x(0)}" height="${y(0) - y(YMAX)}"/>`;
+        s += `<text class="fog-text" x="${(x(0) + x(XMAX)) / 2}" y="${(y(0) + y(YMAX)) / 2 - 6}" text-anchor="middle">Uncharted waters</text>`;
+        s += `<text class="fog-sub" x="${(x(0) + x(XMAX)) / 2}" y="${(y(0) + y(YMAX)) / 2 + 14}" text-anchor="middle">Real managers cannot see</text>`;
+        s += `<text class="fog-sub" x="${(x(0) + x(XMAX)) / 2}" y="${(y(0) + y(YMAX)) / 2 + 30}" text-anchor="middle">where the edge is either.</text>`;
+      }
+      // track: one dot per year of policy, newest most opaque
+      const h = sim.history.slice(-300);
+      for (let i = 0; i < h.length; i++) {
+        const r = h[i];
+        const on = r.Bp > 0.05 * B_A[PRED];
+        s += `<circle class="${on ? "track-on" : "track-off"}" cx="${x(Math.min(XMAX, r.Ff))}" cy="${y(Math.min(YMAX, r.Fp))}" r="3.2" opacity="${(0.25 + 0.75 * i / h.length).toFixed(2)}"/>`;
+      }
+      s += `<circle class="boat-halo" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="11"${fog ? ' style="stroke:#f1f8f9"' : ""}/>`;
+      s += `<circle class="boat" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="6"${fog ? ' style="stroke:#f1f8f9"' : ""}/>`;
+      const locked = (mission.locks || {}).Ff && (mission.locks || {}).Fp;
+      s += `<rect class="click-layer${locked ? " locked" : ""}" x="${x(0)}" y="${y(YMAX)}" width="${x(XMAX) - x(0)}" height="${y(0) - y(YMAX)}"/>`;
+      s += "</svg>";
+      el.querySelectorAll("svg").forEach((n) => n.remove());
+      el.insertAdjacentHTML("afterbegin", s);
+    }
+
+    function toData(e) {
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      const { ml, mr, mt, mb, W: w, H } = geom;
+      const Ff = (px - ml) / (w - ml - mr) * XMAX;
+      const Fp = (1 - (py - mt) / (H - mt - mb)) * YMAX;
+      return { px, py, Ff, Fp, inside: Ff >= 0 && Ff <= XMAX && Fp >= 0 && Fp <= YMAX };
+    }
+    el.addEventListener("click", (e) => {
+      const p = toData(e);
+      if (p.inside) setPolicy(p.Ff, p.Fp);
+    });
+    el.addEventListener("pointermove", (e) => {
+      const p = toData(e);
+      if (!p.inside) { tip.hidden = true; return; }
+      const reg = regimeAt(p.Ff, p.Fp);
+      const text = fog ? "Uncharted" : reg === "safe" ? "Safe: predators recover from any state"
+        : reg === "tip" ? "Tipping zone: healthy or collapsed, depending on the past" : "Predators lost: forage fish take over";
+      tip.hidden = false;
+      tip.innerHTML = `<div>Forage F ${Math.max(0, p.Ff).toFixed(2)} · Predator F ${Math.max(0, p.Fp).toFixed(2)}</div><div>${text}</div>`;
+      tip.style.left = `${clamp(p.px, 130, geom.W - 130)}px`;
+      tip.style.top = `${p.py}px`;
+    });
+    el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    return { draw, setFog(v) { fog = v; draw(); } };
+  })();
+
+  // ---------------------------------------------------------------------
+  // Nursery chart: predation mortality on young predators by size
+  // ---------------------------------------------------------------------
+  const nurseryChart = (() => {
+    const el = $("nursery-chart");
+    const tip = makeTooltip(el);
+    let W = 420, geom = null;
+    const ro = new ResizeObserver(() => { W = Math.max(260, el.clientWidth); draw(); });
+    ro.observe(el);
+    const idx = M.w.map((w, j) => j).filter((j) => M.w[j] <= 10);
+    const lx0 = -3, lx1 = 1;
+
+    function draw() {
+      if (!sim.diag) return;
+      const H = Math.round(Math.min(W * 0.55, 240));
+      const ml = 40, mr = 14, mt = 12, mb = 34;
+      const ymax = niceMax(Math.max(45, ...idx.map((j) => sim.diag.predMort[j])) * 1.02);
+      const x = (w) => ml + (W - ml - mr) * (Math.log10(w) - lx0) / (lx1 - lx0);
+      const y = (v) => mt + (H - mt - mb) * (1 - v / ymax);
+      geom = { x, y, ml, mr, W, H, ymax };
+      let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Predation mortality on young predators by body size, now and in reference seas">`;
+      // band where adult forage fish feed hardest (prey of 4-20 g forage at beta 200)
+      s += `<rect class="zone-band" x="${x(0.02)}" y="${y(ymax)}" width="${x(0.1) - x(0.02)}" height="${y(0) - y(ymax)}"/>`;
+      s += `<text x="${(x(0.02) + x(0.1)) / 2}" y="${y(ymax) + 12}" text-anchor="middle">forage fish bite size</text>`;
+      for (const tv of ticks(ymax, 3)) {
+        s += `<line class="grid" x1="${ml}" x2="${W - mr}" y1="${y(tv)}" y2="${y(tv)}"/>`;
+        s += `<text x="${ml - 6}" y="${y(tv) + 4}" text-anchor="end">${tv}</text>`;
+      }
+      const labels = { "-3": "1 mg", "-2": "10 mg", "-1": "0.1 g", "0": "1 g", "1": "10 g" };
+      for (let e = lx0; e <= lx1; e++) {
+        s += `<text x="${x(Math.pow(10, e))}" y="${y(0) + 15}" text-anchor="middle">${labels[e]}</text>`;
+      }
+      s += `<text x="${(ml + W - mr) / 2}" y="${H - 4}" text-anchor="middle">body size of a young predator</text>`;
+      s += `<text x="${ml}" y="${mt - 2}" text-anchor="start" style="font-size:10px">deaths per year</text>`;
+      const curve = (arr) => idx.map((j) => [x(M.w[j]), y(arr[j])]);
+      s += `<path class="ref" d="${path(curve(REF_A.predMort))}"/>`;
+      s += `<path class="ref" style="stroke:var(--forage)" d="${path(curve(REF_C.predMort))}"/>`;
+      s += `<path class="s-pred" style="stroke-width:2.5" d="${path(curve(sim.diag.predMort))}"/>`;
+      s += `<line class="axis" x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}"/>`;
+      s += `<rect x="${ml}" y="${mt}" width="${W - ml - mr}" height="${H - mt - mb}" fill="transparent"/>`;
+      s += "</svg>";
+      el.querySelectorAll("svg").forEach((n) => n.remove());
+      el.insertAdjacentHTML("afterbegin", s);
+    }
+    el.addEventListener("pointermove", (e) => {
+      if (!geom) return;
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const lw = lx0 + (lx1 - lx0) * (px - geom.ml) / (geom.W - geom.ml - geom.mr);
+      if (lw < lx0 || lw > lx1) { tip.hidden = true; return; }
+      let j = idx.reduce((a, k) => (Math.abs(Math.log10(M.w[k]) - lw) < Math.abs(Math.log10(M.w[a]) - lw) ? k : a), idx[0]);
+      const wv = M.w[j];
+      const wl = wv < 0.01 ? `${fmt(wv * 1000, 1)} mg` : wv < 1 ? `${fmt(wv, 2)} g` : `${fmt(wv, 1)} g`;
+      tip.hidden = false;
+      tip.innerHTML = `<div>Young predator of ${wl}</div><div><span class="k">now</span> ${sim.diag.predMort[j].toFixed(1)} deaths/yr</div><div><span class="k">healthy</span> ${REF_A.predMort[j].toFixed(1)} · <span class="k">forage-dominated</span> ${REF_C.predMort[j].toFixed(1)}</div>`;
+      tip.style.left = `${clamp(px, 120, geom.W - 120)}px`;
+      tip.style.top = `${geom.y(sim.diag.predMort[j])}px`;
+    });
+    el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    return { draw };
+  })();
+
+  // ---------------------------------------------------------------------
+  // The sea: an illustrative animation driven by the model state
+  // ---------------------------------------------------------------------
+  const sea = (() => {
+    const canvas = $("sea");
+    const ctx = canvas.getContext("2d");
+    let W = 800, H = 500, dpr = 1, clock = 0;
+    const forage = [], preds = [], plankton = [], larvae = [], pops = [], boats = { pred: [], forage: [] };
+    const target = { forage: 0, predWeights: [], plankton: 1, larvaRate: 0, S1: 0.5 };
+    const schools = [0, 1, 2].map((i) => ({ x: 0, y: 0, phase: i * 2.1 }));
+    const motion = reduceMotion ? 0.35 : 1;
+
+    function resize() {
+      const r = canvas.getBoundingClientRect();
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = Math.max(200, r.width); H = Math.max(200, r.height);
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildBackdrop();
+      seedPlankton();
+    }
+    function seedPlankton() {
+      plankton.length = 0;
+      for (let i = 0; i < 240; i++) plankton.push({ x: rand(0, W), y: rand(surface(), H * 0.85), r: rand(0.8, 2), ph: rand(0, 6.28) });
+    }
+    new ResizeObserver(resize).observe(canvas);
+
+    // Pre-rendered water, light and seabed
+    let backdrop = null;
+    function buildBackdrop() {
+      backdrop = document.createElement("canvas");
+      backdrop.width = canvas.width; backdrop.height = canvas.height;
+      const b = backdrop.getContext("2d");
+      b.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const g = b.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#3f97ae"); g.addColorStop(0.18, "#1f6f8a"); g.addColorStop(0.6, "#0d4559"); g.addColorStop(1, "#062633");
+      b.fillStyle = g; b.fillRect(0, 0, W, H);
+      b.globalAlpha = 0.07; b.fillStyle = "#e6fbff";
+      for (let i = 0; i < 6; i++) {
+        const x0 = W * (0.05 + i * 0.18);
+        b.beginPath(); b.moveTo(x0, 0); b.lineTo(x0 + W * 0.07, 0); b.lineTo(x0 + W * 0.2, H * 0.85); b.lineTo(x0 + W * 0.1, H * 0.85); b.closePath(); b.fill();
+      }
+      b.globalAlpha = 1;
+      // seabed
+      b.fillStyle = "#3d3a2c";
+      b.beginPath(); b.moveTo(0, H);
+      for (let x = 0; x <= W; x += 20) b.lineTo(x, H - 18 - 9 * Math.sin(x / 70) - 5 * Math.sin(x / 23));
+      b.lineTo(W, H); b.closePath(); b.fill();
+      b.fillStyle = "#57513a";
+      b.beginPath(); b.moveTo(0, H);
+      for (let x = 0; x <= W; x += 20) b.lineTo(x, H - 8 - 5 * Math.sin(x / 50 + 1));
+      b.lineTo(W, H); b.closePath(); b.fill();
+    }
+
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const surface = () => H * 0.09;
+
+    function newForage(fromEdge) {
+      const s = Math.floor(Math.random() * schools.length);
+      return {
+        x: fromEdge ? (Math.random() < 0.5 ? -10 : W + 10) : rand(0, W), y: rand(H * 0.2, H * 0.6),
+        vx: rand(-30, 30), vy: 0, school: s, ox: rand(-60, 60), oy: rand(-30, 30),
+        alpha: fromEdge ? 1 : 0, dying: false, dart: null, len: rand(13, 17),
+      };
+    }
+    function newPred(wgt, fromEdge) {
+      const len = 8 + 40 * Math.pow(clamp(Math.log10(wgt) / Math.log10(2000), 0, 1), 1.6);
+      return {
+        x: fromEdge ? (Math.random() < 0.5 ? -40 : W + 40) : rand(0, W), y: rand(H * 0.45, H * 0.9),
+        vx: rand(-20, 20), vy: 0, len, w: wgt, alpha: fromEdge ? 1 : 0, dying: false,
+        tx: rand(0, W), ty: rand(H * 0.45, H * 0.9),
+      };
+    }
+
+    function sampleWeights(count) {
+      // sample predator weights from the biomass distribution above 1 g
+      const n = eng.state.n, wts = [], cum = [];
+      let tot = 0;
+      for (let j = 0; j < NW; j++) {
+        if (M.w[j] < 1) continue;
+        tot += n[NW + j] * M.w[j] * M.dw[j];
+        cum.push([tot, M.w[j]]);
+      }
+      for (let i = 0; i < count; i++) {
+        const u = Math.random() * tot;
+        const hit = cum.find((c) => c[0] >= u) || cum[cum.length - 1];
+        wts.push(hit ? hit[1] * rand(0.85, 1.2) : 500);
+      }
+      return wts;
+    }
+
+    function setTargets(d) {
+      const bf = eng.biomass(FORAGE, 0.5), bp = eng.biomass(PRED, 1);
+      target.forage = bf > 0.3 ? Math.min(260, Math.max(1, Math.round(bf / 9))) : 0;
+      const predCount = bp > 0.3 ? Math.min(70, Math.max(1, Math.round(bp / 10))) : 0;
+      target.predCount = predCount;
+      target.plankton = d.plankton;
+      target.larvaRate = d.Bp > 0.01 ? 7 * Math.sqrt(clamp(d.rdd / REF_A.rdd, 0, 4)) : 0;
+      target.S1 = d.S1;
+      target.boatsPred = Math.round(policy.Fp / 0.05);
+      target.boatsForage = Math.round(policy.Ff / 0.05);
+    }
+
+    function resetPopulation() {
+      forage.length = 0; preds.length = 0; larvae.length = 0; pops.length = 0;
+      setTargets(sim.diag);
+      for (let i = 0; i < target.forage; i++) { const f = newForage(false); f.alpha = 1; forage.push(f); }
+      sampleWeights(target.predCount).forEach((w) => { const p = newPred(w, false); p.alpha = 1; preds.push(p); });
+      seedPlankton();
+    }
+
+    function burst(kind) {
+      if (kind === "pred") {
+        for (let i = 0; i < 14; i++) larvae.push({ x: rand(W * 0.3, W * 0.7), y: rand(surface() + 10, H * 0.3), age: 0, life: rand(3, 4.5), doomed: Math.random() > target.S1, dieAt: rand(0.3, 0.9), vx: rand(-8, 8), vy: rand(2, 8), hunted: null });
+      } else {
+        for (let i = 0; i < 6; i++) { const f = newForage(true); forage.push(f); }
+      }
+    }
+
+    function syncCounts(dt) {
+      // forage
+      const liveF = forage.filter((f) => !f.dying);
+      let diff = target.forage - liveF.length;
+      const rate = Math.max(1, Math.ceil(Math.abs(diff) * dt * 1.5));
+      if (diff > 0) for (let i = 0; i < Math.min(diff, rate); i++) forage.push(newForage(true));
+      if (diff < 0) for (let i = 0; i < Math.min(-diff, rate); i++) liveF[Math.floor(Math.random() * liveF.length)].dying = true;
+      // predators
+      const liveP = preds.filter((p) => !p.dying);
+      diff = (target.predCount || 0) - liveP.length;
+      if (diff > 0) sampleWeights(Math.min(diff, 2)).forEach((w) => preds.push(newPred(w, true)));
+      if (diff < 0) {
+        // fishing takes the biggest fish first, other losses are random
+        const sorted = liveP.slice().sort((a, b) => b.w - a.w);
+        const victim = policy.Fp > 0 && Math.random() < 0.6 ? sorted[0] : liveP[Math.floor(Math.random() * liveP.length)];
+        if (victim) victim.dying = true;
+      }
+      // boats
+      for (const kind of ["pred", "forage"]) {
+        const want = kind === "pred" ? target.boatsPred : target.boatsForage;
+        const list = boats[kind];
+        while (list.filter((b) => !b.leaving).length < want) list.push({ x: Math.random() < 0.5 ? -60 : W + 60, dir: Math.random() < 0.5 ? 1 : -1, speed: rand(8, 16), leaving: false, phase: rand(0, 6) });
+        const active = list.filter((b) => !b.leaving);
+        if (active.length > want) active[active.length - 1].leaving = true;
+      }
+    }
+
+    function step(dt) {
+      clock += dt;
+      syncCounts(dt);
+      // schools wander
+      schools.forEach((s, i) => {
+        s.x = W * (0.5 + 0.38 * Math.sin(clock * 0.07 * motion + s.phase) * Math.cos(clock * 0.031 * motion + i));
+        s.y = H * (0.38 + 0.14 * Math.sin(clock * 0.11 * motion + s.phase * 1.7));
+      });
+      const adults = preds.filter((p) => p.len > 26);
+      for (const f of forage) {
+        if (f.dying) { f.alpha -= dt * 1.2; continue; }
+        f.alpha = Math.min(1, f.alpha + dt * 2);
+        let ax, ay;
+        if (f.dart) {
+          ax = (f.dart.x - f.x) * 6; ay = (f.dart.y - f.y) * 6;
+          f.dart.t -= dt;
+          if (f.dart.t <= 0) f.dart = null;
+        } else {
+          const s = schools[f.school];
+          ax = (s.x + f.ox - f.x) * 0.6 + rand(-25, 25);
+          ay = (s.y + f.oy - f.y) * 0.6 + rand(-15, 15);
+          for (const p of adults) {
+            const dx = f.x - p.x, dy = f.y - p.y, d2 = dx * dx + dy * dy;
+            if (d2 < 90 * 90) { const k = 9000 / (d2 + 100); ax += dx * k * 0.05; ay += dy * k * 0.05; }
+          }
+        }
+        f.vx += ax * dt; f.vy += ay * dt;
+        const sp = Math.hypot(f.vx, f.vy), max = (f.dart ? 220 : 70) * motion;
+        if (sp > max) { f.vx *= max / sp; f.vy *= max / sp; }
+        f.x += f.vx * dt; f.y += f.vy * dt;
+        f.y = clamp(f.y, surface() + 8, H - 30);
+      }
+      for (let i = forage.length - 1; i >= 0; i--) if (forage[i].alpha <= 0) forage.splice(i, 1);
+
+      for (const p of preds) {
+        if (p.dying) { p.alpha -= dt * 0.8; p.y -= dt * 25; continue; }
+        p.alpha = Math.min(1, p.alpha + dt * 1.5);
+        if (Math.hypot(p.tx - p.x, p.ty - p.y) < 30 || Math.random() < dt * 0.05) { p.tx = rand(-20, W + 20); p.ty = rand(H * 0.42, H * 0.9); }
+        p.vx += (p.tx - p.x) * 0.05 * dt; p.vy += (p.ty - p.y) * 0.05 * dt;
+        const sp = Math.hypot(p.vx, p.vy), max = (14 + p.len * 0.6) * motion;
+        if (sp > max) { p.vx *= max / sp; p.vy *= max / sp; }
+        p.x += p.vx * dt; p.y += p.vy * dt;
+      }
+      for (let i = preds.length - 1; i >= 0; i--) if (preds[i].alpha <= 0) preds.splice(i, 1);
+
+      // larvae: spawn, drift, get eaten or grow up
+      if (sim.running && target.larvaRate > 0 && Math.random() < target.larvaRate * dt) {
+        larvae.push({ x: rand(20, W - 20), y: rand(surface() + 6, H * 0.28), age: 0, life: rand(3, 4.5), doomed: Math.random() > target.S1, dieAt: rand(0.25, 0.85), vx: rand(-6, 6), vy: rand(1, 6), hunted: null });
+      }
+      for (let i = larvae.length - 1; i >= 0; i--) {
+        const l = larvae[i];
+        l.age += dt;
+        l.x += l.vx * dt * motion; l.y += l.vy * dt * motion;
+        const frac = l.age / l.life;
+        if (l.doomed && !l.hunted && frac > l.dieAt) {
+          let best = null, bd = 170 * 170;
+          for (const f of forage) {
+            if (f.dying || f.dart) continue;
+            const d2 = (f.x - l.x) ** 2 + (f.y - l.y) ** 2;
+            if (d2 < bd) { bd = d2; best = f; }
+          }
+          if (best) { best.dart = { x: l.x, y: l.y, t: 0.7 }; l.hunted = best; l.huntT = 0; }
+          else { l.fade = true; l.doomed = false; l.life = l.age + 0.6; }
+        }
+        if (l.hunted) {
+          l.huntT += dt;
+          const f = l.hunted;
+          if (Math.hypot(f.x - l.x, f.y - l.y) < 9 || l.huntT > 0.75) {
+            pops.push({ x: l.x, y: l.y, t: 0 });
+            larvae.splice(i, 1);
+            continue;
+          }
+        }
+        if (l.age >= l.life) larvae.splice(i, 1);
+      }
+      for (let i = pops.length - 1; i >= 0; i--) { pops[i].t += dt; if (pops[i].t > 0.5) pops.splice(i, 1); }
+      for (const p of plankton) { p.y -= dt * 3 * motion; p.x += Math.sin(clock + p.ph) * dt * 4 * motion; if (p.y < surface()) { p.y = H * 0.85; p.x = rand(0, W); } }
+
+      for (const kind of ["pred", "forage"]) {
+        const list = boats[kind];
+        for (let i = list.length - 1; i >= 0; i--) {
+          const b = list[i];
+          b.x += b.dir * b.speed * dt * (b.leaving ? 4 : 1) * motion;
+          if (!b.leaving && (b.x < 30 || b.x > W - 30)) b.dir = b.x < 30 ? 1 : -1;
+          if (b.leaving && (b.x < -80 || b.x > W + 80)) list.splice(i, 1);
+        }
+      }
+    }
+
+    function drawFish(x, y, vx, len, body, back, alpha) {
+      const dir = vx < 0 ? -1 : 1;
+      ctx.save();
+      ctx.globalAlpha = clamp(alpha, 0, 1);
+      ctx.translate(x, y);
+      ctx.scale(dir, 1);
+      const hgt = len * 0.32;
+      ctx.fillStyle = body;
+      ctx.beginPath();
+      ctx.moveTo(len * 0.5, 0);
+      ctx.quadraticCurveTo(len * 0.15, -hgt, -len * 0.35, -hgt * 0.25);
+      ctx.lineTo(-len * 0.35, hgt * 0.25);
+      ctx.quadraticCurveTo(len * 0.15, hgt, len * 0.5, 0);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.3, 0);
+      ctx.lineTo(-len * 0.55, -hgt * 0.75);
+      ctx.lineTo(-len * 0.55, hgt * 0.75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = back;
+      ctx.beginPath();
+      ctx.moveTo(len * 0.45, -hgt * 0.15);
+      ctx.quadraticCurveTo(len * 0.12, -hgt * 0.95, -len * 0.33, -hgt * 0.22);
+      ctx.quadraticCurveTo(len * 0.1, -hgt * 0.35, len * 0.45, -hgt * 0.15);
+      ctx.fill();
+      if (len > 14) {
+        ctx.fillStyle = "#0b1f27";
+        ctx.beginPath(); ctx.arc(len * 0.32, -hgt * 0.15, Math.max(1, len * 0.035), 0, 6.283); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawBoat(b, kind) {
+      const x = b.x, y = surface() + Math.sin(clock * 1.5 + b.phase) * 1.5 * motion;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(b.dir, 1);
+      // net line
+      ctx.strokeStyle = "rgba(230, 245, 248, 0.35)";
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1;
+      if (kind === "pred") {
+        ctx.beginPath(); ctx.moveTo(-26, 2); ctx.lineTo(-90, H * 0.62); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = "rgba(230, 245, 248, 0.3)";
+        ctx.beginPath(); ctx.moveTo(-90, H * 0.62); ctx.lineTo(-150, H * 0.6); ctx.lineTo(-150, H * 0.7); ctx.closePath(); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(-34, 4, 24, 0, Math.PI); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // hull
+      ctx.fillStyle = "#16252b";
+      ctx.beginPath(); ctx.moveTo(-30, -4); ctx.lineTo(30, -4); ctx.lineTo(22, 7); ctx.lineTo(-26, 7); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = kind === "pred" ? "#ef8a4c" : "#8ec9ee";
+      ctx.fillRect(-28, -4, 56, 3);
+      ctx.fillStyle = "#e9f2f3";
+      ctx.fillRect(4, -14, 14, 10);
+      ctx.fillStyle = "#16252b";
+      ctx.fillRect(-14, -22, 2, 18);
+      ctx.restore();
+    }
+
+    function draw() {
+      if (!backdrop) return;
+      ctx.drawImage(backdrop, 0, 0, W, H);
+      // plankton density follows the model
+      const shown = Math.round(plankton.length * clamp(target.plankton, 0, 1.1));
+      ctx.fillStyle = "#8fd69a";
+      for (let i = 0; i < shown; i++) {
+        const p = plankton[i];
+        ctx.globalAlpha = 0.35 + 0.3 * Math.sin(clock * 2 + p.ph);
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      for (const p of preds) drawFish(p.x, p.y, p.vx, p.len, "#d9783b", "#7c3f1c", p.alpha);
+      for (const f of forage) drawFish(f.x, f.y, f.vx, f.len, "#c3e1f2", "#4f8db8", f.alpha);
+      for (const l of larvae) {
+        const frac = l.age / l.life;
+        ctx.globalAlpha = l.fade ? clamp(1 - (l.age - (l.life - 0.6)) / 0.6, 0, 1) : frac > 0.85 && !l.doomed ? (1 - frac) / 0.15 : 1;
+        ctx.fillStyle = "#ffc39a";
+        ctx.beginPath(); ctx.arc(l.x, l.y, 1.8 + 1.4 * frac, 0, 6.283); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      for (const p of pops) {
+        ctx.strokeStyle = `rgba(255, 210, 180, ${1 - p.t / 0.5})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3 + 14 * p.t, 0, 6.283); ctx.stroke();
+      }
+      // surface
+      ctx.fillStyle = "rgba(210, 240, 246, 0.25)";
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      for (let x = 0; x <= W; x += 12) ctx.lineTo(x, surface() + 2 * Math.sin(x / 40 + clock * 1.2 * motion));
+      ctx.lineTo(W, 0); ctx.closePath(); ctx.fill();
+      for (const b of boats.pred) drawBoat(b, "pred");
+      for (const b of boats.forage) drawBoat(b, "forage");
+    }
+
+    return { step, draw, setTargets, resetPopulation, burst };
+  })();
+
+  // ---------------------------------------------------------------------
+  // Main loop
+  // ---------------------------------------------------------------------
+  let chartsDirty = true, lastChart = 0;
+  function onYear() {
+    sim.year++;
+    sim.diag = computeDiag();
+    record();
+    detectEvents();
+    evaluateMission();
+    sea.setTargets(sim.diag);
+    chartsDirty = true;
+  }
+
+  function renderAll(force) {
+    renderReadouts();
+    logbook.draw();
+    regimeChart.draw();
+    nurseryChart.draw();
+    renderTable();
+    if (force) sea.setTargets(sim.diag);
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dtReal = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (sim.running) {
+      sim.acc += dtReal * sim.speed;
+      let n = 0;
+      while (sim.acc >= DT && n < 200) {
+        eng.step(DT);
+        sim.acc -= DT;
+        sim.steps++;
+        n++;
+        if (sim.steps % STEPS_PER_YEAR === 0) onYear();
+        if (!sim.running) { sim.acc = 0; break; }
+      }
+    }
+    sea.step(dtReal);
+    sea.draw();
+    if (chartsDirty && now - lastChart > 120) {
+      renderAll(false);
+      chartsDirty = false;
+      lastChart = now;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // Key numbers table
+  const fact = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+  $("facts").innerHTML = [
+    fact("Healthy sea: predators / forage fish", `${fmt(B_A[PRED])} / ${fmt(B_A[FORAGE])} kt`),
+    fact("Collapsed sea: forage fish", `${fmt(B_C[FORAGE])} kt (${fmt(B_C[FORAGE] / B_A[FORAGE])}×)`),
+    fact("Young predators surviving to 1 g, healthy / collapsed", `${fmt(1000 * REF_A.S1)} / ${fmt(1000 * REF_C.S1)} per 1,000`),
+    fact("Comeback number, healthy / collapsed", `${REF_A.R0.toFixed(2)} / ${REF_C.R0.toFixed(2)}`),
+    fact("Predator collapses above, with no forage fishing", `F ${Fcrit(0).toFixed(3)} (${pctCatch(Fcrit(0))}% a year)`),
+    fact("Best sustainable predator catch, no forage fishing", `${fmt(MSY0.Yp)} kt/yr at F ${MSY0.Fp.toFixed(3)}`),
+    fact("Forage fishing that reopens the nursery", `F ${FF_INV.toFixed(3)} (${pctCatch(FF_INV)}% a year)`),
+  ].join("");
+
+  startMission(MISSIONS[0]);
+  requestAnimationFrame(frame);
+})();
+</script>

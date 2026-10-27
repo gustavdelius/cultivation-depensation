@@ -1,0 +1,2198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>The Nursery Trap</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="A playable size-spectrum model of cultivation-depensation: why an overfished predator may not recover under a fishing ban, and how fishing its prey can bring it back.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a ship's bridge. The sea window and the control deck sit side by side;
+   the chart table (logbook, policy chart, nursery chart) runs beneath. */
+:root {
+  --bg: #e7eff0;
+  --panel: #f8fbfb;
+  --panel-2: #dde8ea;
+  --ink: #0d2730;
+  --ink-2: #41606a;
+  --ink-3: #6b8790;
+  --line: #c2d3d7;
+  --accent: #0b6476;
+  --accent-ink: #f3fbfc;
+  --predator: #c4520a;
+  --forage: #0a6aa6;
+  --safe: #2f8f63;
+  --tip: #cf8d12;
+  --lost: #3d67a6;
+  --good: #22724a;
+  --bad: #b23a22;
+  --fog: rgba(13, 39, 48, 0.78);
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", Verdana, "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #071519; --panel: #0d2229; --panel-2: #143039; --ink: #e1edef; --ink-2: #a5bec5;
+    --ink-3: #7d979e; --line: #24444e; --accent: #4fb3c6; --accent-ink: #061418;
+    --predator: #e06a2c; --forage: #3593d4; --safe: #47b884; --tip: #e6a83a; --lost: #6d93d6;
+    --good: #5cc48c; --bad: #ef7a5e; --fog: rgba(4, 14, 18, 0.82);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #071519; --panel: #0d2229; --panel-2: #143039; --ink: #e1edef; --ink-2: #a5bec5;
+  --ink-3: #7d979e; --line: #24444e; --accent: #4fb3c6; --accent-ink: #061418;
+  --predator: #e06a2c; --forage: #3593d4; --safe: #47b884; --tip: #e6a83a; --lost: #6d93d6;
+  --good: #5cc48c; --bad: #ef7a5e; --fog: rgba(4, 14, 18, 0.82);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid;
+  gap: 18px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+.eyebrow {
+  font: 600 11px/1.2 var(--font-data);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---- Masthead ---- */
+.masthead { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.masthead-top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: end; justify-content: space-between; }
+.title-block { display: grid; gap: 6px; max-width: 760px; }
+h1 {
+  font-size: clamp(34px, 5vw, 56px);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  font-variation-settings: "opsz" 96;
+}
+h1 .hook { color: var(--predator); }
+.lede { font-size: 17px; color: var(--ink-2); max-width: 66ch; }
+.missions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mission-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.mission-tab .badge {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--panel-2); color: var(--ink-2);
+  font: 600 12px/1 var(--font-data);
+}
+.mission-tab[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.mission-tab[aria-pressed="true"] .badge { background: var(--bg); color: var(--ink); }
+.mission-tab.done .badge { background: var(--good); color: var(--panel); }
+.mission-tab:hover { border-color: var(--ink-3); }
+
+/* ---- Console: sea + deck ---- */
+.console { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); align-items: start; }
+.console .left { display: grid; gap: 14px; min-width: 0; }
+@media (max-width: 980px) {
+  .console { grid-template-columns: minmax(0, 1fr); }
+  .console .left { display: contents; }
+  .sea-frame { order: 1; }
+  .deck { order: 2; }
+  .status-strip { order: 3; }
+}
+.status-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.7fr); gap: 12px 18px; align-items: start; }
+@media (max-width: 1180px) { .status-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); } .status-strip .gauge { grid-column: 1 / -1; } }
+@media (max-width: 620px) { .status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.sea-frame {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #0b3446;
+  aspect-ratio: 16 / 10;
+  max-width: 100%;
+  min-height: 300px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 12px 30px -18px rgba(5, 30, 40, 0.6);
+}
+#sea { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sea-hud {
+  position: absolute; inset: 0 0 auto 0;
+  display: flex; justify-content: space-between; align-items: start; gap: 10px;
+  padding: 10px;
+  pointer-events: none;
+}
+.sea-hud > * { pointer-events: auto; }
+.transport {
+  display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
+  background: rgba(4, 24, 32, 0.62);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 4px;
+  color: #e8f4f6;
+}
+.transport button {
+  border: 0; background: transparent; color: inherit; cursor: pointer;
+  padding: 5px 9px; border-radius: 6px; font-size: 13px; line-height: 1.2;
+}
+.transport button:hover { background: rgba(255,255,255,0.12); }
+.transport button[aria-pressed="true"] { background: #e8f4f6; color: #0b3446; }
+.transport .play { font-weight: 700; min-width: 74px; }
+.transport .sep { width: 1px; align-self: stretch; background: rgba(255,255,255,0.2); margin: 2px 3px; }
+.clock {
+  background: rgba(4, 24, 32, 0.62);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: #e8f4f6;
+  text-align: right;
+}
+.clock .label { font: 600 10px/1 var(--font-data); letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7; }
+.clock .year { font: 500 22px/1.1 var(--font-data); }
+.sea-legend {
+  position: absolute; left: 10px; bottom: 10px;
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  background: rgba(4, 24, 32, 0.55);
+  backdrop-filter: blur(6px);
+  border-radius: 8px;
+  padding: 5px 10px;
+  color: #dcecef;
+  font-size: 12px;
+  max-width: calc(100% - 20px);
+}
+.sea-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sea-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.toast-stack {
+  position: absolute; right: 10px; bottom: 10px;
+  display: grid; gap: 6px; justify-items: end;
+  max-width: min(360px, calc(100% - 20px));
+  pointer-events: none;
+}
+.toast {
+  background: rgba(250, 253, 253, 0.94);
+  color: #0d2730;
+  border-left: 4px solid var(--tip);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px -8px rgba(0,0,0,0.5);
+  animation: toast-in 0.35s ease-out;
+}
+.toast.bad { border-left-color: #c4402a; }
+.toast.good { border-left-color: #2f8f63; }
+.toast b { font-family: var(--font-data); font-weight: 500; margin-right: 4px; }
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.debrief {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  padding: 16px;
+  background: rgba(4, 20, 27, 0.55);
+  backdrop-filter: blur(2px);
+}
+.debrief-card {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  display: grid; gap: 12px;
+  box-shadow: 0 20px 50px -20px rgba(0,0,0,0.6);
+}
+.debrief-card h2 { font-size: 26px; line-height: 1.1; }
+.debrief-card .verdict { font: 600 12px/1 var(--font-data); letter-spacing: 0.1em; text-transform: uppercase; }
+.debrief-card .verdict.win { color: var(--good); }
+.debrief-card .verdict.lose { color: var(--bad); }
+.debrief-card p { color: var(--ink-2); }
+.debrief-card .actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+
+/* ---- Deck ---- */
+.deck { display: grid; gap: 14px; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.mission-card { border-top: 4px solid var(--accent); }
+.mission-card h2 { font-size: 22px; line-height: 1.15; }
+.mission-card .brief { color: var(--ink-2); font-size: 15px; }
+.objective {
+  display: grid; gap: 8px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border-radius: 8px;
+  font-size: 14px;
+}
+.objective ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.objective li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; align-items: start; }
+.objective li::before { content: "○"; color: var(--ink-3); font-family: var(--font-data); }
+.objective li.met::before { content: "●"; color: var(--good); }
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width 0.3s; }
+.hint { font-size: 14px; color: var(--ink); padding-left: 10px; border-left: 3px solid var(--tip); }
+.hint:empty { display: none; }
+
+.lever { display: grid; gap: 6px; }
+.lever-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lever-head label { font-weight: 700; display: inline-flex; gap: 8px; align-items: center; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+.lever-value { font: 500 14px/1.2 var(--font-data); white-space: nowrap; }
+.lever-sub { font-size: 13px; color: var(--ink-2); min-height: 1.4em; }
+.lever.locked .lever-sub { color: var(--ink-3); }
+input[type="range"] { width: 100%; margin: 4px 0; cursor: pointer; }
+input[type="range"]:disabled { cursor: not-allowed; opacity: 0.45; }
+#fp-slider { accent-color: var(--predator); }
+#ff-slider { accent-color: var(--forage); }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.btn:hover:not(:disabled) { border-color: var(--ink-3); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.btn .count { font-family: var(--font-data); font-size: 12px; opacity: 0.75; margin-left: 4px; }
+
+.readout { display: grid; gap: 2px; min-width: 0; }
+.readout .value { font: 500 22px/1.15 var(--font-data); font-variant-numeric: tabular-nums; }
+.readout .value small { font-size: 13px; color: var(--ink-2); margin-left: 3px; }
+.readout .note { font-size: 13px; color: var(--ink-2); }
+.readout .note.bad { color: var(--bad); font-weight: 700; }
+.readout .note.good { color: var(--good); }
+
+.gauge { display: grid; gap: 6px; }
+.gauge-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.gauge-head strong { font-family: var(--font-display); font-size: 16px; }
+.gauge-track { position: relative; height: 14px; border-radius: 7px; background: var(--panel-2); overflow: visible; }
+.gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: 7px; background: var(--predator); transition: width 0.25s; }
+.gauge-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.gauge-mark span {
+  position: absolute; top: 20px; transform: translateX(-50%);
+  font: 500 10px/1 var(--font-data); color: var(--ink-2); white-space: nowrap;
+}
+.gauge-scale { height: 14px; }
+.gauge-text { font-size: 13px; color: var(--ink-2); }
+.state-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font: 600 11px/1.5 var(--font-data); letter-spacing: 0.05em; text-transform: uppercase;
+}
+.state-pill.good { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.state-pill.bad { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+
+/* ---- Chart table ---- */
+.charts { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+@media (max-width: 1180px) { .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .charts .wide { grid-column: 1 / -1; } }
+@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+figure.panel { margin: 0; }
+.fig-head { display: grid; gap: 4px; }
+.fig-head h2 { font-size: 19px; line-height: 1.2; }
+.fig-head p { font-size: 14px; color: var(--ink-2); max-width: 62ch; }
+.chart { position: relative; width: 100%; min-width: 0; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font-data); font-size: 11px; fill: var(--ink-3); }
+.chart .row-title { font-family: var(--font-body); font-size: 12px; font-weight: 700; fill: var(--ink-2); }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { stroke: var(--ink-3); stroke-width: 1; }
+.chart .ref { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 4 4; fill: none; }
+.chart .s-pred { stroke: var(--predator); stroke-width: 2; fill: none; stroke-linejoin: round; }
+.chart .s-forage { stroke: var(--forage); stroke-width: 2; fill: none; stroke-linejoin: round; }
+.chart .a-pred { fill: var(--predator); opacity: 0.12; }
+.chart .a-forage { fill: var(--forage); opacity: 0.12; }
+.chart .crosshair { stroke: var(--ink); stroke-width: 1; opacity: 0.5; }
+.chart .label-pred { fill: var(--predator); font-weight: 500; }
+.chart .label-forage { fill: var(--forage); font-weight: 500; }
+.chart .region-safe { fill: var(--safe); opacity: 0.22; }
+.chart .region-tip { fill: url(#hatch); }
+.chart .region-tip-base { fill: var(--tip); opacity: 0.2; }
+.chart .region-lost { fill: var(--lost); opacity: 0.2; }
+.chart .line-fold { stroke: var(--bad); stroke-width: 2.5; fill: none; }
+.chart .line-inv { stroke: var(--safe); stroke-width: 2.5; fill: none; stroke-dasharray: 7 5; }
+.chart .region-label { font-family: var(--font-display); font-size: 14px; font-weight: 700; fill: var(--ink); }
+.chart .region-sub { font-family: var(--font-body); font-size: 11.5px; fill: var(--ink-2); }
+.chart .track-on { fill: var(--predator); }
+.chart .track-off { fill: var(--forage); }
+.chart .boat { fill: var(--ink); stroke: var(--panel); stroke-width: 2; }
+.chart .boat-halo { fill: none; stroke: var(--ink); stroke-width: 1.5; opacity: 0.35; }
+.chart .click-layer { fill: transparent; cursor: crosshair; }
+.chart .click-layer.locked { cursor: not-allowed; }
+.chart .fog-rect { fill: var(--fog); }
+.chart .fog-text { font-family: var(--font-display); font-size: 16px; font-weight: 700; fill: #f1f8f9; }
+.chart .fog-sub { font-family: var(--font-body); font-size: 12.5px; fill: #c9dde1; }
+.chart .zone-band { fill: var(--forage); opacity: 0.08; }
+.tooltip {
+  position: absolute; pointer-events: none;
+  background: var(--ink); color: var(--bg);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font: 12px/1.45 var(--font-data);
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 10px));
+  z-index: 3;
+}
+.tooltip[hidden] { display: none; }
+.tooltip .k { opacity: 0.7; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; }
+.legend i.dash { border-top-style: dashed; }
+.legend i.box { width: 12px; height: 12px; border: 0; border-radius: 2px; }
+.big-stat { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.big-stat .n { font: 500 34px/1 var(--font-data); color: var(--predator); }
+.big-stat .t { font-size: 14px; color: var(--ink-2); max-width: 36ch; }
+details.table-view summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
+details.table-view .scroll { overflow-x: auto; max-height: 220px; margin-top: 8px; }
+details.table-view table { border-collapse: collapse; font: 12px/1.4 var(--font-data); font-variant-numeric: tabular-nums; }
+details.table-view th, details.table-view td { padding: 3px 10px 3px 0; text-align: right; border-bottom: 1px solid var(--line); }
+details.table-view th { position: sticky; top: 0; background: var(--panel); color: var(--ink-2); font-weight: 500; }
+
+/* ---- Explainer ---- */
+.explainer { display: grid; gap: 18px; }
+.explainer > h2 { font-size: 28px; line-height: 1.1; }
+.loop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) { .loop { grid-template-columns: minmax(0, 1fr); } }
+.loop .panel h3 { font-size: 18px; }
+.loop .panel p { color: var(--ink-2); font-size: 15px; }
+.loop .step { font: 600 12px/1 var(--font-data); color: var(--accent); letter-spacing: 0.08em; }
+.science { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 860px) { .science { grid-template-columns: minmax(0, 1fr); } }
+.science p, .science li { color: var(--ink-2); font-size: 15px; max-width: 68ch; }
+.science ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.science h3 { font-size: 18px; }
+.facts { width: 100%; border-collapse: collapse; font-size: 14px; }
+.facts td { padding: 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.facts td:last-child { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; padding-left: 12px; white-space: nowrap; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 560px) {
+  .readout .value { font-size: 19px; }
+  .sea-frame { aspect-ratio: 4 / 5; }
+  .sea-legend { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+  .progress > div, .gauge-fill { transition: none; }
+}
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="masthead-top">
+      <div class="title-block">
+        <p class="eyebrow">A playable fisheries model</p>
+        <h1>The Nursery <span class="hook">Trap</span></h1>
+        <p class="lede">Big predatory fish protect their own young by eating the small fish that would otherwise eat their babies. Fish the predators too hard and that protection fails. Then a fishing ban alone will not bring them back. Steer a live ecosystem model and see it happen.</p>
+      </div>
+    </div>
+    <nav class="missions" aria-label="Missions" id="mission-tabs"></nav>
+  </header>
+
+  <section class="console">
+    <div class="left">
+    <div class="sea-frame" id="sea-frame">
+      <canvas id="sea" aria-label="Animated view of the sea: plankton, forage fish, predators and fishing boats" role="img"></canvas>
+      <div class="sea-hud">
+        <div class="transport" role="group" aria-label="Simulation controls">
+          <button class="play" id="play-btn" aria-label="Pause simulation">❚❚ Pause</button>
+          <span class="sep" aria-hidden="true"></span>
+          <span class="visually-hidden" id="speed-label">Speed in model years per second</span>
+          <div id="speed-group" role="group" aria-labelledby="speed-label" style="display:flex;gap:2px"></div>
+        </div>
+        <div class="clock" aria-live="off">
+          <div class="label">Year</div>
+          <div class="year num" id="year">0</div>
+        </div>
+      </div>
+      <div class="sea-legend" aria-hidden="true">
+        <span><i style="background:#ef8a4c"></i>Predators</span>
+        <span><i style="background:#ffc39a;width:6px;height:6px"></i>Predator young</span>
+        <span><i style="background:#b9dbef"></i>Forage fish</span>
+        <span><i style="background:#8fd69a;width:6px;height:6px"></i>Plankton</span>
+      </div>
+      <div class="toast-stack" id="toasts" aria-live="polite"></div>
+      <div class="debrief" id="debrief" hidden>
+        <div class="debrief-card" role="dialog" aria-modal="false" aria-labelledby="debrief-title">
+          <div class="verdict" id="debrief-verdict"></div>
+          <h2 id="debrief-title"></h2>
+          <div id="debrief-body" style="display:grid;gap:10px"></div>
+          <div class="actions" id="debrief-actions"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel status-strip" aria-label="State of the sea">
+      <div class="readout">
+        <span class="eyebrow">Predator stock</span>
+        <span class="value" id="r-bp">–</span>
+        <span class="note" id="r-bp-note"></span>
+      </div>
+      <div class="readout">
+        <span class="eyebrow">Forage fish stock</span>
+        <span class="value" id="r-bf">–</span>
+        <span class="note" id="r-bf-note"></span>
+      </div>
+      <div class="readout">
+        <span class="eyebrow">Predator catch</span>
+        <span class="value" id="r-yp">–</span>
+        <span class="note" id="r-yp-note"></span>
+      </div>
+      <div class="readout">
+        <span class="eyebrow">Forage fish catch</span>
+        <span class="value" id="r-yf">–</span>
+        <span class="note" id="r-yf-note"></span>
+      </div>
+      <div class="gauge">
+        <div class="gauge-head">
+          <strong>Comeback number</strong>
+          <span><span class="num" id="r0-value">–</span> <span class="state-pill" id="r0-pill"></span></span>
+        </div>
+        <div class="gauge-track" aria-hidden="true">
+          <div class="gauge-fill" id="r0-fill"></div>
+          <div class="gauge-mark" id="r0-mark-1"><span>1</span></div>
+        </div>
+        <div class="gauge-scale" aria-hidden="true"></div>
+        <p class="gauge-text" id="r0-text"></p>
+      </div>
+    </div>
+    </div>
+
+    <aside class="deck">
+      <div class="panel mission-card" id="mission-card">
+        <p class="eyebrow" id="mission-eyebrow">Mission</p>
+        <h2 id="mission-title"></h2>
+        <p class="brief" id="mission-brief"></p>
+        <div class="objective" id="objective">
+          <ul id="objective-list"></ul>
+          <div class="progress" aria-hidden="true"><div id="objective-progress"></div></div>
+        </div>
+        <p class="hint" id="hint" aria-live="polite"></p>
+      </div>
+
+      <div class="panel" role="group" aria-label="Fishing policy">
+        <div class="lever" id="fp-lever">
+          <div class="lever-head">
+            <label for="fp-slider"><span class="swatch" style="background:var(--predator)"></span>Predator fishing</label>
+            <span class="lever-value" id="fp-value">F 0.00</span>
+          </div>
+          <input type="range" id="fp-slider" min="0" max="0.5" step="0.005" value="0">
+          <p class="lever-sub" id="fp-sub"></p>
+        </div>
+        <div class="lever" id="ff-lever">
+          <div class="lever-head">
+            <label for="ff-slider"><span class="swatch" style="background:var(--forage)"></span>Forage fish fishing</label>
+            <span class="lever-value" id="ff-value">F 0.00</span>
+          </div>
+          <input type="range" id="ff-slider" min="0" max="0.6" step="0.005" value="0">
+          <p class="lever-sub" id="ff-sub"></p>
+        </div>
+        <div class="btn-row" id="action-row">
+          <button class="btn" id="restock-btn">Restock young predators<span class="count" id="restock-count"></span></button>
+          <button class="btn" id="release-pred-btn" hidden>Release predators</button>
+          <button class="btn" id="release-forage-btn" hidden>Release forage fish</button>
+          <button class="btn" id="reset-btn">Restart mission</button>
+        </div>
+        <div class="btn-row" id="preset-row" hidden>
+          <span class="eyebrow" style="align-self:center">Start from</span>
+          <button class="btn" data-preset="State_A">Healthy sea</button>
+          <button class="btn" data-preset="State_C">Collapsed sea</button>
+          <button class="btn" data-preset="State_B">Predators only</button>
+          <button class="btn" data-preset="State_0">Empty sea</button>
+        </div>
+      </div>
+
+    </aside>
+  </section>
+
+  <section class="charts" aria-label="Instruments">
+    <figure class="panel wide">
+      <div class="fig-head">
+        <p class="eyebrow">Logbook</p>
+        <h2>Stocks, catches and fishing over time</h2>
+        <p>Hover to read any year. The dashed lines mark the healthy, unfished sea.</p>
+      </div>
+      <div class="legend">
+        <span><i style="border-color:var(--predator)"></i>Predator</span>
+        <span><i style="border-color:var(--forage)"></i>Forage fish</span>
+        <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy unfished level</span>
+      </div>
+      <div class="chart" id="logbook"></div>
+      <details class="table-view">
+        <summary>Show the logbook as a table</summary>
+        <div class="scroll" id="log-table"></div>
+      </details>
+    </figure>
+      <figure class="panel">
+        <div class="fig-head">
+          <p class="eyebrow">Policy chart</p>
+          <h2>Where your fishing policy sits</h2>
+          <p>Each point is one year of your policy, coloured by whether predators were still there. Click the chart to set both fishing pressures at once.</p>
+        </div>
+        <div class="chart" id="regime-chart"></div>
+        <div class="legend">
+          <span><i class="box" style="background:color-mix(in srgb, var(--safe) 40%, transparent)"></i>Safe: predators always recover</span>
+          <span><i class="box" style="background:color-mix(in srgb, var(--tip) 45%, transparent)"></i>Tipping zone: two possible seas</span>
+          <span><i class="box" style="background:color-mix(in srgb, var(--lost) 40%, transparent)"></i>Predators lost</span>
+        </div>
+      </figure>
+      <figure class="panel">
+        <div class="fig-head">
+          <p class="eyebrow">Nursery</p>
+          <h2>How dangerous is it to be a young predator?</h2>
+        </div>
+        <div class="big-stat">
+          <span class="n" id="nursery-n">–</span>
+          <span class="t" id="nursery-t">of every 1,000 young predators survive to 1 gram</span>
+        </div>
+        <div class="chart" id="nursery-chart"></div>
+        <div class="legend">
+          <span><i style="border-color:var(--predator)"></i>Now</span>
+          <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy sea</span>
+          <span><i class="dash" style="border-color:var(--forage)"></i>Forage-dominated sea</span>
+        </div>
+      </figure>
+  </section>
+
+  <section class="explainer" aria-labelledby="how-title">
+    <h2 id="how-title">What is going on under the surface</h2>
+    <div class="loop">
+      <div class="panel">
+        <p class="step">CULTIVATION</p>
+        <h3>Adult predators tend their own nursery</h3>
+        <p>Predators like cod eat forage fish like herring and sprat. By keeping forage fish scarce, the adults make the sea safe for their own larvae, which start life at one milligram, small enough to be eaten by a forage fish.</p>
+      </div>
+      <div class="panel">
+        <p class="step">DEPENSATION</p>
+        <h3>Remove the adults and the nursery turns hostile</h3>
+        <p>Fish the adults down and forage fish multiply, up to 24 times their usual abundance. They eat the predator larvae: danger in the nursery rises from about 1 to almost 40 deaths per larva per year. Too few young survive to replace their parents, and the decline feeds itself.</p>
+      </div>
+      <div class="panel">
+        <p class="step">RESTORATION</p>
+        <h3>Fishing the prey reopens the door</h3>
+        <p>A fishing ban does not remove the forage fish, so the nursery stays hostile and predators cannot return. Fishing the forage fish does the adults' old job. Once the predators are back, they take over and the forage fishery can stop again.</p>
+      </div>
+    </div>
+    <div class="science">
+      <div class="panel">
+        <h3>About the model</h3>
+        <p>The simulation runs, live in your browser, the three-group size-spectrum model of the accompanying paper (built with the <a href="https://sizespectrum.org/mizer/" target="_blank" rel="noopener">mizer</a> R package): a plankton resource, a forage fish that grows to 20 g and a predator that grows to 2 kg. Both fish species hatch at 1 mg, and who eats whom is set by body size, so roles reverse as the predator grows up.</p>
+        <ul>
+          <li>Every number you see is computed by the model as you play. Nothing is scripted. The engine is a line-by-line port of mizer's equations and reproduces mizer's own simulations to about 15 significant digits.</li>
+          <li>Fishing pressure F is the yearly fishing mortality rate. The percentage beside it is the share of catchable fish removed per year. Predators are caught from 400 g, forage fish from 1 g.</li>
+          <li>Stock sizes are model biomasses, shown as thousand tonnes (kt) to make them easier to read. Compare them with each other and with the healthy level, not with any real fishery.</li>
+          <li>The comeback number is how many offspring a predator would leave over its lifetime if predators were rare in the current sea. Above 1 a small population grows. Below 1 it shrinks, however few are caught.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Key numbers from the model</h3>
+        <table class="facts" id="facts"></table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+// Generated by interactive/export_model.R from cultivation_depensation_params.rds.
+// Do not edit by hand.
+(function (root) { var MODEL = {"species":["Forage","Predator"],"colours":["#0072B2","#D55E00"],"w":[0.001,0.00120778290039734,0.00145873953449221,0.00176184066589326,0.00212792102949054,0.00257006663281457,0.0031040825319952,0.00374905780356587,0.00452804790774806,0.00546889883515805,0.00660524249710681,0.00797769894098342,0.00963532836543773,0.0116373848394891,0.0140554344144782,0.016975913343463,0.0205032178548616,0.0247634359282232,0.0299088544691931,0.0361234029983639,0.0436292284455858,0.0526946360741077,0.0636436803929679,0.07686774889698,0.0928395527098088,0.112130024243444,0.135428725902371,0.163568499367482,0.197555236579697,0.238603836624909,0.288181633844765,0.348060849566274,0.420381942403916,0.507730121671268,0.613227758971217,0.740646001334415,0.894539575659371,1.08040960321008,1.30490024418221,1.57603620164758,1.90350957475712,2.29902631513425,2.77672467098265,3.35368057672427,4.05051805396225,4.89214644332631,5.90865082048917,7.13636742540552,8.61918254735737,10.4101012961014,12.5731423368354,15.1856263186916,18.3409397995395,22.1518734671008,26.7546539853299,32.3138135895289,39.0280715000601,47.1374373932573,56.9317908521262,68.7612434801957,83.0486540854381,100.304744305406,121.146355000796,146.318496015427,176.720977499289,213.440574765144,257.78987645232,311.354204674655,376.048284372861,454.184687589296,548.556499292659,662.537159747498,800.201052420848,966.469147993854,1167.28491070856,1409.82675504563,1702.76464726678,2056.57002436992,2483.89010890373,3000],"dw":[0.000207782900397338,0.000250956634094868,0.000303101131401053,0.000366080363597278,0.000442145603324032,0.000534015899180631,0.000644975271570674,0.000778990104182189,0.000940850927409989,0.00113634366194876,0.00137245644387661,0.0016576294244543,0.00200205647405139,0.00241804957498905,0.00292047892898483,0.00352730451139861,0.00426021807336162,0.00514541854096986,0.00621454852917082,0.00750582544722194,0.00906540762852185,0.0109490443188603,0.0132240685040121,0.0159718038128288,0.0192904715336356,0.0232987016589267,0.0281397734651107,0.0339867372122154,0.0410486000452117,0.0495777972198561,0.0598792157215088,0.0723210928376418,0.0873481792673522,0.105497637299949,0.127418242363199,0.153893574324955,0.185870027550708,0.224490640972127,0.271135957465373,0.327473373109537,0.395516740377136,0.477698355848399,0.576955905741619,0.696837477237985,0.841628389364057,1.01650437716286,1.22771660491635,1.48281512195184,1.79091874874403,2.16304104073403,2.61248398185623,3.15531348084789,3.81093366756129,4.60278051822904,5.55915960419903,6.71425791053122,8.10936589319717,9.79435345886893,11.8294526280694,14.2874106052426,17.2560902199675,20.8416106953905,25.172141014631,30.4024814838618,36.7195972658549,44.3493016871764,53.5643282223345,64.6940796982061,78.1364032164359,94.3718117033627,113.980660454839,137.663892673349,166.268095573006,200.815762714707,242.541844337072,292.937892221149,353.805377103142,427.320084533806,516.109891096275,623.348701192013],"w_full":[9.25574890327549e-07,1.11789352557476e-06,1.35017268465408e-06,1.63071548110877e-06,1.96955027349639e-06,2.37878914180184e-06,2.87306084911912e-06,3.47003376536712e-06,4.1910474456118e-06,5.06187543956388e-06,6.11364659984651e-06,7.38395782236694e-06,8.91821799510993e-06,1.07712711965096e-05,1.30093571666867e-05,1.57124791310857e-05,1.89772636173754e-05,2.29204144933985e-05,2.7682884695146e-05,3.34349147684685e-05,4.03821183335987e-05,4.87728320051424e-05,5.8906992499763e-05,7.11468582550478e-05,8.59299588174399e-05,0.000103784734891551,0.000125349428124287,0.000151394895863099,0.000182852166430886,0.000220845719915833,0.000266733684140282,0.000322156382664617,0.000389094970236186,0.000469942251681877,0.000567588215755593,0.00068552334145664,0.000827963369634575,0.001,0.00120778290039734,0.00145873953449221,0.00176184066589326,0.00212792102949054,0.00257006663281457,0.0031040825319952,0.00374905780356587,0.00452804790774806,0.00546889883515805,0.00660524249710681,0.00797769894098342,0.00963532836543773,0.0116373848394891,0.0140554344144782,0.016975913343463,0.0205032178548616,0.0247634359282232,0.0299088544691931,0.0361234029983639,0.0436292284455858,0.0526946360741077,0.0636436803929679,0.07686774889698,0.0928395527098088,0.112130024243444,0.135428725902371,0.163568499367482,0.197555236579697,0.238603836624909,0.288181633844765,0.348060849566274,0.420381942403916,0.507730121671268,0.613227758971217,0.740646001334415,0.894539575659371,1.08040960321008,1.30490024418221,1.57603620164758,1.90350957475712,2.29902631513425,2.77672467098265,3.35368057672427,4.05051805396225,4.89214644332631,5.90865082048917,7.13636742540552,8.61918254735737,10.4101012961014,12.5731423368354,15.1856263186916,18.3409397995395,22.1518734671008,26.7546539853299,32.3138135895289,39.0280715000601,47.1374373932573,56.9317908521262,68.7612434801957,83.0486540854381,100.304744305406,121.146355000796,146.318496015427,176.720977499289,213.440574765144,257.78987645232,311.354204674655,376.048284372861,454.184687589296,548.556499292659,662.537159747498,800.201052420848,966.469147993854,1167.28491070856,1409.82675504563,1702.76464726678,2056.57002436992,2483.89010890373,3000],"dw_full":[1.92318635247206e-07,2.32279159079328e-07,2.80542796454686e-07,3.38834792387619e-07,4.0923886830545e-07,4.94271707317279e-07,5.96972916248009e-07,7.21013680244676e-07,8.70827993952073e-07,1.05177116028263e-06,1.27031122252043e-06,1.53426017274301e-06,1.85305320139967e-06,2.23808597017707e-06,2.70312196439905e-06,3.26478448628963e-06,3.94315087602313e-06,4.76247020174752e-06,5.75203007332251e-06,6.94720356513017e-06,8.39071367154365e-06,1.01341604946206e-05,1.2239865755285e-05,1.47831005623921e-05,1.78547760741115e-05,2.15646932327353e-05,2.60454677388119e-05,3.14572705677875e-05,3.79935534849463e-05,4.58879642244498e-05,5.54226985243352e-05,6.69385875715688e-05,8.08472814456906e-05,9.7645964073716e-05,0.000117935125701047,0.000142440028177935,0.000172036630365425,0.000207782900397338,0.000250956634094868,0.000303101131401053,0.000366080363597278,0.000442145603324032,0.000534015899180631,0.000644975271570674,0.000778990104182189,0.000940850927409989,0.00113634366194876,0.00137245644387661,0.0016576294244543,0.00200205647405139,0.00241804957498905,0.00292047892898483,0.00352730451139861,0.00426021807336162,0.00514541854096986,0.00621454852917082,0.00750582544722194,0.00906540762852185,0.0109490443188603,0.0132240685040121,0.0159718038128288,0.0192904715336356,0.0232987016589267,0.0281397734651107,0.0339867372122154,0.0410486000452117,0.0495777972198561,0.0598792157215088,0.0723210928376418,0.0873481792673522,0.105497637299949,0.127418242363199,0.153893574324955,0.185870027550708,0.224490640972127,0.271135957465373,0.327473373109537,0.395516740377136,0.477698355848399,0.576955905741619,0.696837477237985,0.841628389364057,1.01650437716286,1.22771660491635,1.48281512195184,1.79091874874403,2.16304104073403,2.61248398185623,3.15531348084789,3.81093366756129,4.60278051822904,5.55915960419903,6.71425791053122,8.10936589319717,9.79435345886893,11.8294526280694,14.2874106052426,17.2560902199675,20.8416106953905,25.172141014631,30.4024814838618,36.7195972658549,44.3493016871764,53.5643282223345,64.6940796982061,78.1364032164359,94.3718117033627,113.980660454839,137.663892673349,166.268095573006,200.815762714707,242.541844337072,292.937892221149,353.805377103142,427.320084533806,516.109891096275,623.348701192013],"offset0":37,"w_min_idx":[0,0],"w_mat":[4,250],"w_max":[30,3000],"w_min":[0.001,0.001],"w_max_idx":[55,79],"alpha":[0.6,0.6],"erepro":[0.0684564694875136,2.6329130616886e-05],"R_max":[701.070747385083,1.51957664425097],"interaction":[[0.05,0.95],[1,0.05]],"interaction_resource":[1,1],"search_vol":[[0.000479520836080711,0.000548992204616526,0.000628528351746083,0.000719587428795262,0.000823838839157669,0.000943193843784843,0.00107984060069711,0.00123628428090111,0.00141539299616673,0.0016204503806662,0.0018552157904644,0.00212399322450925,0.00243171023066374,0.00278400824337891,0.00318734600918554,0.00364911799612379,0.00417778995793343,0.00478305413832865,0.00547600696074709,0.00626935246119311,0.00717763519374814,0.00821750687864939,0.0094080316814468,0.0107710357199791,0.0123315072067471,0.01411805456257,0.0161634309002104,0.0185051344934255,0.0211860962399578,0.0242554667218561,0.0277695172924524,0.0317926717097943,0.0363986872296654,0.0416720068113953,0.0477093072267085,0.0546212714533832,0.0625346178473531,0.0715944232944486,0.0819667829325615,0.0938418552054264,0.107437348073568,0.123002510295785,0.140822700954092,0.161224620996089,0.18458230270563,0.211323966907879,0.241939873623216,0.276991310097518,0.31712088098808,0.363064289357131,0.415663824456118,0.47588380357489,0.544828251054148,0.623761138573837,0.71412955778657,0.817590250124366,0.936039980154696,1.07165030932637,1.22690740761897,1.40465763297033,1.60815971409846,1.84114449339547,2.10788332517135,2.41326638320562,2.76289231323414,3.16317087398713,3.62144044851616,4.14610258016757,4.74677599967593,5.43447296718568,6.2218011621126,7.1231948221306,8.15517936879865,9.33667437126007,10.6893404023051,12.2379761457753,14.010973035555,16.0408357611334,18.3647781822644,21.0254055777418],[0.0011373952826603,0.00130217729192276,0.00149083236536133,0.00170681915234988,0.00195409737976966,0.00223720044643598,0.00256131853476172,0.00293239376335949,0.00335722912503328,0.0038436132073406,0.00440046298225078,0.00503798728268951,0.00576787396301629,0.00660350417468322,0.00756019768543192,0.00865549373951172,0.00990947260798333,0.0113451237241507,0.0129887671532179,0.0148705361230551,0.0170249294624011,0.0194914440744578,0.0223152990411353,0.0255482646330886,0.0292496114239443,0.03348719690901,0.0383387095496529,0.0438930930506509,0.0502521769820639,0.0575325436401257,0.0658676653726738,0.0754103515531102,0.0863355500637327,0.0988435546485643,0.113163676936691,0.129558450456007,0.148328443710364,0.16981777055916,0.194420398922237,0.222587373468747,0.254835084704935,0.291754736059589,0.334023182529043,0.382415339588668,0.437818389865802,0.501248048027735,0.573867182072061,0.657007132407039,0.752192119568734,0.861167188046258,0.985930198514572,1.12876845499456,1.29230063843305,1.47952481547911,1.69387340261064,1.93927609327906,2.22023190172741,2.5418916442749,2.910152370213,3.33176547353269,3.81446046751566,4.36708669137274,4.99977554686419,5.72412623921678,6.55341842756127,7.50285568345118,8.58984422083422,9.83431200748608,11.2590741082371,12.890250957899,14.7577472321685,16.8958000957397,19.3436068787613,22.1460436889527,25.3544881338287,29.0277612361589,33.2332058109748,38.0479210742177,43.5601761173409,49.8710281613664]],"intake_max":[[0.211518080731016,0.239887019324179,0.272060817880713,0.308549786622247,0.349932678899675,0.396865870828879,0.450093772105006,0.510460633121722,0.578923935668763,0.656569579598298,0.744629106336578,0.844499232423847,0.957764002904964,1.08621991594677,1.23190441718499,1.39712821575098,1.58451193454435,1.79702767606332,2.03804616307051,2.31139020179457,2.62139531565022,2.9729785111911,3.37171626699565,3.82393298247164,4.33680128947023,4.91845581775703,5.57812221878007,6.326263494187,7.17474595001537,8.13702740876387,9.22837066458537,10.4660855672252,11.8698035744105,13.4617891273788,15.2672927882898,17.3149517406495,19.6372440051048,22.271003574946,25.2580046419101,28.6456241787164,32.4875933875909,36.8448499335419,41.7865044796994,47.3909368549865,53.74703924049,60.9556260927731,69.1310331669925,78.4029310020068,88.9183816312528,100.844171140984,114.369455072692,129.708758628574,147.105379266451,166.835245652866,189.211294181408,214.588432472442,243.369168580554,276.009995194855,313.028630092262,355.012227684953,402.626691905738,456.627238143519,517.870371752188,587.327473124712,666.100204805939,755.437985017092,856.757804740427,971.666702683778,1101.98725460156,1249.78648125961,1417.40863355451,1607.51237479383,1823.1129498873,2067.63001029654,2344.94185329721,2659.44693584531,3016.13363872209,3420.65938749006,3879.44038520171,4399.75338011573],[0.559008734305366,0.633983338848594,0.719013584710911,0.815448140857686,0.924816560587811,1.04885354185477,1.18952644139728,1.34906647908255,1.53000412739572,1.73520924739003,1.96793660769591,2.23187750856839,2.53121832978431,2.8707069310205,3.25572795789267,3.69238824808769,4.1876136922204,4.74925908572962,5.38623271417993,6.10863764802277,6.9279319879001,7.85711060214952,8.91091123905829,10.106048283023,11.4614778622334,12.9986985127653,14.7420921679328,16.719310881347,18.9617154175157,21.5048726664915,24.3891197720866,27.6602039213205,31.3700079428319,35.5773732230083,40.3490329921466,45.7606707835434,51.8981208537865,58.8587296041745,66.7528995968372,75.7058406552727,85.8595558235961,97.3750936838951,110.435102755814,125.24672849382,142.04489883158,161.096050385614,182.702354419747,207.206509598572,234.997177548044,266.515147436891,302.260327355575,342.799673383416,388.776182107212,440.919089222133,500.055435975404,567.123186908732,643.186106960621,729.450633895058,827.28501367098,938.241002259591,1064.07847812312,1206.79335573478,1368.64924287765,1552.21334384049,1760.39717797284,1996.50275943846,2264.27497062647,2567.9609599175,2912.37750591566,3302.98741661401,3745.9861752642,4248.40020724498,4818.19832654514,5464.41812951914,6197.30934065314,7028.49638395558,7971.16275852552,9040.26014268856,10252.7455433115,11627.8502517331]],"metab":[[0.0192513006634847,0.0219711247739788,0.025075205684641,0.0286178312032401,0.0326609589200212,0.0372752997947147,0.0425415548327371,0.0485518264790291,0.0554112294136403,0.0632397289205436,0.0721742389812301,0.0823710167870046,0.0940083955480226,0.107289903393638,0.12244782291105,0.139747253575632,0.159490748121498,0.18202360393858,0.207739902038387,0.237089399204954,0.270585393869009,0.308813703272975,0.352442908930021,0.402236049561748,0.459063966014324,0.523920531544624,0.597940033841463,0.682417012779118,0.778828900849024,0.888861862232079,1.01444028241555,1.15776042410362,1.32132883803555,1.50800620048498,1.7210573441219,1.96420835723575,2.24171174993778,2.55842082704566,2.91987456837067,3.33239450089327,3.8031952570416,4.34051075264542,4.95373819131381,5.65360241375393,6.45234346636456,7.363930669524,8.40430692944953,9.591667566441,10.9467785359836,12.4933396081339,14.2583988568965,16.2728257086669,18.5718508229673,21.195682247543,24.1902086238613,27.607801741497,31.5082324774155,35.9597161391753,41.0401054942366,46.838252350473,53.4555615008025,61.0077642091449,69.626942254507,79.4638379320538,90.6904904111738,103.503244558259,118.126184846022,134.815054405589,153.861727762335,175.599315479928,200.407989988579,228.721634486402,261.03543119769,297.91452170046,340.003890785227,388.039646705527,442.861895102445,505.429431757431,576.836511137507,658.331984000851],[0.044327016974636,0.050589538745052,0.0577368297059455,0.0658938900647595,0.0752033800605351,0.0858281149734992,0.0979539126296523,0.111792843200857,0.127586938136744,0.145612423094581,0.166184548897556,0.189663105010935,0.216458711962229,0.247040002754598,0.281941818870479,0.321774564206746,0.367234880534008,0.419117831184991,0.478330806054637,0.545909391098874,0.623035479876457,0.71105794388978,0.811516223231811,0.926167250120062,1.05701617618793,1.20635144092831,1.3767847946076,1.57129697561769,1.79328984112509,2.04664586273913,2.33579602772924,2.66579733332748,3.04242122942753,3.47225455646976,3.96281474383271,4.52268128345521,5.16164577805447,5.89088318815897,6.72314727292543,7.67299364283793,8.75703432529647,9.99422829523649,11.4062130519197,13.0176830409001,14.8568215394519,16.9557935587791,19.3513083834579,22.0852615864624,25.2054677480837,28.7664966933929,32.830627873347,37.4689395808752,42.7625520514346,48.8040461888337,55.6990827286677,63.5682501571927,72.5491737042127,82.7989222945204,94.4967555534811,107.847258909616,123.083921624538,140.473220327018,160.319279468823,182.969190209836,208.819080755373,238.321044310851,271.991045818035,310.417945755116,354.273798819435,404.325607608286,461.448736859966,526.642222859036,601.046245754648,685.962070368315,782.874804239382,893.479370927563,1019.71015282415,1163.77482190011,1328.19295006293,1515.84007438536]],"psi":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.57894542706595e-08,1.11067090794642e-07,7.81273379461087e-07,5.4956161058007e-06,3.86546325892059e-05,0.000271769373838414,0.00190533922946408,0.0131145904290102,0.0807830600738463,0.312029201332967,0.551722042213901,0.65282015620894,0.707112474173033,0.754995152871883,0.804348989068397,0.856643254731567,0.912291312821592,0.971546871247853,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.62818930946143e-08,1.1453102635369e-07,8.05639277767917e-07,5.66699712236394e-06,3.9859472587741e-05,0.000280212112368072,0.00196323311327629,0.0134558497474211,0.0809449368635422,0.29101811219247,0.484032407765324,0.563388888142947,0.608546022063283,0.649475270936965,0.691886199543048,0.736861489959297,0.78472728002749,0.835697052520947,0.889976564845996,0.947781457121894,1,1,1]],"mu_b":[[5.3,4.99505169876754,4.70870209081999,4.43981684817288,4.18733082512011,3.95024383883031,3.7276167072832,3.5185675288508,3.32226818878579,3.13794107877797,2.96485601658373,2.80232735352647,2.64971125840938,2.50640316708164,2.37183538755454,2.24547485118093,2.12682100098931,2.01540380880782,1.91078191332309,1.81254087169832,1.7202915178245,1.63366842070141,1.55232843684136,1.47594935096138,1.40422859957916,1.33688207245637,1.27364298714158,1.21426083215443,1.15850037462466,1.10614072845481,1.05697447931549,1.01080686300678,0.967454993931118,0.926747140621434,0.888522045454472,0.852628285854633,0.818923674457757,0.787274695858717,0.757555977711581,0.7296497940872,0.703445599120846,0.678839589102523,0.655734291275239,0.634038177712336,0.613665302744303,0.594534962498815,0.576571375205299,0.559703380997622,0.543864160025712,0.528990967759447,0.515024886436283,0.501910591667994,0.489596133281994,0.478032729529077,0.467174573842343,0.456978653381846,0.447404578646135,0.43841442347573,0.429972574814731,0.422045591635419,0.414602072466993,0.407612531003687,0.401049279299507,0.394886318086877,0.389099233784718,0.383665101787965,0.378562395655429,0.373770901836254,0.369271639597183,0.365046785833433,0.361079604465326,0.357354380140996,0.353856355982548,0.350571675129058,0.347487325844841,0.34459108997555,0.34187149454792,0.33931776632143,0.336919789111835,0.334668063717532],[12.2,11.4681240770421,10.780885017968,10.1355604356149,9.52959398028826,8.96058521319275,8.42628009747968,7.92456206924191,7.4534436530859,7.01105858906712,6.59565443980096,6.20558564846352,5.83930702018252,5.49536760099593,5.1724049301309,4.86913964283424,4.58437040237435,4.31696914113876,4.06587659197541,3.83009809207596,3.60869964277881,3.40080420968339,3.20558824841926,3.02227844230731,2.85014863898999,2.68851697389529,2.53674316913978,2.39422599717064,2.26040089909918,2.13473774829155,2.01673875035718,1.90593647121626,1.80189198543468,1.70419313749144,1.61245290909073,1.52630788605112,1.44541681869862,1.36945927006092,1.29813434650779,1.23115950580928,1.16826943789003,1.10921501384606,1.05376229906057,1.00169162650961,0.952796726586327,0.906883909997155,0.863771300492716,0.823288114394293,0.785273984061708,0.749578322622673,0.716059727447079,0.684585420003185,0.655030719876786,0.627278550869784,0.601218977221622,0.57674876811643,0.553770988750725,0.532194616341752,0.511934179555355,0.492909419925005,0.475044973920782,0.458270074408848,0.442518270318816,0.427727163408505,0.413838161083322,0.400796244291116,0.388549749573029,0.377050164407009,0.366251935033239,0.35611228600024,0.346591050716782,0.337650512338389,0.329255254358115,0.32137202030974,0.313969582027619,0.307018615941319,0.300491586915008,0.294362639171431,0.288607493868403,0.283203352922076]],"F_per_effort":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1]],"knife_edge_size":[1,400],"phi_e":[[1.5182537088891e-16,0.000442064242466409,0.000774088162697508,0.00132720087525583,0.00222804565949422,0.00366228980415721,0.00589416817613831,0.00928824222487705,0.0143313049149417,0.0216510585176992,0.0320268131095654,0.0463862763767212,0.0657819117997255,0.0913407692944263,0.12418353921529,0.165312081820139,0.215469771584859,0.274985188131866,0.343616053720245,0.420415562830353,0.503645916086025,0.590762668164585,0.678487676591322,0.762978110960781,0.840085304058106,0.905682321048137,0.956025744382373,0.988108143165867,0.999955246887724,0.9908270231886,0.961294186832302,0.913179142503479,0.849369857921883,0.773533096828304,0.689766582471367,0.602235834764166,0.514839940557045,0.430942238607483,0.353188935091859,0.283423795283426,0.222693080768477,0.17132404971375,0.129053900124782,0.0951842583149699,0.0687385427040925,0.0486045252102438,0.0336507140146509,0.0228114586385256,0.015140946437678,0.00983997927974638,0.00626147338390426,0.00390121681841192,0.00237993354767339,0.00142157824295489,0.000831415083630278,0.00047610881741379,0.000266953576675349,0.000146556963203366,7.87804332711202e-05,4.1464025852828e-05,2.13680928591009e-05,1.07820477818217e-05,5.32694160520596e-06,2.57688960717883e-06,1.22054806358322e-06,5.66050466019557e-07,2.57037573491712e-07,1.14282377603712e-07,4.97511491711388e-08,2.12064591303948e-08,8.85063444837508e-09,3.6167778653944e-09,1.44713975612062e-09,5.66944158213453e-10,2.17476057230333e-10,8.16815696818545e-11,3.00384663960898e-11,1.08162005056937e-11,3.81348893583929e-12,1.31656888620027e-12,4.45151987446285e-13,1.47263018493699e-13,4.77566704131067e-14,1.5182537088891e-14,4.65724325201732e-15,1.41956721781131e-15,4.45987026986174e-16,1.73650267954191e-16,6.26279654916755e-17,8.39784082729285e-17,8.16061368527893e-17,-5.83578769354249e-17,3.21442777428865e-17,6.64829065494017e-17,2.20028174217913e-17,9.5572884838859e-17,1.55887885695899e-16,1.65777292178604e-16,1.57507702274963e-16,1.70403221447876e-16,2.14760990330385e-16,1.53907595061197e-16,1.97637082684779e-16,2.65855291877984e-16,3.77451433823672e-16,2.90164094962094e-16,2.36548357320465e-16,2.47471252592788e-16,2.42566191579306e-16,2.83852228961738e-16,1.68366686151319e-16,1.6364708180258e-16,-4.4525425355742e-17,6.15545029090893e-17,1.7620563745728e-16,1.04383600780759e-18,5.14719515367401e-17],[1.5182537088891e-16,0.0131107687417932,0.0188416676100104,0.0266520879763127,0.0371076846672494,0.050853072264648,0.0685948093231156,0.0910722423520826,0.119014951905305,0.153086798312644,0.193818252742947,0.241530692822116,0.296258417884436,0.357675992106401,0.425039802190634,0.497153075298075,0.572362772578497,0.648594626709642,0.723429198097966,0.794217476018273,0.858229748145832,0.912826854571758,0.955639233694316,0.984736994337551,0.998774061636423,0.997091411940297,0.979768370749294,0.947616412598452,0.902116137792393,0.845304242917163,0.779622500971321,0.707744332268125,0.632396058478631,0.556189297737118,0.481478412999836,0.410252968323781,0.344070439928264,0.284029672209396,0.230781388281545,0.184568919428193,0.145290452646514,0.112573534791067,0.0858531528030548,0.0644461403812609,0.0476165906408056,0.03462903579671,0.0247880989521186,0.0174649264925489,0.0121118650180896,0.00826753422257476,0.0055547139563887,0.00367339911440165,0.00239108631279553,0.00153194477261924,0.000966076868845464,0.000599654334938697,0.000366362480246549,0.000220313810767051,0.000130404678775451,7.59740614907911e-05,4.35670579449184e-05,2.45907538032166e-05,1.36617448271547e-05,7.47069861024361e-06,4.02102693139368e-06,2.13026418981923e-06,1.11083785417849e-06,5.70149298069907e-07,2.88036308682243e-07,1.43227561412695e-07,7.01013978603835e-08,3.37712766910887e-08,1.60136007539155e-08,7.47396798148469e-09,3.43347746979529e-09,1.55252234565164e-09,6.90974836766784e-10,3.02696581112041e-10,1.30518957465215e-10,5.53937598544865e-11,2.31404790865704e-11,9.51460752540332e-12,3.85073929058689e-12,1.53405872999864e-12,6.0132335957689e-13,2.32103035746422e-13,8.82314164749541e-14,3.28588058946324e-14,1.21479274882489e-14,4.4608191784298e-15,1.53818078881827e-15,6.39564374869535e-16,4.13724135672281e-16,-2.10539088537356e-17,1.90967849321207e-16,1.37117288084047e-16,3.33600668457078e-17,2.47998736930992e-16,3.0598594645702e-16,1.66018225994712e-16,2.19557426607979e-16,2.16088906324549e-16,1.30992935812289e-16,2.90476527046467e-16,4.74337987128146e-16,1.6087475235507e-16,1.72734661536198e-16,3.17483933662942e-16,1.8168627947313e-16,1.93550134235081e-16,1.68427241993687e-16,1.14972316633923e-16,3.84914616688287e-17,9.32474601776287e-17,1.95261664980666e-17,7.52659552016201e-18,5.96700397060878e-17]],"phi_p":[[1.21460296711128e-16,9.10952225333462e-17,1.5182537088891e-16,9.10952225333462e-17,3.03650741777821e-17,1.21460296711128e-16,6.07301483555641e-17,1.21460296711128e-16,1.21460296711128e-16,1.21460296711128e-16,1.82190445066692e-16,1.82190445066692e-16,1.82190445066692e-16,2.42920593422256e-16,2.42920593422256e-16,1.21460296711128e-16,2.12555519244474e-16,1.82190445066692e-16,1.82190445066692e-16,1.21460296711128e-16,1.21460296711128e-16,7.59126854444551e-17,-7.59126854444551e-17,6.07301483555641e-17,1.5182537088891e-17,-6.07301483555641e-17,4.55476112666731e-17,0,-6.83214169000096e-17,5.88323312194527e-17,1.13869028166683e-16,3.75767792950053e-16,1.33606326382241e-15,4.69899522901177e-15,1.51445807461688e-14,4.77870354872845e-14,1.4731615737351e-13,4.44969797001218e-13,1.31643224336647e-12,3.81354966598765e-12,1.08163430728677e-11,3.00387103605193e-11,8.16815029668985e-11,2.17476179514984e-10,5.66944295878473e-10,1.44713973757726e-09,3.61677797303093e-09,8.85063436784642e-09,2.12064592515007e-08,4.97511492971497e-08,1.142823777188e-07,2.57037573478225e-07,5.66050466154088e-07,1.22054806372761e-06,2.57688960719428e-06,5.32694160542059e-06,1.07820477820364e-05,2.13680928592106e-05,4.14640258528945e-05,7.87804332713163e-05,0.000146556963203431,0.000266953576675323,0.000476108817413918,0.000831415083630329,0.00142157824295484,0.00237993354767349,0.00390121681841198,0.00626147338390422,0.00983997927974652,0.015140946437678,0.0228114586385256,0.033650714014651,0.0486045252102438,0.0687385427040924,0.0951842583149699,0.129053900124782,0.17132404971375,0.222693080768476,0.283423795283426,0.35318893509186,0.430942238607484,0.514839940557046,0.602235834764166,0.689766582471367,0.773533096828304,0.849369857921883,0.913179142503479,0.961294186832302,0.9908270231886,0.999955246887724,0.988108143165867,0.956025744382373,0.905682321048137,0.840085304058106,0.762978110960781,0.678487676591322,0.590762668164585,0.503645916086025,0.420415562830353,0.343616053720245,0.274985188131866,0.215469771584859,0.165312081820139,0.12418353921529,0.0913407692944262,0.0657819117997255,0.0463862763767211,0.0320268131095654,0.0216510585176992,0.0143313049149416,0.00928824222487713,0.00589416817613831,0.00366228980415716,0.00222804565949428,0.00132720087525584,0.00077408816269744,0.000442064242466454],[1.29051565255574e-16,1.82190445066692e-16,1.97372982155583e-16,1.5182537088891e-17,1.36642833800019e-16,6.07301483555641e-17,6.07301483555641e-17,1.21460296711128e-16,1.21460296711128e-16,1.82190445066692e-16,6.07301483555641e-17,3.64380890133385e-16,6.07301483555641e-17,6.07301483555641e-17,1.21460296711128e-16,0,1.82190445066692e-16,2.42920593422256e-16,2.42920593422256e-16,1.21460296711128e-16,1.21460296711128e-16,1.5182537088891e-16,0,0,1.21460296711128e-16,3.03650741777821e-16,5.16206261022295e-16,1.62453146851134e-15,4.35738814451173e-15,1.21991685509239e-14,3.2953696751438e-14,8.81649928751902e-14,2.32186539700411e-13,6.01456206776418e-13,1.53398281731319e-12,3.85069753860989e-12,9.51472898570003e-12,2.31403196699309e-11,5.53936080291156e-11,1.30519063742975e-10,3.02696731877303e-10,6.90974996118751e-10,1.55252242590796e-09,3.43347756304275e-09,7.47396805034122e-09,1.60136009296179e-08,3.37712767380557e-08,7.01013979932034e-08,1.43227561472921e-07,2.88036308513885e-07,5.70149298303372e-07,1.1108378542179e-06,2.13026418968627e-06,4.02102693162342e-06,7.4706986103746e-06,1.36617448274315e-05,2.45907538036183e-05,4.35670579450237e-05,7.59740614909757e-05,0.000130404678775638,0.000220313810766963,0.000366362480246564,0.000599654334938767,0.000966076868845594,0.00153194477261923,0.00239108631279574,0.00367339911440173,0.00555471395638872,0.00826753422257482,0.0121118650180895,0.0174649264925489,0.0247880989521188,0.03462903579671,0.0476165906408056,0.064446140381261,0.0858531528030547,0.112573534791066,0.145290452646514,0.184568919428193,0.230781388281545,0.284029672209397,0.344070439928264,0.410252968323781,0.481478412999836,0.556189297737117,0.632396058478631,0.707744332268125,0.779622500971321,0.845304242917163,0.902116137792393,0.947616412598452,0.979768370749295,0.997091411940297,0.998774061636423,0.984736994337552,0.955639233694316,0.912826854571758,0.858229748145832,0.794217476018273,0.723429198097966,0.648594626709642,0.572362772578498,0.497153075298075,0.425039802190633,0.357675992106401,0.296258417884436,0.241530692822116,0.193818252742947,0.153086798312644,0.119014951905304,0.0910722423520826,0.0685948093231155,0.050853072264648,0.0371076846672494,0.0266520879763127,0.0188416676100102,0.0131107687417931]],"ft_mask":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]],"rr_pp":[1026.11525747065,963.532836543773,904.767296206629,849.585846208849,797.769894098342,749.114179302404,703.42596002092,660.524249710682,620.239100136258,582.410928147357,546.889883515805,513.535255327932,482.214914580886,452.804790774806,425.188380427467,399.256285564439,374.905780356588,352.040404188193,330.569579543717,310.40825319952,291.476559299174,273.699502977701,257.006663281457,241.331914206836,226.613162752726,212.792102949054,199.813984887054,187.627397836295,176.184066589326,165.438660227197,155.348612548306,145.873953449221,136.97715058954,128.622960713551,120.778290039734,113.412063165058,106.495099964767,100,93.9010339753508,88.1740418163998,82.7963369634575,77.7466165024021,73.0048767766063,68.552334145664,64.3713505770159,60.4453637757159,56.7588215755593,53.2971203316746,50.0465470705294,46.9942251681877,44.1280633416328,41.4367077510909,38.9094970236186,36.5364200197862,34.3080761761563,32.2156382664618,30.2508174339663,28.4058303564901,26.6733684140282,25.0465687368271,23.5189870192276,22.0845719915833,20.7376414491274,19.4728597428315,18.2852166430886,17.1700074924931,16.1228145690963,15.1394895863099,14.2161372601355,13.3490998786224,12.5349428124287,11.7704409090894,11.0525657170927,10.3784734891551,9.74549391717434,9.15111955423162,8.592995881744,8.06891198241692,7.57679178205046,7.11468582550479,6.68076355424671,6.27330605488606,5.89069924997629,5.53142750410597,5.19406761995244,4.87728320051423,4.57981935518894,4.30049772872566,4.03821183335987,3.79192266563989,3.56065459058154,3.34349147684685,3.13957306763692,2.94809157292271,2.7682884695146,2.59945149629462,2.44091183270838,2.29204144933985,2.15225062007374,2.02098558599014,1.89772636173754,1.78198467569435,1.6733020357593,1.57124791310857,1.47541803672507,1.38543279194366,1.30093571666867,1.22159208930652,1.14708760281991,1.07712711965096,1.01143350258117,0.949746516896821,0.891821799510994,0.837429890958403,0.786355326428593,0.738395782236694,0.693361274350634],"cc_pp":[233806616464382,158774155472528,107820887336141,73219387332708.1,49722093596264.2,33765476718659.6,22929604918435.8,15571143980180.3,10574133786668.2,7180744925294.07,4876348397790.78,3311468430795.77,2248781969653.84,1527126945981.51,1037060911745.17,704263328698.384,478264349060.465,324790724469.959,220568044240.983,149791024379.785,101726541049.223,69085891249.1346,46919422470.3776,31865894172.5364,21642731598.7625,14699865496.3912,9984660273.54836,6782280457.08665,4607286051.39198,3130016603.6474,2126599716.26933,1445002545.10113,981977839.273438,667408299.496805,453675026.68576,308437760.574484,209732020.077823,142639622.721484,97027667.7599268,66013099.0522724,44920001.9165051,30571508.0659829,20808927.8048705,14165187.8627587,9643054.56406434,6564513.83078503,4468471.6544136,3041267.61973934,2069471.12510438,1407809.80135567,957374.794441993,650806.100809797,442219.408721588,300354.438780529,203912.622865002,138383.160490272,93881.3346150984,63675.607291142,43183.6408941573,29287.749847211,19868.0710395801,13484.2044990859,9158.14292079704,6226.31945056506,4238.82288378412,2890.79418013194,1975.76949921587,1353.97937957271,930.830848113385,642.315136587938,445.120195982749,309.935677032295,216.921905304965,152.644427042881,108.000480728402,76.816566359954,54.8999918389906,39.3975388517522,28.3619296080286,20.4589101812161,14.7694794614208,10.6564695924399,7.67461436088063,5.50993634324501,3.93888934551965,2.80078301268036,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"states":{"State_0":{"n":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],"n_pp":[233806616464382,158774155472528,107820887336141,73219387332708.1,49722093596264.2,33765476718659.6,22929604918435.8,15571143980180.3,10574133786668.2,7180744925294.07,4876348397790.78,3311468430795.77,2248781969653.84,1527126945981.51,1037060911745.17,704263328698.384,478264349060.465,324790724469.959,220568044240.983,149791024379.785,101726541049.223,69085891249.1346,46919422470.3776,31865894172.5364,21642731598.7625,14699865496.3912,9984660273.54836,6782280457.08665,4607286051.39198,3130016603.6474,2126599716.26933,1445002545.10113,981977839.273438,667408299.496805,453675026.68576,308437760.574484,209732020.077823,142639622.721484,97027667.7599268,66013099.0522724,44920001.9165051,30571508.0659829,20808927.8048705,14165187.8627587,9643054.56406434,6564513.83078503,4468471.6544136,3041267.61973934,2069471.12510438,1407809.80135567,957374.794441993,650806.100809797,442219.408721588,300354.438780529,203912.622865002,138383.160490272,93881.3346150984,63675.607291142,43183.6408941573,29287.749847211,19868.0710395801,13484.2044990859,9158.14292079704,6226.31945056506,4238.82288378412,2890.79418013194,1975.76949921587,1353.97937957271,930.830848113385,642.315136587938,445.120195982749,309.935677032295,216.921905304965,152.644427042881,108.000480728402,76.816566359954,54.8999918389906,39.3975388517522,28.3619296080286,20.4589101812161,14.7694794614208,10.6564695924399,7.67461436088063,5.50993634324501,3.93888934551965,2.80078301268036,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"biomass":[0,0]},"State_A":{"n":[[7939.86777577286,6876.88801396828,5954.49096017891,5154.67937064987,4461.57482174978,3861.19686285496,3341.27914494682,2891.1011786689,2501.32720691979,2163.85096359201,1871.64828914396,1618.640245947,1399.56877706101,1209.88592059478,1045.65659996016,903.474265582943,780.388210774785,673.841184589441,581.615907736637,501.789193703714,432.692529592866,372.878140835803,321.089727637926,276.237207112028,237.37491933352,203.682857595256,174.450563953749,149.063391520421,126.990874487357,107.776963655198,91.0318760391301,76.4252688946905,63.6803815431325,52.5687019395066,42.9046343570912,34.5396172302005,27.3552290480121,21.2550978681415,16.1559068777409,11.9784433871635,8.64042222464116,6.05417739683558,4.13657663296056,2.84543352998791,2.13233964141336,1.45117963729203,0.683017933471395,0.250680850491546,0.0777712372897339,0.020353678620354,0.00433386779820418,0.000697965741419826,7.21570887351471e-05,2.46906792382285e-06,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[7.64505624777182,6.58730978735228,5.6830427056599,4.90765124651839,4.24108143266889,3.66686606427142,3.17138597825897,2.74329907547989,2.37309621792113,2.05275396026514,1.7754617362055,1.5354065985661,1.32760260402751,1.1477548985417,0.992150802614694,0.857571917386122,0.741222607160202,0.64067125449788,0.553801497112155,0.478771291985512,0.413978150194387,0.358029275970803,0.30971564864093,0.267989323742774,0.231943413042134,0.200794342457303,0.173866090120241,0.150576180680045,0.130423262390581,0.112976125820046,0.097864041954379,0.0847683072636018,0.0734148875559889,0.0635680540540814,0.0550249062417662,0.0476106780778486,0.0411747279172445,0.0355871181618287,0.0307356981336409,0.0265236125470845,0.0228671677519418,0.0196939980124519,0.0169414834947191,0.014555377639475,0.0124885967398614,0.01070016026456,0.00915457860213287,0.00782106371699338,0.00667246523955193,0.00568491834620888,0.00483875771182737,0.00411434122603573,0.00349548812972752,0.00296794479020108,0.0025191606057877,0.00213810234949698,0.00181509669949181,0.00154169284279041,0.0013105392546464,0.00111527105218679,0.000950406843458977,0.000811262599599558,0.000693934270082932,0.000595662029695353,0.00051738786615309,0.000476710208820404,0.000525139726624557,0.000601785507834294,0.000585509573432336,0.000532044243199853,0.000477506954454974,0.000427711250884584,0.000381734779286867,0.000337011564197217,0.000289670627448921,0.000233924694124837,0.000162061270259504,6.58764656797355e-05,0,0]],"n_pp":[233806343826408,158773892615619,107820637117017,73219151984572.9,49721874703799.1,33765275235673.9,22929421220272.3,15570977941020.1,10573984871360.2,7180612286070.73,4876230967849.68,3311365008842.97,2248691291725.65,1527047742897.94,1036991952200.67,704203449178.273,478212472484.223,324745869769.929,220529329082.578,149757663021.643,101697839023.243,69061238185.4512,46898284052.2049,31847803910.3551,21627282874.8581,14686704150.0065,9973477867.32957,6772808277.48875,4599289839.13312,3123291976.1466,2120968225.01004,1440308301.68965,978084640.939401,664197185.569482,451042200.769107,306292817.924203,207996425.574364,141245391.618769,95916207.8388786,65134181.7281065,44230835.0599195,30035891.1628172,20396475.6489415,13850613.9032045,9405508.85720814,6386973.25922179,4337181.74469878,2945236.05800487,2000013.12615253,1358145.03884742,922274.849624643,626290.5127596,425297.552954267,288809.726031418,196124.959455376,133185.27494422,90444.4529918901,61420.0322597582,41710.0235642427,28325.198339481,19235.6735651203,13063.0176391926,8871.17362224383,6024.48495149255,4091.28721767272,2778.44155215687,1886.87886380124,1281.41147213619,870.233038734413,590.997397540097,401.364869795002,272.582316280072,185.123338202423,125.727501915509,85.3896382678527,57.994344867199,39.3886563013525,26.7522846933854,18.1699485296359,12.3409447792948,8.38192502163604,5.69296618108857,3.86662308302991,2.62616828931951,1.78365138270092,1.21141645230507,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"biomass":[94.3078147254213,599.932738602499]},"State_B":{"n":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[7.08182602755856,6.11026196146289,5.27992036819886,4.56804475260272,3.95609069631088,3.42883374444438,2.97368634526113,2.58017084888802,2.23951019945804,1.94430814531591,1.68829798585572,1.466144037303,1.27328377882576,1.10580146186428,0.960326109275065,0.833948479598538,0.72415284677963,0.62876043074,0.545882070675536,0.473878308603997,0.411325484322836,0.356986766602656,0.309787285448575,0.268792707791679,0.233190730633562,0.202275064113366,0.175431551579256,0.152126131306816,0.131894389819508,0.114332493183261,0.0990893124900239,0.0858595846226594,0.0743779704327552,0.0644138904680205,0.0557670339458467,0.048263450227774,0.0417521439484578,0.0361021054615719,0.0311997175965971,0.0269464880393489,0.02325706407555,0.0200574930474757,0.0172836977046017,0.014880140682854,0.0127986566066322,0.0109974337556813,0.00944012987731533,0.00809510860700804,0.00693478416640344,0.00593506268677197,0.00507631873552178,0.0043387658882985,0.00370626212922387,0.00316466054995775,0.00270156912726296,0.0023061456882651,0.00196892089317621,0.00168164341795273,0.00143714277462591,0.00122920681986497,0.00105247305766348,0.000902341888213786,0.00077496898202055,0.000667686500254125,0.000581886651190451,0.000537588794161177,0.000592629748572501,0.00067725658951467,0.000655133844540629,0.000590064693962721,0.000522803301709857,0.000459583847145157,0.000398935258367682,0.000337569912199303,0.000271275127834117,0.000195886369909466,0.000111558060307517,3.24832055029482e-05,0,0]],"n_pp":[233806616055091,158774155079779,107820886962987,73219386981507.9,49722093268675.4,33765476415663.6,22929604640390.9,15571143726896.1,10574133557492.4,7180744719206.08,4876348213494.17,3311468266805.53,2248781824374.32,1527126817772.92,1037060798977.54,704263229793.185,478264262520.66,324790648899.874,220567978357.676,149790967017.617,101726491159.266,69085847894.9086,46919384821.1463,31865861495.164,21642703248.899,14699840909.5423,9984638956.40948,6782261979.38524,4607270038.37225,3130002729.25801,2126587697.0612,1444992134.80923,981968824.036918,667400493.661767,453668269.131772,308431911.506701,209726958.229886,142635242.927729,97023878.8103271,66009821.8637015,44917167.924187,30569057.8245203,20806809.7717039,14163357.3407322,9641472.78306105,6563147.15120005,4467290.87759735,3040247.39249706,2068589.42691615,1407047.50422404,956715.286232371,650234.963685134,441724.144860235,299924.236084128,203538.153886276,138056.40840049,93595.4407251327,63424.7354452651,42962.8549479482,29092.9013704045,19695.6952880476,13331.4235141705,9022.5752888859,6105.99676227745,4132.11326470695,2796.33343655817,1892.40045643408,1280.69991260184,866.750936854968,586.623034386297,397.057494313585,268.780694936572,181.980458325391,123.246683480801,83.5023551363405,56.6039928342128,38.3944988205046,26.0618022486542,17.7043531257005,12.0366848098906,8.18992865556589,5.57674504910161,3.79995978893763,2.59081927368921,1.76730830954393,1.20603424121293,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"biomass":[0,536.71051642479]},"State_C":{"n":[[12650.0055619717,10798.3737573913,9245.26911566583,7933.92811475837,6820.39340240753,5870.20720556187,5056.05156878909,4356.03957764655,3752.46245668604,3230.86110565456,2779.33144606715,2387.99959093527,2048.62074203287,1754.2682308326,1499.08829041082,1278.10314296163,1087.05041947557,922.251072146677,780.500912076659,658.982784107911,555.197303630705,466.910239569414,392.114323020265,329.002808812141,275.951791764129,231.508252339534,194.381120763265,163.433234303001,137.672782603095,116.24354347985,98.4137930330539,83.5641709600613,71.1749897881163,60.8135281017866,52.1217926266459,44.8051229226696,38.6218826155965,33.3743731001636,28.9010383477295,25.0701853819536,21.776734972295,18.9515956260001,16.6406618162172,15.4338763071723,17.4211947168218,21.518270190087,21.3523731141911,18.6084652677795,15.4592479326805,12.4048135195252,9.53361878084593,6.86024258532319,4.35093069646087,1.12000675046768,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],"n_pp":[233806192816253,158773748665939,107820501767971,73219026378428.3,49721759580874.2,33765170955436.3,22929327801994.8,15570895117478.1,10573912149052.2,7180549006166.38,4876176363282.04,3311318254390.86,2248651545344.81,1527014177785.65,1036963780015.07,704179935450.707,478192945582.757,324729724851.579,220516028380.989,149746733626.594,101688869076.478,69053872186.8145,46892217767.1125,31842779206.4736,21623082694.4958,14683147740.5935,9970416337.79875,6770120514.90704,4596878799.89283,3121081353.31541,2118899483.8304,1438338066.28646,976182406.143312,662343318.632374,449226189.563762,304511716.148651,206253442.557472,139548575.313862,94277174.4101797,63566855.8178649,42750178.8851681,28656622.8419383,19131805.8088453,12711064.5637442,8397913.79803756,5513782.38459958,3596186.98157542,2329790.35301897,1499729.42318378,959962.301347476,611700.844776153,388607.90794996,246557.781823071,156517.197871116,99598.4908207368,63646.336459415,40911.9731911007,26493.3001120601,17306.0724895161,11416.0998162882,7611.75242470413,5133.35971216096,3503.35200304648,2420.23817046176,1692.63260733266,1198.23793706576,858.315813401495,621.754400971643,455.084526084089,336.190851663374,250.325983285688,187.5660903356,141.173293746893,106.531562602353,80.4477684364859,60.6875336676363,45.6644109387596,34.2313252360439,25.5415685045664,18.9573585446034,13.9903522845459,10.2628105195089,7.48130284392625,5.41790968161506,3.89659734509238,2.78218228497501,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"biomass":[2260.17454783158,0]}}}; if (typeof module !== 'undefined') module.exports = MODEL; else root.MODEL = MODEL; })(this);
+
+</script>
+<script>
+// Generated by interactive/compute_regimes.js. Do not edit by hand.
+(function (root) { var REGIMES = {"generated":"2026-10-27","dt":0.2,"Ff_grid":[0,0.025,0.05,0.075,0.1,0.125,0.15,0.175,0.2,0.225,0.25,0.275,0.3,0.325,0.35,0.375,0.4,0.425,0.45,0.475,0.5,0.525,0.55,0.575,0.6],"Fp_step":0.025,"branchC":[{"Ff":0,"Bf":2260.175,"Bp":0,"Yf":0,"Yp":0,"R0_pred":0.4637,"F_inv":0},{"Ff":0.025,"Bf":2180.285,"Bp":0,"Yf":53.6751,"Yp":0,"R0_pred":0.5507,"F_inv":0},{"Ff":0.05,"Bf":2104.939,"Bp":0,"Yf":103.5527,"Yp":0,"R0_pred":0.6464,"F_inv":0},{"Ff":0.075,"Bf":2033.745,"Bp":0,"Yf":149.9466,"Yp":0,"R0_pred":0.7507,"F_inv":0},{"Ff":0.1,"Bf":1966.361,"Bp":0,"Yf":193.1359,"Yp":0,"R0_pred":0.8633,"F_inv":0},{"Ff":0.125,"Bf":1902.487,"Bp":0,"Yf":233.3708,"Yp":0,"R0_pred":0.9841,"F_inv":0},{"Ff":0.15,"Bf":1841.854,"Bp":0,"Yf":270.8761,"Yp":0,"R0_pred":1.1126,"F_inv":0.0266},{"Ff":0.175,"Bf":1784.224,"Bp":0,"Yf":305.8549,"Yp":0,"R0_pred":1.2484,"F_inv":0.0578},{"Ff":0.2,"Bf":1729.385,"Bp":0,"Yf":338.4913,"Yp":0,"R0_pred":1.3911,"F_inv":0.0898},{"Ff":0.225,"Bf":1677.143,"Bp":0,"Yf":368.9529,"Yp":0,"R0_pred":1.5401,"F_inv":0.1224},{"Ff":0.25,"Bf":1627.326,"Bp":0,"Yf":397.3923,"Yp":0,"R0_pred":1.6949,"F_inv":0.1555},{"Ff":0.275,"Bf":1579.776,"Bp":0,"Yf":423.9494,"Yp":0,"R0_pred":1.855,"F_inv":0.1891},{"Ff":0.3,"Bf":1534.35,"Bp":0,"Yf":448.7524,"Yp":0,"R0_pred":2.0198,"F_inv":0.2232},{"Ff":0.325,"Bf":1490.917,"Bp":0,"Yf":471.9192,"Yp":0,"R0_pred":2.1887,"F_inv":0.2575},{"Ff":0.35,"Bf":1449.358,"Bp":0,"Yf":493.5583,"Yp":0,"R0_pred":2.3611,"F_inv":0.2922},{"Ff":0.375,"Bf":1409.562,"Bp":0,"Yf":513.7698,"Yp":0,"R0_pred":2.5364,"F_inv":0.327},{"Ff":0.4,"Bf":1371.428,"Bp":0,"Yf":532.6463,"Yp":0,"R0_pred":2.7142,"F_inv":0.3621},{"Ff":0.425,"Bf":1334.862,"Bp":0,"Yf":550.2734,"Yp":0,"R0_pred":2.8938,"F_inv":0.3972},{"Ff":0.45,"Bf":1299.778,"Bp":0,"Yf":566.7307,"Yp":0,"R0_pred":3.0748,"F_inv":0.4325},{"Ff":0.475,"Bf":1266.096,"Bp":0,"Yf":582.0918,"Yp":0,"R0_pred":3.2566,"F_inv":0.4678},{"Ff":0.5,"Bf":1233.74,"Bp":0,"Yf":596.4251,"Yp":0,"R0_pred":3.4388,"F_inv":0.5031},{"Ff":0.525,"Bf":1202.643,"Bp":0,"Yf":609.7944,"Yp":0,"R0_pred":3.6209,"F_inv":0.5383},{"Ff":0.55,"Bf":1172.738,"Bp":0,"Yf":622.259,"Yp":0,"R0_pred":3.8025,"F_inv":0.5735},{"Ff":0.575,"Bf":1143.965,"Bp":0,"Yf":633.874,"Yp":0,"R0_pred":3.9832,"F_inv":0.6087},{"Ff":0.6,"Bf":1116.269,"Bp":0,"Yf":644.691,"Yp":0,"R0_pred":4.1627,"F_inv":0.6437}],"branchA":[{"Ff":0,"Fp":0,"Bf":94.308,"Bp":599.933,"Yf":0,"Yp":0},{"Ff":0,"Fp":0.025,"Bf":113.245,"Bp":567.197,"Yf":0,"Yp":12.7612},{"Ff":0,"Fp":0.05,"Bf":133.43,"Bp":535.736,"Yf":0,"Yp":24.018},{"Ff":0,"Fp":0.075,"Bf":155.671,"Bp":505.299,"Yf":0,"Yp":33.8652},{"Ff":0,"Fp":0.1,"Bf":181.175,"Bp":475.464,"Yf":0,"Yp":42.3614},{"Ff":0,"Fp":0.125,"Bf":212.066,"Bp":445.49,"Yf":0,"Yp":49.4972},{"Ff":0,"Fp":0.15,"Bf":253.097,"Bp":413.783,"Yf":0,"Yp":55.098},{"Ff":0,"Fp":0.175,"Bf":322.819,"Bp":374.273,"Yf":0,"Yp":58.2228},{"Ff":0.025,"Fp":0,"Bf":92.975,"Bp":599.166,"Yf":1.6576,"Yp":0},{"Ff":0.025,"Fp":0.025,"Bf":111.687,"Bp":566.514,"Yf":2.0513,"Yp":12.7413},{"Ff":0.025,"Fp":0.05,"Bf":131.55,"Bp":535.153,"Yf":2.4857,"Yp":23.9821},{"Ff":0.025,"Fp":0.075,"Bf":153.317,"Bp":504.849,"Yf":2.9768,"Yp":33.8188},{"Ff":0.025,"Fp":0.1,"Bf":178.085,"Bp":475.216,"Yf":3.55,"Yp":42.3148},{"Ff":0.025,"Fp":0.125,"Bf":207.715,"Bp":445.596,"Yf":4.25,"Yp":49.4728},{"Ff":0.025,"Fp":0.15,"Bf":246.118,"Bp":414.662,"Yf":5.1728,"Yp":55.1591},{"Ff":0.025,"Fp":0.175,"Bf":305.992,"Bp":378.234,"Yf":6.6325,"Yp":58.7258},{"Ff":0.05,"Fp":0,"Bf":91.656,"Bp":598.401,"Yf":3.2602,"Yp":0},{"Ff":0.05,"Fp":0.025,"Bf":110.151,"Bp":565.834,"Yf":4.036,"Yp":12.7215},{"Ff":0.05,"Fp":0.05,"Bf":129.706,"Bp":534.57,"Yf":4.8886,"Yp":23.9463},{"Ff":0.05,"Fp":0.075,"Bf":151.025,"Bp":504.394,"Yf":5.8479,"Yp":33.7724},{"Ff":0.05,"Fp":0.1,"Bf":175.106,"Bp":474.951,"Yf":6.9598,"Yp":42.2674},{"Ff":0.05,"Fp":0.125,"Bf":203.589,"Bp":445.654,"Yf":8.3026,"Yp":49.4443},{"Ff":0.05,"Fp":0.15,"Bf":239.737,"Bp":415.382,"Yf":10.0361,"Yp":55.2021},{"Ff":0.05,"Fp":0.175,"Bf":292.792,"Bp":381.07,"Yf":12.6171,"Yp":59.0712},{"Ff":0.075,"Fp":0,"Bf":90.35,"Bp":597.64,"Yf":4.8089,"Yp":0},{"Ff":0.075,"Fp":0.025,"Bf":108.637,"Bp":565.157,"Yf":5.9557,"Yp":12.7018},{"Ff":0.075,"Fp":0.05,"Bf":127.897,"Bp":533.987,"Yf":7.2114,"Yp":23.9107},{"Ff":0.075,"Fp":0.075,"Bf":148.789,"Bp":503.935,"Yf":8.6176,"Yp":33.7261},{"Ff":0.075,"Fp":0.1,"Bf":172.228,"Bp":474.672,"Yf":10.2369,"Yp":42.2191},{"Ff":0.075,"Fp":0.125,"Bf":199.665,"Bp":445.671,"Yf":12.1728,"Yp":49.4122},{"Ff":0.075,"Fp":0.15,"Bf":233.851,"Bp":415.974,"Yf":14.6266,"Yp":55.2306},{"Ff":0.075,"Fp":0.175,"Bf":281.785,"Bp":383.24,"Yf":18.1168,"Yp":59.3238},{"Ff":0.075,"Fp":0.2,"Bf":396.191,"Bp":330.081,"Yf":26.5678,"Yp":58.6848},{"Ff":0.1,"Fp":0,"Bf":89.058,"Bp":596.882,"Yf":6.3049,"Yp":0},{"Ff":0.1,"Fp":0.025,"Bf":107.143,"Bp":564.481,"Yf":7.812,"Yp":12.6822},{"Ff":0.1,"Fp":0.05,"Bf":126.121,"Bp":533.406,"Yf":9.4566,"Yp":23.8752},{"Ff":0.1,"Fp":0.075,"Bf":146.608,"Bp":503.473,"Yf":11.2901,"Yp":33.6797},{"Ff":0.1,"Fp":0.1,"Bf":169.445,"Bp":474.379,"Yf":13.3883,"Yp":42.1702},{"Ff":0.1,"Fp":0.125,"Bf":195.922,"Bp":445.651,"Yf":15.8734,"Yp":49.377},{"Ff":0.1,"Fp":0.15,"Bf":228.382,"Bp":416.459,"Yf":18.9733,"Yp":55.2473},{"Ff":0.1,"Fp":0.175,"Bf":272.276,"Bp":384.964,"Yf":23.2259,"Yp":59.5149},{"Ff":0.1,"Fp":0.2,"Bf":351.666,"Bp":343.218,"Yf":31.0182,"Yp":60.7644},{"Ff":0.125,"Fp":0,"Bf":87.778,"Bp":596.126,"Yf":7.7492,"Yp":0},{"Ff":0.125,"Fp":0.025,"Bf":105.669,"Bp":563.808,"Yf":9.6066,"Yp":12.6627},{"Ff":0.125,"Fp":0.05,"Bf":124.376,"Bp":532.825,"Yf":11.6266,"Yp":23.8398},{"Ff":0.125,"Fp":0.075,"Bf":144.479,"Bp":503.007,"Yf":13.869,"Yp":33.6333},{"Ff":0.125,"Fp":0.1,"Bf":166.749,"Bp":474.075,"Yf":16.4201,"Yp":42.1207},{"Ff":0.125,"Fp":0.125,"Bf":192.343,"Bp":445.598,"Yf":19.4159,"Yp":49.3392},{"Ff":0.125,"Fp":0.15,"Bf":223.268,"Bp":416.857,"Yf":23.0997,"Yp":55.2542},{"Ff":0.125,"Fp":0.175,"Bf":263.87,"Bp":386.366,"Yf":28.0065,"Yp":59.6619},{"Ff":0.125,"Fp":0.2,"Bf":329.12,"Bp":349.162,"Yf":35.9922,"Yp":61.6676},{"Ff":0.15,"Fp":0,"Bf":86.511,"Bp":595.374,"Yf":9.1427,"Yp":0},{"Ff":0.15,"Fp":0.025,"Bf":104.214,"Bp":563.137,"Yf":11.3407,"Yp":12.6433},{"Ff":0.15,"Fp":0.05,"Bf":122.661,"Bp":532.244,"Yf":13.7236,"Yp":23.8046},{"Ff":0.15,"Fp":0.075,"Bf":142.397,"Bp":502.538,"Yf":16.3579,"Yp":33.587},{"Ff":0.15,"Fp":0.1,"Bf":164.135,"Bp":473.76,"Yf":19.3382,"Yp":42.0707},{"Ff":0.15,"Fp":0.125,"Bf":188.912,"Bp":445.518,"Yf":22.8101,"Yp":49.2991},{"Ff":0.15,"Fp":0.15,"Bf":218.464,"Bp":417.179,"Yf":27.0253,"Yp":55.2529},{"Ff":0.15,"Fp":0.175,"Bf":256.313,"Bp":387.525,"Yf":32.5031,"Yp":59.7759},{"Ff":0.15,"Fp":0.2,"Bf":312.737,"Bp":353.13,"Yf":40.7712,"Yp":62.2503},{"Ff":0.175,"Fp":0,"Bf":85.255,"Bp":594.623,"Yf":10.4865,"Yp":0},{"Ff":0.175,"Fp":0.025,"Bf":102.778,"Bp":562.469,"Yf":13.016,"Yp":12.6239},{"Ff":0.175,"Fp":0.05,"Bf":120.975,"Bp":531.665,"Yf":15.7497,"Yp":23.7695},{"Ff":0.175,"Fp":0.075,"Bf":140.362,"Bp":502.067,"Yf":18.7599,"Yp":33.5407},{"Ff":0.175,"Fp":0.1,"Bf":161.597,"Bp":473.436,"Yf":22.1476,"Yp":42.0202},{"Ff":0.175,"Fp":0.125,"Bf":185.616,"Bp":445.412,"Yf":26.065,"Yp":49.2571},{"Ff":0.175,"Fp":0.15,"Bf":213.93,"Bp":417.437,"Yf":30.7664,"Yp":55.2446},{"Ff":0.175,"Fp":0.175,"Bf":249.436,"Bp":388.494,"Yf":36.7492,"Yp":59.8641},{"Ff":0.175,"Fp":0.2,"Bf":299.592,"Bp":356.079,"Yf":45.3059,"Yp":62.6689},{"Ff":0.175,"Fp":0.225,"Bf":426.066,"Bp":299.753,"Yf":67.1614,"Yp":59.6821},{"Ff":0.2,"Fp":0,"Bf":84.01,"Bp":593.876,"Yf":11.7814,"Yp":0},{"Ff":0.2,"Fp":0.025,"Bf":101.359,"Bp":561.803,"Yf":14.6336,"Yp":12.6047},{"Ff":0.2,"Fp":0.05,"Bf":119.317,"Bp":531.086,"Yf":17.7068,"Yp":23.7346},{"Ff":0.2,"Fp":0.075,"Bf":138.37,"Bp":501.594,"Yf":21.0781,"Yp":33.4946},{"Ff":0.2,"Fp":0.1,"Bf":159.13,"Bp":473.103,"Yf":24.8532,"Yp":41.9694},{"Ff":0.2,"Fp":0.125,"Bf":182.444,"Bp":445.284,"Yf":29.1884,"Yp":49.2132},{"Ff":0.2,"Fp":0.15,"Bf":209.636,"Bp":417.639,"Yf":34.3371,"Yp":55.2304},{"Ff":0.2,"Fp":0.175,"Bf":243.115,"Bp":389.31,"Yf":40.7712,"Yp":59.9318},{"Ff":0.2,"Fp":0.2,"Bf":288.506,"Bp":358.391,"Yf":49.6029,"Yp":62.9857},{"Ff":0.2,"Fp":0.225,"Bf":370.136,"Bp":316.825,"Yf":65.6671,"Yp":62.7651},{"Ff":0.225,"Fp":0,"Bf":82.776,"Bp":593.131,"Yf":13.0283,"Yp":0},{"Ff":0.225,"Fp":0.025,"Bf":99.957,"Bp":561.139,"Yf":16.1949,"Yp":12.5855},{"Ff":0.225,"Fp":0.05,"Bf":117.684,"Bp":530.509,"Yf":19.5969,"Yp":23.6998},{"Ff":0.225,"Fp":0.075,"Bf":136.419,"Bp":501.12,"Yf":23.3153,"Yp":33.4485},{"Ff":0.225,"Fp":0.1,"Bf":156.73,"Bp":472.763,"Yf":27.4594,"Yp":41.9184},{"Ff":0.225,"Fp":0.125,"Bf":179.387,"Bp":445.136,"Yf":32.1874,"Yp":49.1678},{"Ff":0.225,"Fp":0.15,"Bf":205.554,"Bp":417.793,"Yf":37.7492,"Yp":55.211},{"Ff":0.225,"Fp":0.175,"Bf":237.261,"Bp":390,"Yf":44.5903,"Yp":59.9828},{"Ff":0.225,"Fp":0.2,"Bf":278.865,"Bp":360.265,"Yf":53.6788,"Yp":63.2328},{"Ff":0.225,"Fp":0.225,"Bf":344.841,"Bp":323.781,"Yf":68.2504,"Yp":63.9744},{"Ff":0.25,"Fp":0,"Bf":81.553,"Bp":592.389,"Yf":14.228,"Yp":0},{"Ff":0.25,"Fp":0.025,"Bf":98.572,"Bp":560.477,"Yf":17.7011,"Yp":12.5665},{"Ff":0.25,"Fp":0.05,"Bf":116.077,"Bp":529.932,"Yf":21.4218,"Yp":23.6652},{"Ff":0.25,"Fp":0.075,"Bf":134.508,"Bp":500.643,"Yf":25.4741,"Yp":33.4024},{"Ff":0.25,"Fp":0.1,"Bf":154.393,"Bp":472.416,"Yf":29.9701,"Yp":41.867},{"Ff":0.25,"Fp":0.125,"Bf":176.435,"Bp":444.971,"Yf":35.0684,"Yp":49.1211},{"Ff":0.25,"Fp":0.15,"Bf":201.664,"Bp":417.905,"Yf":41.0134,"Yp":55.1872},{"Ff":0.25,"Fp":0.175,"Bf":231.804,"Bp":390.585,"Yf":48.224,"Yp":60.0199},{"Ff":0.25,"Fp":0.2,"Bf":270.304,"Bp":361.816,"Yf":57.5507,"Yp":63.429},{"Ff":0.25,"Fp":0.225,"Bf":326.803,"Bp":328.383,"Yf":71.3857,"Yp":64.7516},{"Ff":0.275,"Fp":0,"Bf":80.34,"Bp":591.649,"Yf":15.3815,"Yp":0},{"Ff":0.275,"Fp":0.025,"Bf":97.202,"Bp":559.817,"Yf":19.1534,"Yp":12.5475},{"Ff":0.275,"Fp":0.05,"Bf":114.494,"Bp":529.357,"Yf":23.1831,"Yp":23.6307},{"Ff":0.275,"Fp":0.075,"Bf":132.634,"Bp":500.166,"Yf":27.5572,"Yp":33.3565},{"Ff":0.275,"Fp":0.1,"Bf":152.116,"Bp":472.062,"Yf":32.3891,"Yp":41.8155},{"Ff":0.275,"Fp":0.125,"Bf":173.581,"Bp":444.788,"Yf":37.8372,"Yp":49.0732},{"Ff":0.275,"Fp":0.15,"Bf":197.947,"Bp":417.979,"Yf":44.1388,"Yp":55.1595},{"Ff":0.275,"Fp":0.175,"Bf":226.69,"Bp":391.082,"Yf":51.687,"Yp":60.0455},{"Ff":0.275,"Fp":0.2,"Bf":262.588,"Bp":363.12,"Yf":61.2344,"Yp":63.5864},{"Ff":0.275,"Fp":0.225,"Bf":312.473,"Bp":331.801,"Yf":74.6443,"Yp":65.3127},{"Ff":0.275,"Fp":0.25,"Bf":412.944,"Bp":285.053,"Yf":101.932,"Yp":62.5456},{"Ff":0.3,"Fp":0,"Bf":79.137,"Bp":590.911,"Yf":16.4894,"Yp":0},{"Ff":0.3,"Fp":0.025,"Bf":95.848,"Bp":559.159,"Yf":20.5528,"Yp":12.5286},{"Ff":0.3,"Fp":0.05,"Bf":112.935,"Bp":528.783,"Yf":24.8825,"Yp":23.5963},{"Ff":0.3,"Fp":0.075,"Bf":130.795,"Bp":499.687,"Yf":29.5667,"Yp":33.3107},{"Ff":0.3,"Fp":0.1,"Bf":149.894,"Bp":471.703,"Yf":34.72,"Yp":41.7637},{"Ff":0.3,"Fp":0.125,"Bf":170.818,"Bp":444.592,"Yf":40.4991,"Yp":49.0243},{"Ff":0.3,"Fp":0.15,"Bf":194.387,"Bp":418.02,"Yf":47.1336,"Yp":55.1284},{"Ff":0.3,"Fp":0.175,"Bf":221.874,"Bp":391.503,"Yf":54.9919,"Yp":60.0612},{"Ff":0.3,"Fp":0.2,"Bf":255.552,"Bp":364.228,"Yf":64.7438,"Yp":63.7133},{"Ff":0.3,"Fp":0.225,"Bf":300.468,"Bp":334.488,"Yf":77.89,"Yp":65.7415},{"Ff":0.3,"Fp":0.25,"Bf":374.833,"Bp":296.277,"Yf":99.8658,"Yp":64.7748},{"Ff":0.325,"Fp":0,"Bf":77.944,"Bp":590.176,"Yf":17.5525,"Yp":0},{"Ff":0.325,"Fp":0.025,"Bf":94.508,"Bp":558.504,"Yf":21.9006,"Yp":12.5097},{"Ff":0.325,"Fp":0.05,"Bf":111.397,"Bp":528.21,"Yf":26.5215,"Yp":23.5621},{"Ff":0.325,"Fp":0.075,"Bf":128.991,"Bp":499.207,"Yf":31.505,"Yp":33.265},{"Ff":0.325,"Fp":0.1,"Bf":147.724,"Bp":471.339,"Yf":36.9659,"Yp":41.7119},{"Ff":0.325,"Fp":0.125,"Bf":168.139,"Bp":444.382,"Yf":43.0588,"Yp":48.9744},{"Ff":0.325,"Fp":0.15,"Bf":190.97,"Bp":418.032,"Yf":50.0051,"Yp":55.0944},{"Ff":0.325,"Fp":0.175,"Bf":217.322,"Bp":391.858,"Yf":58.1496,"Yp":60.0685},{"Ff":0.325,"Fp":0.2,"Bf":249.076,"Bp":365.178,"Yf":68.0914,"Yp":63.8156},{"Ff":0.325,"Fp":0.225,"Bf":290.08,"Bp":336.675,"Yf":81.0676,"Yp":66.0801},{"Ff":0.325,"Fp":0.25,"Bf":351.465,"Bp":302.671,"Yf":100.6767,"Yp":66.0098},{"Ff":0.35,"Fp":0,"Bf":76.759,"Bp":589.443,"Yf":18.5716,"Yp":0},{"Ff":0.35,"Fp":0.025,"Bf":93.182,"Bp":557.851,"Yf":23.1976,"Yp":12.491},{"Ff":0.35,"Fp":0.05,"Bf":109.881,"Bp":527.638,"Yf":28.1015,"Yp":23.528},{"Ff":0.35,"Fp":0.075,"Bf":127.219,"Bp":498.727,"Yf":33.3741,"Yp":33.2194},{"Ff":0.35,"Fp":0.1,"Bf":145.605,"Bp":470.971,"Yf":39.1299,"Yp":41.6599},{"Ff":0.35,"Fp":0.125,"Bf":165.54,"Bp":444.161,"Yf":45.5208,"Yp":48.9237},{"Ff":0.35,"Fp":0.15,"Bf":187.684,"Bp":418.017,"Yf":52.7599,"Yp":55.0577},{"Ff":0.35,"Fp":0.175,"Bf":213.004,"Bp":392.157,"Yf":61.1695,"Yp":60.0686},{"Ff":0.35,"Fp":0.2,"Bf":243.073,"Bp":365.996,"Yf":71.288,"Yp":63.8978},{"Ff":0.35,"Fp":0.225,"Bf":280.894,"Bp":338.496,"Yf":84.1532,"Yp":66.3531},{"Ff":0.35,"Fp":0.25,"Bf":333.923,"Bp":307.181,"Yf":102.3597,"Yp":66.8598},{"Ff":0.35,"Fp":0.275,"Bf":443.342,"Bp":258.622,"Yf":140.2702,"Yp":62.1376},{"Ff":0.375,"Fp":0,"Bf":75.584,"Bp":588.712,"Yf":19.5473,"Yp":0},{"Ff":0.375,"Fp":0.025,"Bf":91.87,"Bp":557.199,"Yf":24.4448,"Yp":12.4723},{"Ff":0.375,"Fp":0.05,"Bf":108.385,"Bp":527.067,"Yf":29.6239,"Yp":23.4941},{"Ff":0.375,"Fp":0.075,"Bf":125.477,"Bp":498.246,"Yf":35.1759,"Yp":33.174},{"Ff":0.375,"Fp":0.1,"Bf":143.533,"Bp":470.598,"Yf":41.2148,"Yp":41.6078},{"Ff":0.375,"Fp":0.125,"Bf":163.014,"Bp":443.928,"Yf":47.8892,"Yp":48.8723},{"Ff":0.375,"Fp":0.15,"Bf":184.519,"Bp":417.979,"Yf":55.4037,"Yp":55.0187},{"Ff":0.375,"Fp":0.175,"Bf":208.895,"Bp":392.405,"Yf":64.06,"Yp":60.0623},{"Ff":0.375,"Fp":0.2,"Bf":237.474,"Bp":366.704,"Yf":74.3433,"Yp":63.9631},{"Ff":0.375,"Fp":0.225,"Bf":272.641,"Bp":340.037,"Yf":87.1362,"Yp":66.5763},{"Ff":0.375,"Fp":0.25,"Bf":319.68,"Bp":310.639,"Yf":104.4071,"Yp":67.4959},{"Ff":0.375,"Fp":0.275,"Bf":397.191,"Bp":272.456,"Yf":133.1046,"Yp":65.1926},{"Ff":0.375,"Fp":0.3,"Bf":1366.171,"Bp":9.924,"Yf":497.3933,"Yp":2.6632},{"Ff":0.375,"Fp":0.325,"Bf":1406.592,"Bp":0.672,"Yf":512.6488,"Yp":0.1944},{"Ff":0.4,"Fp":0,"Bf":74.417,"Bp":587.983,"Yf":20.4803,"Yp":0},{"Ff":0.4,"Fp":0.025,"Bf":90.57,"Bp":556.55,"Yf":25.6433,"Yp":12.4537},{"Ff":0.4,"Fp":0.05,"Bf":106.909,"Bp":526.498,"Yf":31.0901,"Yp":23.4603},{"Ff":0.4,"Fp":0.075,"Bf":123.766,"Bp":497.765,"Yf":36.9124,"Yp":33.1287},{"Ff":0.4,"Fp":0.1,"Bf":141.505,"Bp":470.222,"Yf":43.2233,"Yp":41.5557},{"Ff":0.4,"Fp":0.125,"Bf":160.557,"Bp":443.686,"Yf":50.1678,"Yp":48.8203},{"Ff":0.4,"Fp":0.15,"Bf":181.465,"Bp":417.92,"Yf":57.9421,"Yp":54.9776},{"Ff":0.4,"Fp":0.175,"Bf":204.976,"Bp":392.609,"Yf":66.8285,"Yp":60.0505},{"Ff":0.4,"Fp":0.2,"Bf":232.224,"Bp":367.319,"Yf":77.2658,"Yp":64.0143},{"Ff":0.4,"Fp":0.225,"Bf":265.136,"Bp":341.357,"Yf":90.0129,"Yp":66.7605},{"Ff":0.4,"Fp":0.25,"Bf":307.607,"Bp":313.413,"Yf":106.6153,"Yp":67.9941},{"Ff":0.4,"Fp":0.275,"Bf":370.465,"Bp":279.961,"Yf":131.3872,"Yp":66.8074},{"Ff":0.4,"Fp":0.3,"Bf":1257.099,"Bp":26.845,"Yf":486.6293,"Yp":7.1937},{"Ff":0.4,"Fp":0.325,"Bf":1314.347,"Bp":13.25,"Yf":509.6706,"Yp":3.8266},{"Ff":0.4,"Fp":0.35,"Bf":1355.153,"Bp":3.739,"Yf":526.0955,"Yp":1.1566},{"Ff":0.425,"Fp":0,"Bf":73.258,"Bp":587.256,"Yf":21.3714,"Yp":0},{"Ff":0.425,"Fp":0.025,"Bf":89.284,"Bp":555.902,"Yf":26.794,"Yp":12.4352},{"Ff":0.425,"Fp":0.05,"Bf":105.452,"Bp":525.93,"Yf":32.5013,"Yp":23.4266},{"Ff":0.425,"Fp":0.075,"Bf":122.082,"Bp":497.283,"Yf":38.5853,"Yp":33.0835},{"Ff":0.425,"Fp":0.1,"Bf":139.52,"Bp":469.842,"Yf":45.1577,"Yp":41.5036},{"Ff":0.425,"Fp":0.125,"Bf":158.166,"Bp":443.435,"Yf":52.36,"Yp":48.7677},{"Ff":0.425,"Fp":0.15,"Bf":178.514,"Bp":417.841,"Yf":60.3799,"Yp":54.9346},{"Ff":0.425,"Fp":0.175,"Bf":201.227,"Bp":392.775,"Yf":69.4816,"Yp":60.0338},{"Ff":0.425,"Fp":0.2,"Bf":227.279,"Bp":367.852,"Yf":80.0632,"Yp":64.0534},{"Ff":0.425,"Fp":0.225,"Bf":258.247,"Bp":342.499,"Yf":92.783,"Yp":66.9132},{"Ff":0.425,"Fp":0.25,"Bf":297.087,"Bp":315.706,"Yf":108.8855,"Yp":68.3954},{"Ff":0.425,"Fp":0.275,"Bf":350.807,"Bp":285.184,"Yf":131.3364,"Yp":67.907},{"Ff":0.425,"Fp":0.3,"Bf":449.643,"Bp":241.279,"Yf":172.9571,"Yp":62.8236},{"Ff":0.425,"Fp":0.325,"Bf":1208.616,"Bp":30.091,"Yf":496.2942,"Yp":8.676},{"Ff":0.425,"Fp":0.35,"Bf":1265.319,"Bp":16.385,"Yf":520.5379,"Yp":5.0613},{"Ff":0.425,"Fp":0.375,"Bf":1306.078,"Bp":6.713,"Yf":537.9656,"Yp":2.2094},{"Ff":0.45,"Fp":0,"Bf":72.108,"Bp":586.531,"Yf":22.2211,"Yp":0},{"Ff":0.45,"Fp":0.025,"Bf":88.01,"Bp":555.257,"Yf":27.8976,"Yp":12.4167},{"Ff":0.45,"Fp":0.05,"Bf":104.013,"Bp":525.363,"Yf":33.8588,"Yp":23.393},{"Ff":0.45,"Fp":0.075,"Bf":120.426,"Bp":496.802,"Yf":40.1963,"Yp":33.0384},{"Ff":0.45,"Fp":0.1,"Bf":137.576,"Bp":469.46,"Yf":47.0204,"Yp":41.4514},{"Ff":0.45,"Fp":0.125,"Bf":155.836,"Bp":443.176,"Yf":54.469,"Yp":48.7147},{"Ff":0.45,"Fp":0.15,"Bf":175.658,"Bp":417.744,"Yf":62.7215,"Yp":54.8901},{"Ff":0.45,"Fp":0.175,"Bf":197.634,"Bp":392.905,"Yf":72.0252,"Yp":60.0129},{"Ff":0.45,"Fp":0.2,"Bf":222.604,"Bp":368.317,"Yf":82.7423,"Yp":64.082},{"Ff":0.45,"Fp":0.225,"Bf":251.875,"Bp":343.493,"Yf":95.4481,"Yp":67.04},{"Ff":0.45,"Fp":0.25,"Bf":287.74,"Bp":317.638,"Yf":111.1639,"Yp":68.7249},{"Ff":0.45,"Fp":0.275,"Bf":335.037,"Bp":289.167,"Yf":132.0548,"Yp":68.7278},{"Ff":0.45,"Fp":0.3,"Bf":408.394,"Bp":253.42,"Yf":164.6882,"Yp":65.7416},{"Ff":0.45,"Fp":0.325,"Bf":1070.185,"Bp":56.393,"Yf":462.8243,"Yp":16.2176},{"Ff":0.45,"Fp":0.35,"Bf":1163.685,"Bp":32.929,"Yf":505.1311,"Yp":10.1538},{"Ff":0.45,"Fp":0.375,"Bf":1219.139,"Bp":19.287,"Yf":530.2292,"Yp":6.3388},{"Ff":0.45,"Fp":0.4,"Bf":1259.506,"Bp":9.534,"Yf":548.5011,"Yp":3.3238},{"Ff":0.45,"Fp":0.425,"Bf":1291.394,"Bp":1.966,"Yf":562.9358,"Yp":0.7241},{"Ff":0.475,"Fp":0,"Bf":70.965,"Bp":585.809,"Yf":23.0299,"Yp":0},{"Ff":0.475,"Fp":0.025,"Bf":86.747,"Bp":554.613,"Yf":28.9551,"Yp":12.3983},{"Ff":0.475,"Fp":0.05,"Bf":102.592,"Bp":524.798,"Yf":35.1636,"Yp":23.3596},{"Ff":0.475,"Fp":0.075,"Bf":118.795,"Bp":496.32,"Yf":41.7469,"Yp":32.9934},{"Ff":0.475,"Fp":0.1,"Bf":135.67,"Bp":469.074,"Yf":48.8137,"Yp":41.3992},{"Ff":0.475,"Fp":0.125,"Bf":153.564,"Bp":442.909,"Yf":56.4979,"Yp":48.6612},{"Ff":0.475,"Fp":0.15,"Bf":172.892,"Bp":417.632,"Yf":64.9711,"Yp":54.844},{"Ff":0.475,"Fp":0.175,"Bf":194.184,"Bp":393.004,"Yf":74.4648,"Yp":59.9881},{"Ff":0.475,"Fp":0.2,"Bf":218.169,"Bp":368.72,"Yf":85.3093,"Yp":64.1016},{"Ff":0.475,"Fp":0.225,"Bf":245.942,"Bp":344.362,"Yf":98.0107,"Yp":67.1454},{"Ff":0.475,"Fp":0.25,"Bf":279.317,"Bp":319.292,"Yf":113.4199,"Yp":68.999},{"Ff":0.475,"Fp":0.275,"Bf":321.78,"Bp":292.356,"Yf":133.1825,"Yp":69.3714},{"Ff":0.475,"Fp":0.3,"Bf":381.907,"Bp":260.823,"Yf":161.3617,"Yp":67.4826},{"Ff":0.475,"Fp":0.325,"Bf":500.399,"Bp":212.053,"Yf":217.276,"Yp":59.6279},{"Ff":0.475,"Fp":0.35,"Bf":1036.704,"Bp":57.19,"Yf":472.5323,"Yp":17.5883},{"Ff":0.475,"Fp":0.375,"Bf":1122.253,"Bp":35.333,"Yf":513.382,"Yp":11.5909},{"Ff":0.475,"Fp":0.4,"Bf":1175.812,"Bp":21.921,"Yf":538.9633,"Yp":7.6306},{"Ff":0.475,"Fp":0.425,"Bf":1215.442,"Bp":12.173,"Yf":557.8942,"Yp":4.4774},{"Ff":0.475,"Fp":0.45,"Bf":1247.003,"Bp":4.545,"Yf":572.9712,"Yp":1.76},{"Ff":0.5,"Fp":0,"Bf":69.83,"Bp":585.088,"Yf":23.7987,"Yp":0},{"Ff":0.5,"Fp":0.025,"Bf":85.496,"Bp":553.971,"Yf":29.9672,"Yp":12.38},{"Ff":0.5,"Fp":0.05,"Bf":101.188,"Bp":524.234,"Yf":36.4169,"Yp":23.3263},{"Ff":0.5,"Fp":0.075,"Bf":117.19,"Bp":495.838,"Yf":43.2387,"Yp":32.9486},{"Ff":0.5,"Fp":0.1,"Bf":133.801,"Bp":468.687,"Yf":50.5396,"Yp":41.3471},{"Ff":0.5,"Fp":0.125,"Bf":151.346,"Bp":442.636,"Yf":58.4494,"Yp":48.6073},{"Ff":0.5,"Fp":0.15,"Bf":170.209,"Bp":417.506,"Yf":67.1323,"Yp":54.7967},{"Ff":0.5,"Fp":0.175,"Bf":190.864,"Bp":393.075,"Yf":76.8052,"Yp":59.96},{"Ff":0.5,"Fp":0.2,"Bf":213.95,"Bp":369.069,"Yf":87.7698,"Yp":64.1133},{"Ff":0.5,"Fp":0.225,"Bf":240.39,"Bp":345.127,"Yf":100.4737,"Yp":67.2326},{"Ff":0.5,"Fp":0.25,"Bf":271.641,"Bp":320.724,"Yf":115.6348,"Yp":69.2292},{"Ff":0.5,"Fp":0.275,"Bf":310.3,"Bp":294.99,"Yf":134.541,"Yp":69.8919},{"Ff":0.5,"Fp":0.3,"Bf":361.9,"Bp":266.161,"Yf":159.9503,"Yp":68.7137},{"Ff":0.5,"Fp":0.325,"Bf":443.234,"Bp":229.048,"Yf":200.2538,"Yp":64.1104},{"Ff":0.5,"Fp":0.35,"Bf":798.775,"Bp":113.721,"Yf":377.9306,"Yp":34.7343},{"Ff":0.5,"Fp":0.375,"Bf":1006.775,"Bp":57.43,"Yf":482.3438,"Yp":18.7901},{"Ff":0.5,"Fp":0.4,"Bf":1084.155,"Bp":37.302,"Yf":521.2279,"Yp":12.9595},{"Ff":0.5,"Fp":0.425,"Bf":1135.298,"Bp":24.265,"Yf":546.9348,"Yp":8.9103},{"Ff":0.5,"Fp":0.45,"Bf":1173.87,"Bp":14.607,"Yf":566.3255,"Yp":5.6479},{"Ff":0.5,"Fp":0.475,"Bf":1204.892,"Bp":6.972,"Yf":581.9215,"Yp":2.8295},{"Ff":0.5,"Fp":0.5,"Bf":1230.791,"Bp":0.707,"Yf":594.9423,"Yp":0.3001},{"Ff":0.525,"Fp":0,"Bf":68.702,"Bp":584.369,"Yf":24.5278,"Yp":0},{"Ff":0.525,"Fp":0.025,"Bf":84.256,"Bp":553.331,"Yf":30.9347,"Yp":12.3617},{"Ff":0.525,"Fp":0.05,"Bf":99.8,"Bp":523.671,"Yf":37.6198,"Yp":23.2931},{"Ff":0.525,"Fp":0.075,"Bf":115.608,"Bp":495.356,"Yf":44.6731,"Yp":32.904},{"Ff":0.525,"Fp":0.1,"Bf":131.966,"Bp":468.297,"Yf":52.1999,"Yp":41.295},{"Ff":0.525,"Fp":0.125,"Bf":149.181,"Bp":442.357,"Yf":60.3262,"Yp":48.5532},{"Ff":0.525,"Fp":0.15,"Bf":167.604,"Bp":417.366,"Yf":69.2088,"Yp":54.7482},{"Ff":0.525,"Fp":0.175,"Bf":187.665,"Bp":393.12,"Yf":79.0509,"Yp":59.9288},{"Ff":0.525,"Fp":0.2,"Bf":209.925,"Bp":369.371,"Yf":90.1289,"Yp":64.1181},{"Ff":0.525,"Fp":0.225,"Bf":235.169,"Bp":345.801,"Yf":102.8405,"Yp":67.3043},{"Ff":0.525,"Fp":0.25,"Bf":264.585,"Bp":321.973,"Yf":117.7975,"Yp":69.4236},{"Ff":0.525,"Fp":0.275,"Bf":300.153,"Bp":297.213,"Yf":136.0306,"Yp":70.3215},{"Ff":0.525,"Fp":0.3,"Bf":345.667,"Bp":270.305,"Yf":159.5232,"Yp":69.6517},{"Ff":0.525,"Fp":0.325,"Bf":410.228,"Bp":238.445,"Yf":193.0495,"Yp":66.5361},{"Ff":0.525,"Fp":0.35,"Bf":529.831,"Bp":190.936,"Yf":255.522,"Yp":57.5341},{"Ff":0.525,"Fp":0.375,"Bf":848.405,"Bp":93.103,"Yf":422.9484,"Yp":30.321},{"Ff":0.525,"Fp":0.4,"Bf":979.6,"Bp":57.276,"Yf":492.1051,"Yp":19.8467},{"Ff":0.525,"Fp":0.425,"Bf":1049.145,"Bp":38.86,"Yf":528.7905,"Yp":14.2408},{"Ff":0.525,"Fp":0.45,"Bf":1097.506,"Bp":26.31,"Yf":554.3083,"Yp":10.1555},{"Ff":0.525,"Fp":0.475,"Bf":1134.743,"Bp":16.819,"Yf":573.9588,"Yp":6.8147},{"Ff":0.525,"Fp":0.5,"Bf":1165.028,"Bp":9.23,"Yf":589.9422,"Yp":3.9142},{"Ff":0.525,"Fp":0.525,"Bf":1190.53,"Bp":2.946,"Yf":603.4018,"Yp":1.3042},{"Ff":0.55,"Fp":0,"Bf":67.581,"Bp":583.652,"Yf":25.2178,"Yp":0},{"Ff":0.55,"Fp":0.025,"Bf":83.027,"Bp":552.693,"Yf":31.8585,"Yp":12.3435},{"Ff":0.55,"Fp":0.05,"Bf":98.427,"Bp":523.109,"Yf":38.7732,"Yp":23.2601},{"Ff":0.55,"Fp":0.075,"Bf":114.049,"Bp":494.875,"Yf":46.0515,"Yp":32.8594},{"Ff":0.55,"Fp":0.1,"Bf":130.165,"Bp":467.905,"Yf":53.7966,"Yp":41.2429},{"Ff":0.55,"Fp":0.125,"Bf":147.064,"Bp":442.071,"Yf":62.1308,"Yp":48.4987},{"Ff":0.55,"Fp":0.15,"Bf":165.071,"Bp":417.214,"Yf":71.2037,"Yp":54.6986},{"Ff":0.55,"Fp":0.175,"Bf":184.577,"Bp":393.143,"Yf":81.2059,"Yp":59.895},{"Ff":0.55,"Fp":0.2,"Bf":206.076,"Bp":369.631,"Yf":92.3912,"Yp":64.1167},{"Ff":0.55,"Fp":0.225,"Bf":230.241,"Bp":346.397,"Yf":105.1143,"Yp":67.3626},{"Ff":0.55,"Fp":0.25,"Bf":258.05,"Bp":323.072,"Yf":119.9009,"Yp":69.5886},{"Ff":0.55,"Fp":0.275,"Bf":291.047,"Bp":299.119,"Yf":137.5908,"Yp":70.6815},{"Ff":0.55,"Fp":0.3,"Bf":331.944,"Bp":273.662,"Yf":159.6683,"Yp":70.3978},{"Ff":0.55,"Fp":0.325,"Bf":386.311,"Bp":244.985,"Yf":189.1934,"Yp":68.1938},{"Ff":0.55,"Fp":0.35,"Bf":469.047,"Bp":208.69,"Yf":234.366,"Yp":62.5919},{"Ff":0.55,"Fp":0.375,"Bf":640.696,"Bp":148.175,"Yf":328.5905,"Yp":47.8302},{"Ff":0.55,"Fp":0.4,"Bf":854.182,"Bp":84.684,"Yf":446.2571,"Yp":29.2301},{"Ff":0.55,"Fp":0.425,"Bf":954.602,"Bp":56.846,"Yf":501.705,"Yp":20.778},{"Ff":0.55,"Fp":0.45,"Bf":1016.934,"Bp":40.043,"Yf":536.1421,"Yp":15.4241},{"Ff":0.55,"Fp":0.475,"Bf":1062.304,"Bp":28.059,"Yf":561.2153,"Yp":11.3481},{"Ff":0.55,"Fp":0.5,"Bf":1097.986,"Bp":18.8,"Yf":580.9375,"Yp":7.9593},{"Ff":0.55,"Fp":0.525,"Bf":1127.362,"Bp":11.306,"Yf":597.1756,"Yp":4.9971},{"Ff":0.55,"Fp":0.55,"Bf":1152.293,"Bp":5.05,"Yf":610.9572,"Yp":2.3245},{"Ff":0.575,"Fp":0,"Bf":66.467,"Bp":582.936,"Yf":25.8693,"Yp":0},{"Ff":0.575,"Fp":0.025,"Bf":81.807,"Bp":552.056,"Yf":32.7391,"Yp":12.3254},{"Ff":0.575,"Fp":0.05,"Bf":97.07,"Bp":522.549,"Yf":39.8782,"Yp":23.2272},{"Ff":0.575,"Fp":0.075,"Bf":112.512,"Bp":494.394,"Yf":47.3752,"Yp":32.815},{"Ff":0.575,"Fp":0.1,"Bf":128.396,"Bp":467.511,"Yf":55.3314,"Yp":41.1909},{"Ff":0.575,"Fp":0.125,"Bf":144.993,"Bp":441.781,"Yf":63.8654,"Yp":48.444},{"Ff":0.575,"Fp":0.15,"Bf":162.607,"Bp":417.052,"Yf":73.12,"Yp":54.6481},{"Ff":0.575,"Fp":0.175,"Bf":181.592,"Bp":393.145,"Yf":83.2741,"Yp":59.8587},{"Ff":0.575,"Fp":0.2,"Bf":202.388,"Bp":369.853,"Yf":94.561,"Yp":64.1099},{"Ff":0.575,"Fp":0.225,"Bf":225.573,"Bp":346.924,"Yf":107.2983,"Yp":67.4093},{"Ff":0.575,"Fp":0.25,"Bf":251.962,"Bp":324.042,"Yf":121.9411,"Yp":69.7288},{"Ff":0.575,"Fp":0.275,"Bf":282.778,"Bp":300.773,"Yf":139.1832,"Yp":70.9865},{"Ff":0.575,"Fp":0.3,"Bf":320.023,"Bp":276.459,"Yf":160.169,"Yp":71.008},{"Ff":0.575,"Fp":0.325,"Bf":367.368,"Bp":249.967,"Yf":187.0039,"Yp":69.4353},{"Ff":0.575,"Fp":0.35,"Bf":432.704,"Bp":218.981,"Yf":224.2289,"Yp":65.467},{"Ff":0.575,"Fp":0.375,"Bf":537.007,"Bp":177.707,"Yf":283.9397,"Yp":56.9971},{"Ff":0.575,"Fp":0.4,"Bf":711.256,"Bp":120.145,"Yf":384.1218,"Yp":41.2316},{"Ff":0.575,"Fp":0.425,"Bf":849.901,"Bp":79.17,"Yf":464.0489,"Yp":28.8385},{"Ff":0.575,"Fp":0.45,"Bf":931.371,"Bp":56.22,"Yf":511.0697,"Yp":21.6002},{"Ff":0.575,"Fp":0.475,"Bf":987.218,"Bp":40.897,"Yf":543.3187,"Yp":16.5056},{"Ff":0.575,"Fp":0.5,"Bf":1029.526,"Bp":29.521,"Yf":567.7563,"Yp":12.4749},{"Ff":0.575,"Fp":0.525,"Bf":1063.5,"Bp":20.548,"Yf":587.383,"Yp":9.0664},{"Ff":0.575,"Fp":0.55,"Bf":1091.825,"Bp":13.192,"Yf":603.7478,"Yp":6.0627},{"Ff":0.575,"Fp":0.575,"Bf":1116.067,"Bp":6.998,"Yf":617.7543,"Yp":3.3424},{"Ff":0.575,"Fp":0.6,"Bf":1137.221,"Bp":1.678,"Yf":629.9769,"Yp":0.8313},{"Ff":0.6,"Fp":0,"Bf":65.359,"Bp":582.222,"Yf":26.4828,"Yp":0},{"Ff":0.6,"Fp":0.025,"Bf":80.598,"Bp":551.421,"Yf":33.5773,"Yp":12.3073},{"Ff":0.6,"Fp":0.05,"Bf":95.727,"Bp":521.99,"Yf":40.9355,"Yp":23.1943},{"Ff":0.6,"Fp":0.075,"Bf":110.997,"Bp":493.913,"Yf":48.6453,"Yp":32.7708},{"Ff":0.6,"Fp":0.1,"Bf":126.657,"Bp":467.116,"Yf":56.806,"Yp":41.1389},{"Ff":0.6,"Fp":0.125,"Bf":142.967,"Bp":441.486,"Yf":65.5322,"Yp":48.3891},{"Ff":0.6,"Fp":0.15,"Bf":160.208,"Bp":416.879,"Yf":74.9605,"Yp":54.5968},{"Ff":0.6,"Fp":0.175,"Bf":178.704,"Bp":393.128,"Yf":85.259,"Yp":59.8203},{"Ff":0.6,"Fp":0.2,"Bf":198.846,"Bp":370.04,"Yf":96.6423,"Yp":64.0983},{"Ff":0.6,"Fp":0.225,"Bf":221.137,"Bp":347.391,"Yf":109.3957,"Yp":67.4459},{"Ff":0.6,"Fp":0.25,"Bf":246.261,"Bp":324.905,"Yf":123.9159,"Yp":69.848},{"Ff":0.6,"Fp":0.275,"Bf":275.199,"Bp":302.222,"Yf":140.7826,"Yp":71.2468},{"Ff":0.6,"Fp":0.3,"Bf":309.469,"Bp":278.836,"Yf":160.8982,"Yp":71.5168},{"Ff":0.6,"Fp":0.325,"Bf":351.612,"Bp":253.958,"Yf":185.7829,"Yp":70.4134},{"Ff":0.6,"Fp":0.35,"Bf":406.35,"Bp":226.203,"Yf":218.271,"Yp":67.4513},{"Ff":0.6,"Fp":0.375,"Bf":483.484,"Bp":192.884,"Yf":264.2594,"Yp":61.6126},{"Ff":0.6,"Fp":0.4,"Bf":600.754,"Bp":149.877,"Yf":334.4607,"Yp":51.1307},{"Ff":0.6,"Fp":0.425,"Bf":740.363,"Bp":105.058,"Yf":418.2976,"Yp":38.0987},{"Ff":0.6,"Fp":0.45,"Bf":841.407,"Bp":74.985,"Yf":479.0869,"Yp":28.7194},{"Ff":0.6,"Fp":0.475,"Bf":909.609,"Bp":55.457,"Yf":520.1534,"Yp":22.3259},{"Ff":0.6,"Fp":0.5,"Bf":959.708,"Bp":41.468,"Yf":550.3337,"Yp":17.4857},{"Ff":0.6,"Fp":0.525,"Bf":998.99,"Bp":30.717,"Yf":574.0039,"Yp":13.5273},{"Ff":0.6,"Fp":0.55,"Bf":1031.165,"Bp":22.068,"Yf":593.3944,"Yp":10.1238},{"Ff":0.6,"Fp":0.575,"Bf":1058.331,"Bp":14.886,"Yf":609.7683,"Yp":7.0981},{"Ff":0.6,"Fp":0.6,"Bf":1081.786,"Bp":8.784,"Yf":623.9056,"Yp":4.3447},{"Ff":0.6,"Fp":0.625,"Bf":1102.383,"Bp":3.508,"Yf":636.321,"Yp":1.7969}],"fold":[{"Ff":0,"F_crit":0.1842,"Bp_at_edge":342.432,"Bf_at_edge":402.491},{"Ff":0.025,"F_crit":0.1896,"Bp_at_edge":336.121,"Bf_at_edge":406.636},{"Ff":0.05,"F_crit":0.1952,"Bp_at_edge":328.774,"Bf_at_edge":413.769},{"Ff":0.075,"F_crit":0.2008,"Bp_at_edge":322.754,"Bf_at_edge":416.932},{"Ff":0.1,"F_crit":0.2067,"Bp_at_edge":316.081,"Bf_at_edge":421.952},{"Ff":0.125,"F_crit":0.2127,"Bp_at_edge":309.047,"Bf_at_edge":427.96},{"Ff":0.15,"F_crit":0.219,"Bp_at_edge":301.918,"Bf_at_edge":434.18},{"Ff":0.175,"F_crit":0.2254,"Bp_at_edge":295.022,"Bf_at_edge":439.643},{"Ff":0.2,"F_crit":0.2322,"Bp_at_edge":286.361,"Bf_at_edge":450.218},{"Ff":0.225,"F_crit":0.2391,"Bp_at_edge":279.001,"Bf_at_edge":456.89},{"Ff":0.25,"F_crit":0.2463,"Bp_at_edge":270.772,"Bf_at_edge":466.049},{"Ff":0.275,"F_crit":0.2539,"Bp_at_edge":262.564,"Bf_at_edge":475.066},{"Ff":0.3,"F_crit":0.2617,"Bp_at_edge":255.285,"Bf_at_edge":481.227},{"Ff":0.325,"F_crit":0.27,"Bp_at_edge":243.19,"Bf_at_edge":501.739},{"Ff":0.35,"F_crit":0.2923,"Bp_at_edge":0.056,"Bf_at_edge":1449.109},{"Ff":0.375,"F_crit":0.3274,"Bp_at_edge":0.054,"Bf_at_edge":1409.323},{"Ff":0.4,"F_crit":0.3625,"Bp_at_edge":0.085,"Bf_at_edge":1371.057},{"Ff":0.425,"F_crit":0.3973,"Bp_at_edge":0.074,"Bf_at_edge":1334.543},{"Ff":0.45,"F_crit":0.4329,"Bp_at_edge":0.062,"Bf_at_edge":1299.514},{"Ff":0.475,"F_crit":0.468,"Bp_at_edge":0.057,"Bf_at_edge":1265.853},{"Ff":0.5,"F_crit":0.5032,"Bp_at_edge":0.098,"Bf_at_edge":1233.33},{"Ff":0.525,"F_crit":0.5383,"Bp_at_edge":0.083,"Bf_at_edge":1202.301},{"Ff":0.55,"F_crit":0.5736,"Bp_at_edge":0.053,"Bf_at_edge":1172.52},{"Ff":0.575,"F_crit":0.6086,"Bp_at_edge":0.077,"Bf_at_edge":1143.656},{"Ff":0.6,"F_crit":0.6438,"Bp_at_edge":0.093,"Bf_at_edge":1115.901}]}; if (typeof module !== 'undefined') module.exports = REGIMES; else root.REGIMES = REGIMES; })(this);
+
+</script>
+<script>
+// Size-spectrum engine: a JavaScript port of mizer's default dynamics for the
+// cultivation-depensation model (see export_model.R for the data it consumes).
+//
+// It reproduces mizer 3.4's `project()` with method = "euler":
+//   * encounter and predation rate as the same circular convolutions that
+//     mizer evaluates by FFT (wrap-around included),
+//   * Holling type II feeding, energy split by the maturity ogive psi,
+//   * Beverton-Holt recruitment,
+//   * semichemostat resource updated with its exact exponential solution,
+//   * implicit first-order upwind transport in size.
+// validate.js checks it against trajectories exported from mizer.
+
+(function (root, factory) {
+  if (typeof module === "object" && module.exports) module.exports = factory();
+  else root.SizeSpectrumEngine = factory();
+})(this, function () {
+  "use strict";
+
+  function createEngine(M) {
+    const S = M.species.length;          // number of species
+    const NW = M.w.length;               // fish size bins
+    const NF = M.w_full.length;          // full size grid (resource + fish)
+    const off = M.offset0;               // w[j] == w_full[j + off]
+
+    const flat = (rows) => Float64Array.from([].concat(...rows));
+    const sv = flat(M.search_vol), imax = flat(M.intake_max), metab = flat(M.metab);
+    const psi = flat(M.psi), mu_b = flat(M.mu_b), Fpe = flat(M.F_per_effort);
+    const phiE = flat(M.phi_e), phiP = flat(M.phi_p), ftMask = flat(M.ft_mask);
+    const w = Float64Array.from(M.w), dw = Float64Array.from(M.dw);
+    const wdwFull = Float64Array.from(M.w_full.map((x, k) => x * M.dw_full[k]));
+    const rr = Float64Array.from(M.rr_pp), cc = Float64Array.from(M.cc_pp);
+    const theta = M.interaction, thetaR = M.interaction_resource;
+    const wMinIdx = M.w_min_idx;
+    const wTop = M.w_max_idx.map((i) => Math.min(i + 1, NW)); // support top (count)
+
+    // Work arrays reused every step
+    const prey = new Float64Array(NF);
+    const Q = new Float64Array(NF);
+    const r = {
+      encounter: new Float64Array(S * NW), feeding_level: new Float64Array(S * NW),
+      e_repro: new Float64Array(S * NW), e_growth: new Float64Array(S * NW),
+      pred_rate: new Float64Array(S * NF), pred_mort: new Float64Array(S * NW),
+      f_mort: new Float64Array(S * NW), mort: new Float64Array(S * NW),
+      rdi: new Float64Array(S), rdd: new Float64Array(S),
+      resource_mort: new Float64Array(NF),
+    };
+
+    const state = {
+      n: new Float64Array(S * NW),
+      n_pp: new Float64Array(NF),
+      effort: new Float64Array(S),
+      t: 0,
+    };
+
+    function rates(n, n_pp, effort) {
+      for (let i = 0; i < S; i++) {
+        // Prey biomass density seen by species i, times w dw (mizerEncounter)
+        for (let k = 0; k < NF; k++) prey[k] = thetaR[i] * n_pp[k];
+        for (let s = 0; s < S; s++) {
+          const th = theta[i][s];
+          if (th === 0) continue;
+          for (let j = 0; j < NW; j++) prey[j + off] += th * n[s * NW + j];
+        }
+        for (let k = 0; k < NF; k++) prey[k] *= wdwFull[k];
+        // Circular convolution, only at the fish sizes we keep
+        const pe = i * NF;
+        for (let j = 0; j < NW; j++) {
+          const J = j + off;
+          let sum = 0;
+          for (let k = 0; k < NF; k++) {
+            let m = J - k;
+            if (m < 0) m += NF;
+            sum += phiE[pe + m] * prey[k];
+          }
+          if (sum < 1e-18) sum = 0;
+          const ij = i * NW + j;
+          const enc = sv[ij] * sum;
+          const f = enc / (enc + imax[ij]);
+          r.encounter[ij] = enc;
+          r.feeding_level[ij] = f;
+          const e = M.alpha[i] * (1 - f) * enc - metab[ij];
+          const er = psi[ij] * (e > 0 ? e : 0);
+          r.e_repro[ij] = er;
+          const g = e - er;
+          r.e_growth[ij] = g > 0 ? g : 0;
+        }
+        // Predation rate exerted by species i on prey of each size
+        Q.fill(0);
+        for (let j = 0; j < NW; j++) {
+          const ij = i * NW + j;
+          Q[j + off] = (1 - r.feeding_level[ij]) * sv[ij] * n[ij] * dw[j];
+        }
+        for (let k = 0; k < NF; k++) {
+          let sum = 0;
+          for (let J = off; J < NF; J++) {
+            let m = k - J;
+            if (m < 0) m += NF;
+            sum += phiP[pe + m] * Q[J];
+          }
+          if (sum < 1e-18) sum = 0;
+          r.pred_rate[pe + k] = sum * ftMask[pe + k];
+        }
+      }
+      // Mortality and reproduction
+      for (let s = 0; s < S; s++) {
+        let repro = 0;
+        for (let j = 0; j < NW; j++) {
+          const sj = s * NW + j;
+          let pm = 0;
+          for (let i = 0; i < S; i++) pm += theta[i][s] * r.pred_rate[i * NF + j + off];
+          r.pred_mort[sj] = pm;
+          r.f_mort[sj] = effort[s] * Fpe[sj];
+          r.mort[sj] = pm + mu_b[sj] + r.f_mort[sj];
+          repro += r.e_repro[sj] * n[sj] * dw[j];
+        }
+        const rdi = 0.5 * repro * M.erepro[s] / w[wMinIdx[s]];
+        r.rdi[s] = rdi;
+        r.rdd[s] = rdi / (1 + rdi / M.R_max[s]);
+      }
+      for (let k = 0; k < NF; k++) {
+        let rm = 0;
+        for (let i = 0; i < S; i++) rm += thetaR[i] * r.pred_rate[i * NF + k];
+        r.resource_mort[k] = rm;
+      }
+      return r;
+    }
+
+    function step(dt) {
+      const n = state.n, n_pp = state.n_pp;
+      rates(n, n_pp, state.effort);
+      // Resource: exact solution with mortality frozen over the step
+      for (let k = 0; k < NF; k++) {
+        const mur = rr[k] + r.resource_mort[k];
+        const nst = rr[k] * cc[k] / mur;
+        const v = nst + (n_pp[k] - nst) * Math.exp(-mur * dt);
+        if (Number.isFinite(v)) n_pp[k] = v;
+      }
+      // Fish: implicit upwind (project_n_no_diffusion)
+      for (let s = 0; s < S; s++) {
+        const o = s * NW, j0 = wMinIdx[s];
+        const g = r.e_growth, mu = r.mort;
+        let prev = (n[o + j0] + r.rdd[s] * dt / dw[j0]) /
+          (1 + g[o + j0] * dt / dw[j0] + mu[o + j0] * dt);
+        n[o + j0] = prev;
+        for (let j = j0 + 1; j < NW; j++) {
+          const a = -g[o + j - 1] * dt / dw[j];
+          const b = 1 + g[o + j] * dt / dw[j] + mu[o + j] * dt;
+          prev = (n[o + j] - a * prev) / b;
+          n[o + j] = prev;
+        }
+      }
+      state.t += dt;
+    }
+
+    // ---- Diagnostics -------------------------------------------------------
+
+    function biomass(s, wFrom = 0) {
+      let b = 0;
+      for (let j = 0; j < NW; j++) {
+        if (w[j] >= wFrom) b += state.n[s * NW + j] * w[j] * dw[j];
+      }
+      return b;
+    }
+
+    // Yield rate (biomass caught per year) for species s at the current state
+    function yieldRate(s) {
+      let y = 0;
+      for (let j = 0; j < NW; j++) {
+        const sj = s * NW + j;
+        y += state.effort[s] * Fpe[sj] * state.n[sj] * w[j] * dw[j];
+      }
+      return y;
+    }
+
+    // Steady cohort per unit egg density under the current growth and
+    // mortality (mizer:::get_steady_state_n with upwind flux). Returns the
+    // invasion reproduction number R0 and survival to selected sizes.
+    function cohort(s, rr_) {
+      const o = s * NW, j0 = wMinIdx[s];
+      const g = rr_.e_growth, mu = rr_.mort;
+      const nc = new Float64Array(NW);
+      nc[j0] = 1;
+      for (let j = j0 + 1; j < wTop[s]; j++) {
+        nc[j] = g[o + j - 1] * nc[j - 1] / (g[o + j] + mu[o + j] * dw[j]);
+      }
+      const recruits = g[o + j0] + mu[o + j0] * dw[j0];
+      let repro = 0;
+      for (let j = 0; j < NW; j++) repro += nc[j] * rr_.e_repro[o + j] * dw[j];
+      const R0 = 0.5 * M.erepro[s] * repro / M.w_min[s] / recruits;
+      const survivalTo = (wt) => {
+        let j = 0;
+        while (j < NW - 1 && w[j] < wt) j++;
+        return g[o + j] * nc[j] / recruits;
+      };
+      return { R0, survivalTo, n: nc };
+    }
+
+    function diagnostics() {
+      const rr_ = rates(state.n, state.n_pp, state.effort);
+      return { rates: rr_, cohort: [cohort(0, rr_), cohort(1, rr_)] };
+    }
+
+    // ---- State manipulation ------------------------------------------------
+
+    function loadState(name) {
+      const st = M.states[name];
+      for (let s = 0; s < S; s++) {
+        for (let j = 0; j < NW; j++) state.n[s * NW + j] = st.n[s][j];
+      }
+      state.n_pp.set(st.n_pp);
+      state.t = 0;
+    }
+
+    // Add `factor` times the State A spectrum of species s (a restocking seed)
+    function seed(s, factor) {
+      const ref = M.states.State_A.n[s];
+      for (let j = 0; j < NW; j++) state.n[s * NW + j] += factor * ref[j];
+    }
+
+    function remove(s) {
+      for (let j = 0; j < NW; j++) state.n[s * NW + j] = 0;
+    }
+
+    function snapshot() {
+      return { n: Float64Array.from(state.n), n_pp: Float64Array.from(state.n_pp),
+               effort: Float64Array.from(state.effort), t: state.t };
+    }
+
+    function restore(snap) {
+      state.n.set(snap.n); state.n_pp.set(snap.n_pp);
+      state.effort.set(snap.effort); state.t = snap.t;
+    }
+
+    return {
+      model: M, state, step, rates, biomass, yieldRate, cohort, diagnostics,
+      loadState, seed, remove, snapshot, restore,
+      dims: { S, NW, NF, off },
+    };
+  }
+
+  return { createEngine };
+});
+
+</script>
+<script>
+(function () {
+  "use strict";
+  const M = window.MODEL, R = window.REGIMES;
+  const eng = SizeSpectrumEngine.createEngine(M);
+  const DT = 0.2, STEPS_PER_YEAR = 5;
+  const FORAGE = 0, PRED = 1;
+  const B_A = M.states.State_A.biomass;          // healthy unfished biomass [forage, predator]
+  const B_C = M.states.State_C.biomass;
+  const NW = eng.dims.NW;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const $ = (id) => document.getElementById(id);
+  const fmt = (x, d = 0) => Number.isFinite(x) ? x.toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d }) : "–";
+  const pctCatch = (F) => Math.round(100 * (1 - Math.exp(-F)));
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+
+  // ---------------------------------------------------------------------
+  // Reference rates: the healthy sea (A) and the forage-dominated sea (C)
+  // ---------------------------------------------------------------------
+  const refEng = SizeSpectrumEngine.createEngine(M);
+  function referenceDiag(name) {
+    refEng.loadState(name);
+    refEng.state.effort.set([0, 0]);
+    const d = refEng.diagnostics();
+    return {
+      predMort: Array.from(d.rates.pred_mort.slice(NW, 2 * NW)),
+      S1: d.cohort[PRED].survivalTo(1),
+      R0: d.cohort[PRED].R0,
+      rdd: d.rates.rdd[PRED],
+    };
+  }
+  const REF_A = referenceDiag("State_A");
+  const REF_C = referenceDiag("State_C");
+
+  // Interpolated regime boundaries (F_forage -> F_pred)
+  const foldPts = R.fold.map((r) => [r.Ff, r.F_crit]);
+  const invPts = R.branchC.map((r) => [r.Ff, r.F_inv]);
+  function interp(pts, x) {
+    if (x <= pts[0][0]) return pts[0][1];
+    for (let i = 1; i < pts.length; i++) {
+      if (x <= pts[i][0]) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
+      }
+    }
+    return pts[pts.length - 1][1];
+  }
+  const Fcrit = (Ff) => Math.max(interp(foldPts, Ff), interp(invPts, Ff));
+  // Forage fishing at which a rare predator can invade the collapsed sea (R0 = 1, no predator fishing)
+  const FF_INV = (() => {
+    const c = R.branchC;
+    for (let i = 1; i < c.length; i++) {
+      if (c[i - 1].R0_pred < 1 && c[i].R0_pred >= 1) {
+        return c[i - 1].Ff + (c[i].Ff - c[i - 1].Ff) * (1 - c[i - 1].R0_pred) / (c[i].R0_pred - c[i - 1].R0_pred);
+      }
+    }
+    return NaN;
+  })();
+  const Finv = (Ff) => interp(invPts, Ff);
+  function regimeAt(Ff, Fp) {
+    if (Fp < Finv(Ff)) return "safe";
+    if (Fp < Fcrit(Ff)) return "tip";
+    return "lost";
+  }
+  // Largest sustained predator catch with no forage fishing (on the coexistence branch)
+  const branch0 = R.branchA.filter((r) => r.Ff === 0);
+  const MSY0 = branch0.reduce((a, r) => (r.Yp > a.Yp ? r : a), branch0[0]);
+  const TARGET1 = Math.floor(MSY0.Yp * 0.9);   // mission 1 catch target, about 90% of the maximum
+
+  // ---------------------------------------------------------------------
+  // Simulation state
+  // ---------------------------------------------------------------------
+  const sim = {
+    running: true,
+    speed: 5,
+    acc: 0,
+    steps: 0,
+    year: 0,
+    history: [],
+    diag: null,
+    flags: {},
+    restocks: 0,
+  };
+  const policy = { Ff: 0, Fp: 0 };
+
+  function computeDiag() {
+    const d = eng.diagnostics();
+    const c = d.cohort[PRED];
+    let plank = 0, cap = 0;
+    for (let k = 0; k < M.w_full.length; k++) {
+      const wk = M.w_full[k];
+      if (wk > 0.01 && wk < 1) {
+        const f = wk * M.dw_full[k];
+        plank += eng.state.n_pp[k] * f;
+        cap += M.cc_pp[k] * f;
+      }
+    }
+    return {
+      Bf: eng.biomass(FORAGE), Bp: eng.biomass(PRED),
+      Yf: eng.yieldRate(FORAGE), Yp: eng.yieldRate(PRED),
+      R0: c.R0, S1: c.survivalTo(1),
+      predMort: d.rates.pred_mort.slice(NW, 2 * NW),
+      rdd: d.rates.rdd[PRED],
+      plankton: cap > 0 ? plank / cap : 1,
+    };
+  }
+
+  function record() {
+    const d = sim.diag;
+    sim.history.push({
+      t: sim.year, Bf: d.Bf, Bp: d.Bp, Yf: d.Yf, Yp: d.Yp,
+      Ff: policy.Ff, Fp: policy.Fp, R0: d.R0, S1: d.S1,
+    });
+    if (sim.history.length > 2000) sim.history.shift();
+  }
+
+  function applyEffort() {
+    eng.state.effort[FORAGE] = policy.Ff;
+    eng.state.effort[PRED] = policy.Fp;
+  }
+
+  function loadStart(name) {
+    eng.loadState(name);
+    sim.steps = 0; sim.year = 0; sim.acc = 0;
+    sim.history = [];
+    sim.flags = {};
+    sim.restocks = 0;
+    applyEffort();
+    sim.diag = computeDiag();
+    record();
+    sea.resetPopulation();
+  }
+
+  // ---------------------------------------------------------------------
+  // Events: plain-language news from the model
+  // ---------------------------------------------------------------------
+  function toast(text, kind = "") {
+    const el = document.createElement("div");
+    el.className = "toast " + kind;
+    el.innerHTML = `<b>Year ${sim.year}</b>${text}`;
+    const stack = $("toasts");
+    stack.appendChild(el);
+    while (stack.children.length > 3) stack.removeChild(stack.firstChild);
+    setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 7000);
+  }
+
+  function detectEvents() {
+    const d = sim.diag, f = sim.flags;
+    const bp = d.Bp / B_A[PRED], bf = d.Bf / B_A[FORAGE];
+    const was = f.prev || { bp, bf, R0: d.R0 };
+    if (was.bp >= 0.5 && bp < 0.5) toast("Predator stock has fallen below half its healthy level.", "");
+    if (was.bp >= 0.05 && bp < 0.05) toast("The predator stock has collapsed.", "bad");
+    if (was.bp < 0.5 && bp >= 0.5 && f.everLow) toast("Predators are back above half their healthy level.", "good");
+    if (bp < 0.5) f.everLow = true;
+    if (was.bf < 5 && bf >= 5) toast("Forage fish boom: five times their healthy level.", "bad");
+    if (was.bf >= 5 && bf < 5 && f.boomed) toast("The forage fish boom is easing.", "good");
+    if (bf >= 5) f.boomed = true;
+    if (was.R0 >= 1 && d.R0 < 1) toast("The nursery trap has closed. Too few young predators survive to replace their parents.", "bad");
+    if (was.R0 < 1 && d.R0 >= 1) toast("The nursery has reopened. Predators can multiply again.", "good");
+    f.prev = { bp, bf, R0: d.R0 };
+  }
+
+  // ---------------------------------------------------------------------
+  // Missions
+  // ---------------------------------------------------------------------
+  const pctA = (b) => b / B_A[PRED];
+  const streak = (key, cond) => {
+    const f = sim.flags;
+    f[key] = cond ? (f[key] || 0) + 1 : 0;
+    return f[key];
+  };
+
+  const MISSIONS = [
+    {
+      id: "edge",
+      tab: "Find the edge",
+      title: "How hard can you fish the predator?",
+      brief: "The sea is healthy and nobody fishes it yet. You run the predator fishery. Raise the fishing pressure to land a big catch, but keep the stock alive.",
+      start: "State_A", Fp: 0, Ff: 0,
+      locks: { Ff: "Closed in this mission: no forage fishery yet." },
+      restock: 0, fog: true,
+      goals: () => [
+        `Land at least ${fmt(TARGET1)} kt of predator a year`,
+        "Keep it up for 50 years in a row",
+      ],
+      check(d) {
+        const n = streak("good", d.Yp >= TARGET1 && pctA(d.Bp) > 0.05);
+        if (pctA(d.Bp) < 0.05) return { lose: true };
+        if (n >= 50) return { win: true };
+        return { met: [d.Yp >= TARGET1, n >= 50], progress: n / 50 };
+      },
+      hint(d) {
+        if (policy.Fp === 0 && sim.year > 8) return "Drag the predator fishing lever to the right to start fishing.";
+        if (policy.Fp > 0 && d.Yp < TARGET1 && sim.year > 30 && policy.Fp < 0.12) return "Your catch is below target. Try fishing harder.";
+        return "";
+      },
+      overEdge: {
+        title: "Target met. For now.",
+        body: () => [
+          `You landed over ${fmt(TARGET1)} kt a year for 50 years. But your fishing pressure, F ${policy.Fp.toFixed(3)}, is past the edge at F ${Fcrit(0).toFixed(3)}.`,
+          "The stock has been sliding so slowly that nothing looked wrong. Keep watching: within decades the forage fish take over and the predator collapses.",
+        ],
+      },
+      win: {
+        title: "You found the edge without going over",
+        body: () => [
+          `The largest catch this sea can sustain with no forage fishery is about ${fmt(MSY0.Yp)} kt a year, at a fishing pressure of F ${MSY0.Fp.toFixed(2)}. The cliff is at F ${Fcrit(0).toFixed(3)}, only a little further.`,
+          "Try nudging the pressure up a bit more and watch what happens, or move on to the next mission, which starts from a sea where the edge was crossed.",
+        ],
+      },
+      lose: {
+        title: "The predator stock collapsed",
+        body: () => [
+          `Above a fishing pressure of about F ${Fcrit(0).toFixed(2)} (${pctCatch(Fcrit(0))}% of catchable predators a year) the predator cannot hold the forage fish down. The forage fish multiply, eat the predator's young, and the stock spirals down.`,
+          "Notice how long the stock looked fine after you crossed the line. The policy chart is now uncovered. Your track shows where the edge was.",
+        ],
+      },
+    },
+    {
+      id: "ban",
+      tab: "The fishing ban",
+      title: "Bring the predator back with a fishing ban",
+      brief: "This sea was overfished. The predators are gone and forage fish have taken over. Predator fishing is now banned. You may also release young predators from a hatchery.",
+      start: "State_C", Fp: 0, Ff: 0,
+      locks: {
+        Fp: "Banned. No predator fishing.",
+        Ff: "Not part of this plan.",
+      },
+      restock: 3,
+      goals: () => ["Rebuild the predator stock to half its healthy level", "Within 80 years"],
+      check(d) {
+        if (pctA(d.Bp) >= 0.5) return { win: true };
+        if (sim.year >= 80) return { lose: true };
+        return { met: [false, false], progress: sim.year / 80 };
+      },
+      hint(d) {
+        if (sim.restocks === 0 && sim.year > 5) return "Try releasing young predators from the hatchery.";
+        if (sim.restocks > 0 && d.Bp > 0.01 && d.R0 < 1) return `The released predators are dying out. Look at the nursery chart: only ${fmt(1000 * d.S1)} of every 1,000 young survive to 1 g.`;
+        return "";
+      },
+      win: { title: "The predators returned", body: () => ["That should not have happened in this sea. If you found a way, tell the authors."] },
+      lose: {
+        title: "The ban was not enough",
+        body: () => [
+          `With no predators to keep them in check, forage fish are ${fmt(B_C[FORAGE] / B_A[FORAGE], 0)} times more abundant than in a healthy sea. They eat almost every predator larva: only ${fmt(1000 * REF_C.S1)} of 1,000 survive to 1 g, against ${fmt(1000 * REF_A.S1)} in a healthy sea.`,
+          `So each predator leaves fewer than one replacement (comeback number ${REF_C.R0.toFixed(2)}). Released fish die out however many you add. The sea is stuck in its new state, even though nobody fishes the predator any more.`,
+        ],
+      },
+    },
+    {
+      id: "restore",
+      tab: "Restore the nursery",
+      title: "Make the sea safe for young predators again",
+      brief: "Same collapsed sea, same predator fishing ban. This time you may also fish the forage fish, and release young predators.",
+      start: "State_C", Fp: 0, Ff: 0,
+      locks: { Fp: "Banned. No predator fishing." },
+      restock: 5,
+      goals: () => [
+        "Rebuild predators to half their healthy level",
+        "Then close the forage fishery again",
+        "Predators stay above half for 30 more years",
+      ],
+      check(d) {
+        const f = sim.flags;
+        if (pctA(d.Bp) >= 0.5) f.rebuilt = true;
+        if (f.rebuilt && policy.Ff === 0) f.closed = true;
+        const n = streak("hold", f.closed && policy.Ff === 0 && pctA(d.Bp) >= 0.5);
+        if (n >= 30) return { win: true };
+        return { met: [!!f.rebuilt, !!f.closed && policy.Ff === 0, n >= 30],
+                 progress: (f.rebuilt ? 0.4 : 0.4 * pctA(d.Bp) / 0.5) + (f.closed && policy.Ff === 0 ? 0.1 : 0) + 0.5 * n / 30 };
+      },
+      hint(d) {
+        if (sim.flags.rebuilt && policy.Ff > 0) return "Predators are back. Now set forage fishing to zero and see whether they hold on.";
+        if (d.R0 >= 1 && d.Bp < 0.5) return "The nursery is safe enough now, but there are no predators left to use it. Release some young predators.";
+        if (policy.Ff === 0 && sim.year > 6) return "The ban alone failed last time. What eats the predator's young?";
+        if (d.R0 < 1 && policy.Ff > 0) return `Not yet. The comeback number is ${d.R0.toFixed(2)}, still below 1. Fish the forage fish harder.`;
+        return "";
+      },
+      win: {
+        title: "The nursery is restored, and it stays restored",
+        body: () => [
+          `Fishing the forage fish above about F ${FF_INV.toFixed(2)} (${pctCatch(FF_INV)}% a year) made the nursery safe enough for released predators to multiply. Once grown, the predators took over the job of keeping forage fish in check.`,
+          "That is why the forage fishery could close again without the predators collapsing. The same policy (no fishing at all) now gives a healthy sea, where before it gave a collapsed one. The history of the sea decides which one you get.",
+        ],
+      },
+    },
+    {
+      id: "balance",
+      tab: "Balanced harvest",
+      title: "Fish the predator hard without losing it",
+      brief: `Back to a healthy sea. Fishing only the predator, the stock collapses above F ${Fcrit(0).toFixed(2)}. This time you may fish both species.`,
+      start: "State_A", Fp: 0, Ff: 0,
+      locks: {},
+      restock: 0,
+      goals: () => [
+        "Fish the predator at F 0.25 or more (22% a year)",
+        "Keep predators above a quarter of their healthy level",
+        "For 60 years in a row",
+      ],
+      check(d) {
+        if (pctA(d.Bp) < 0.05) return { lose: true };
+        const ok = policy.Fp >= 0.25 - 1e-9 && pctA(d.Bp) >= 0.25;
+        const n = streak("good", ok);
+        if (n >= 60) return { win: true };
+        return { met: [policy.Fp >= 0.25 - 1e-9, pctA(d.Bp) >= 0.25, n >= 60], progress: n / 60 };
+      },
+      hint(d) {
+        if (policy.Fp >= 0.25 && policy.Ff < 0.1 && pctA(d.Bp) < 0.6) return "On its own, that predator pressure crosses the edge. What else could keep forage fish down?";
+        return "";
+      },
+      overEdge: {
+        title: "Target met. For now.",
+        body: () => [
+          `The predator held on for 60 years, but at forage fishing F ${policy.Ff.toFixed(2)} the edge is at predator F ${Fcrit(policy.Ff).toFixed(3)}, below your F ${policy.Fp.toFixed(2)}.`,
+          "It is sliding slowly towards collapse. Keep watching, or try again with a little more forage fishing.",
+        ],
+      },
+      win: {
+        title: "Balanced fishing moved the edge",
+        body: () => [
+          `Fishing forage fish does part of the predators' job of keeping them scarce, so the predator survives much harder fishing. At F ${(0.35).toFixed(2)} on forage fish, the predator copes with about F ${Fcrit(0.35).toFixed(2)} instead of F ${Fcrit(0).toFixed(2)}.`,
+          `You are landing ${fmt(sim.diag.Yp)} kt of predator and ${fmt(sim.diag.Yf)} kt of forage fish a year. Fishing the predator alone, the most this sea could sustain was ${fmt(MSY0.Yp)} kt.`,
+          "Look at the policy chart: as forage fishing rises, the tipping zone narrows and then disappears. Past that point there is no cliff, only a gradual decline that reverses when fishing eases.",
+        ],
+      },
+      lose: {
+        title: "The predator collapsed",
+        body: () => ["Fishing only the predator this hard crosses the edge. Try fishing the forage fish as well."],
+      },
+    },
+    {
+      id: "assembly",
+      tab: "Build a sea",
+      title: "Who should arrive first?",
+      brief: "An empty sea with only plankton. Release predators and forage fish to build a full food web. The order matters.",
+      start: "State_0", Fp: 0, Ff: 0,
+      locks: {},
+      restock: 0, release: true,
+      goals: () => ["Predators above half their healthy level", "Forage fish above half their healthy level", "Both together for 20 years"],
+      check(d) {
+        const okP = pctA(d.Bp) >= 0.5, okF = d.Bf >= 0.5 * B_A[FORAGE];
+        const n = streak("both", okP && okF && policy.Ff === 0 && policy.Fp === 0);
+        if (n >= 20) return { win: true };
+        return { met: [okP, okF, n >= 20], progress: n / 20 };
+      },
+      hint(d) {
+        if (d.Bf > 200 && d.Bp < 1 && sim.flags.releasedPred) return "The forage fish got there first and their numbers make the nursery deadly. Restart and try the other order, or think about mission 3.";
+        if (d.Bp > 0.5 * B_A[PRED] && d.Bf < 1 && !sim.flags.releasedForage) return "The predators have settled in. Now release forage fish.";
+        if ((policy.Ff > 0 || policy.Fp > 0) && d.Bp > 0.5 * B_A[PRED] && d.Bf > 0.5 * B_A[FORAGE]) return "Both are here. Set fishing to zero to finish.";
+        return "";
+      },
+      win: {
+        title: "A full food web",
+        body: () => [
+          "Predators that arrive first live on plankton and on each other's young, and later keep the incoming forage fish in check. Forage fish that arrive first become so many that predators cannot get a foothold.",
+          "Order of arrival decides which sea you end up with, even with the same fish and the same fishing rules.",
+        ],
+      },
+    },
+    {
+      id: "free",
+      tab: "Free play",
+      title: "Free play",
+      brief: "All levers unlocked. Pick a starting sea and explore. Try entering the tipping zone from below and from above.",
+      start: "State_A", Fp: 0, Ff: 0,
+      locks: {}, restock: 99, release: true, presets: true,
+      goals: () => [],
+      check() { return {}; },
+      hint() { return ""; },
+    },
+  ];
+
+  let mission = MISSIONS[0];
+  let missionStatus = "active";
+  const completed = new Set(store.get("nursery-trap-completed", []));
+
+  function renderTabs() {
+    const nav = $("mission-tabs");
+    nav.innerHTML = "";
+    MISSIONS.forEach((m, i) => {
+      const b = document.createElement("button");
+      b.className = "mission-tab" + (completed.has(m.id) ? " done" : "");
+      b.setAttribute("aria-pressed", m === mission ? "true" : "false");
+      b.innerHTML = `<span class="badge">${m.id === "free" ? "∞" : (completed.has(m.id) ? "✓" : i + 1)}</span>${m.tab}`;
+      b.addEventListener("click", () => startMission(m));
+      nav.appendChild(b);
+    });
+  }
+
+  function startMission(m) {
+    mission = m;
+    missionStatus = "active";
+    policy.Fp = m.Fp; policy.Ff = m.Ff;
+    loadStart(m.start);
+    hideDebrief();
+    renderTabs();
+    $("mission-eyebrow").textContent = m.id === "free" ? "Sandbox" : `Mission ${MISSIONS.indexOf(m) + 1} of ${MISSIONS.length - 1}`;
+    $("mission-title").textContent = m.title;
+    $("mission-brief").textContent = m.brief;
+    const goals = m.goals();
+    $("objective").hidden = goals.length === 0;
+    $("objective-list").innerHTML = goals.map((g) => `<li>${g}</li>`).join("");
+    $("hint").textContent = "";
+    $("preset-row").hidden = !m.presets;
+    $("release-pred-btn").hidden = !m.release;
+    $("release-forage-btn").hidden = !m.release;
+    $("restock-btn").hidden = !m.restock || m.release;
+    regimeChart.setFog(!!m.fog);
+    syncControls();
+    sim.running = true;
+    syncPlay();
+    renderAll(true);
+  }
+
+  function evaluateMission() {
+    if (missionStatus !== "active") return;
+    const d = sim.diag;
+    const res = mission.check(d) || {};
+    if (res.win || res.lose) {
+      missionStatus = res.win ? "won" : "lost";
+      const overEdge = res.win && mission.overEdge && policy.Fp > Fcrit(policy.Ff) + 1e-4;
+      if (res.win && mission.id !== "free") {
+        completed.add(mission.id);
+        store.set("nursery-trap-completed", Array.from(completed));
+      }
+      if (mission.fog) regimeChart.setFog(false);
+      showDebrief(overEdge ? "overEdge" : res.win ? "win" : "lose");
+      renderTabs();
+      return;
+    }
+    const items = $("objective-list").children;
+    (res.met || []).forEach((m, i) => { if (items[i]) items[i].classList.toggle("met", !!m); });
+    $("objective-progress").style.width = `${Math.round(100 * clamp(res.progress || 0, 0, 1))}%`;
+    $("hint").textContent = mission.hint(d) || "";
+  }
+
+  function showDebrief(kind) {
+    const spec = mission[kind];
+    if (!spec) return;
+    sim.running = false;
+    syncPlay();
+    $("debrief-verdict").textContent = kind === "win" ? "Mission complete" : kind === "overEdge" ? "Goal reached, but" : "Mission failed";
+    $("debrief-verdict").className = "verdict " + (kind === "win" ? "win" : "lose");
+    $("debrief-title").textContent = spec.title;
+    $("debrief-body").innerHTML = spec.body().map((p) => `<p>${p}</p>`).join("");
+    const actions = $("debrief-actions");
+    actions.innerHTML = "";
+    const idx = MISSIONS.indexOf(mission);
+    const next = MISSIONS[idx + 1];
+    const keepWatching = () => { hideDebrief(); missionStatus = "done"; sim.running = true; syncPlay(); };
+    if (kind === "overEdge") {
+      const w = document.createElement("button");
+      w.className = "btn primary";
+      w.textContent = "Keep watching";
+      w.addEventListener("click", keepWatching);
+      actions.appendChild(w);
+    }
+    if (next) {
+      const b = document.createElement("button");
+      b.className = kind === "overEdge" ? "btn" : "btn primary";
+      b.textContent = next.id === "free" ? "Go to free play" : `Next: ${next.tab}`;
+      b.addEventListener("click", () => startMission(next));
+      actions.appendChild(b);
+    }
+    const again = document.createElement("button");
+    again.className = "btn";
+    again.textContent = "Try again";
+    again.addEventListener("click", () => startMission(mission));
+    actions.appendChild(again);
+    const keep = document.createElement("button");
+    keep.className = "btn";
+    keep.textContent = "Keep exploring this sea";
+    keep.addEventListener("click", keepWatching);
+    if (kind !== "overEdge") actions.appendChild(keep);
+    $("debrief").hidden = false;
+    (actions.firstChild || again).focus({ preventScroll: true });
+  }
+  function hideDebrief() { $("debrief").hidden = true; }
+
+  // ---------------------------------------------------------------------
+  // Controls
+  // ---------------------------------------------------------------------
+  const fpSlider = $("fp-slider"), ffSlider = $("ff-slider");
+  function describeF(F, sp) {
+    if (F === 0) return sp === PRED ? "No predator fishing." : "No forage fishing.";
+    return `${pctCatch(F)}% of catchable ${sp === PRED ? "predators (over 400 g)" : "forage fish (over 1 g)"} taken each year.`;
+  }
+  function syncControls() {
+    const locks = mission.locks || {};
+    fpSlider.value = policy.Fp; ffSlider.value = policy.Ff;
+    fpSlider.disabled = !!locks.Fp; ffSlider.disabled = !!locks.Ff;
+    $("fp-lever").classList.toggle("locked", !!locks.Fp);
+    $("ff-lever").classList.toggle("locked", !!locks.Ff);
+    $("fp-value").textContent = `F ${policy.Fp.toFixed(2)}`;
+    $("ff-value").textContent = `F ${policy.Ff.toFixed(2)}`;
+    $("fp-sub").textContent = locks.Fp ? "🔒 " + locks.Fp : describeF(policy.Fp, PRED);
+    $("ff-sub").textContent = locks.Ff ? "🔒 " + locks.Ff : describeF(policy.Ff, FORAGE);
+    const left = Math.max(0, mission.restock - sim.restocks);
+    $("restock-btn").disabled = left === 0;
+    $("restock-count").textContent = mission.restock && mission.restock < 99 ? `${left} left` : "";
+    applyEffort();
+  }
+  function setPolicy(Ff, Fp) {
+    const locks = mission.locks || {};
+    if (!locks.Ff && Ff !== undefined) policy.Ff = Math.round(clamp(Ff, 0, 0.6) / 0.005) * 0.005;
+    if (!locks.Fp && Fp !== undefined) policy.Fp = Math.round(clamp(Fp, 0, 0.5) / 0.005) * 0.005;
+    policy.Ff = Number(policy.Ff.toFixed(3)); policy.Fp = Number(policy.Fp.toFixed(3));
+    syncControls();
+    regimeChart.draw();
+  }
+  fpSlider.addEventListener("input", () => setPolicy(undefined, Number(fpSlider.value)));
+  ffSlider.addEventListener("input", () => setPolicy(Number(ffSlider.value), undefined));
+
+  $("restock-btn").addEventListener("click", () => {
+    if (sim.restocks >= mission.restock) return;
+    sim.restocks++;
+    eng.seed(PRED, 0.005);
+    sea.burst("pred");
+    toast("Released young predators from the hatchery.", "");
+    syncControls();
+  });
+  $("release-pred-btn").addEventListener("click", () => {
+    eng.seed(PRED, 0.01); sim.flags.releasedPred = true; sea.burst("pred");
+    toast("Released predators.", "");
+  });
+  $("release-forage-btn").addEventListener("click", () => {
+    eng.seed(FORAGE, 0.01); sim.flags.releasedForage = true; sea.burst("forage");
+    toast("Released forage fish.", "");
+  });
+  $("reset-btn").addEventListener("click", () => startMission(mission));
+  document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+    loadStart(b.dataset.preset);
+    renderAll(true);
+  }));
+
+  const SPEEDS = [1, 2, 5, 10, 25];
+  const speedGroup = $("speed-group");
+  SPEEDS.forEach((s) => {
+    const b = document.createElement("button");
+    b.textContent = `${s}×`;
+    b.title = `${s} model year${s > 1 ? "s" : ""} per second`;
+    b.setAttribute("aria-pressed", s === sim.speed ? "true" : "false");
+    b.addEventListener("click", () => {
+      sim.speed = s;
+      speedGroup.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+    });
+    speedGroup.appendChild(b);
+  });
+  function syncPlay() {
+    const b = $("play-btn");
+    b.textContent = sim.running ? "❚❚ Pause" : "▶ Play";
+    b.setAttribute("aria-label", sim.running ? "Pause simulation" : "Play simulation");
+  }
+  $("play-btn").addEventListener("click", () => {
+    if (!$("debrief").hidden) { hideDebrief(); if (missionStatus !== "active") missionStatus = "done"; }
+    sim.running = !sim.running;
+    syncPlay();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && !/INPUT|BUTTON|TEXTAREA|SELECT|SUMMARY/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      $("play-btn").click();
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // Readouts
+  // ---------------------------------------------------------------------
+  function renderReadouts() {
+    const d = sim.diag;
+    const bpPct = 100 * d.Bp / B_A[PRED];
+    $("r-bp").innerHTML = `${fmt(d.Bp)}<small>kt</small>`;
+    const bpNote = $("r-bp-note");
+    bpNote.textContent = bpPct < 5 ? "Collapsed" : `${fmt(bpPct)}% of healthy level`;
+    bpNote.className = "note" + (bpPct < 5 ? " bad" : bpPct >= 80 ? " good" : "");
+    const bfX = d.Bf / B_A[FORAGE];
+    $("r-bf").innerHTML = `${fmt(d.Bf)}<small>kt</small>`;
+    const bfNote = $("r-bf-note");
+    bfNote.textContent = d.Bf < 1 ? "Absent" : `${fmt(bfX, bfX < 10 ? 1 : 0)}× healthy level`;
+    bfNote.className = "note" + (bfX >= 5 ? " bad" : "");
+    $("r-yp").innerHTML = `${fmt(d.Yp, d.Yp < 10 && d.Yp > 0 ? 1 : 0)}<small>kt/yr</small>`;
+    $("r-yp-note").textContent = policy.Fp > 0 ? `max ${fmt(MSY0.Yp)} if forage unfished` : "not fished";
+    $("r-yf").innerHTML = `${fmt(d.Yf, d.Yf < 10 && d.Yf > 0 ? 1 : 0)}<small>kt/yr</small>`;
+    $("r-yf-note").textContent = policy.Ff > 0 ? "" : "not fished";
+
+    // Comeback number on a log scale from 0.1 to 10
+    const R0 = d.R0;
+    const pos = (x) => 100 * (Math.log10(clamp(x, 0.1, 10)) + 1) / 2;
+    $("r0-value").textContent = R0.toFixed(2);
+    $("r0-fill").style.width = `${pos(R0)}%`;
+    $("r0-fill").style.background = R0 >= 1 ? "var(--good)" : "var(--bad)";
+    $("r0-mark-1").style.left = `calc(${pos(1)}% - 1px)`;
+    const pill = $("r0-pill");
+    pill.textContent = R0 >= 1 ? "can rebuild" : "trapped";
+    pill.className = "state-pill " + (R0 >= 1 ? "good" : "bad");
+    $("r0-text").textContent = R0 >= 1
+      ? `If predators were rare here, each would leave ${R0.toFixed(1)} offspring that reach adulthood and breed. A small stock grows.`
+      : `If predators were rare here, each would leave only ${R0.toFixed(2)} replacements. A small stock dies out, even with no fishing on it.`;
+
+    $("nursery-n").textContent = fmt(1000 * d.S1);
+    $("nursery-t").textContent = `of every 1,000 young predators survive to 1 gram (healthy sea: ${fmt(1000 * REF_A.S1)}; forage-dominated sea: ${fmt(1000 * REF_C.S1)})`;
+    $("year").textContent = sim.year;
+  }
+
+  // ---------------------------------------------------------------------
+  // SVG helpers
+  // ---------------------------------------------------------------------
+  const svgNS = "http://www.w3.org/2000/svg";
+  function niceMax(v) {
+    const p = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+    return 10 * p;
+  }
+  function ticks(max, n = 3) {
+    const step = niceMax(max / n);
+    const out = [];
+    for (let v = 0; v <= max + 1e-9; v += step) out.push(Number(v.toPrecision(6)));
+    return out;
+  }
+  function path(pts) {
+    return pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join("");
+  }
+  function makeTooltip(container) {
+    const tip = document.createElement("div");
+    tip.className = "tooltip";
+    tip.hidden = true;
+    container.appendChild(tip);
+    return tip;
+  }
+
+  // ---------------------------------------------------------------------
+  // Logbook chart: four rows sharing one time axis
+  // ---------------------------------------------------------------------
+  const logbook = (() => {
+    const el = $("logbook");
+    const tip = makeTooltip(el);
+    let W = 600, layout = null, hoverX = null;
+    const WINDOW = 200;
+    const rows = [
+      { key: "Bp", title: "Predator stock (kt)", cls: "pred", ref: B_A[PRED], min: 700 },
+      { key: "Bf", title: "Forage fish stock (kt)", cls: "forage", ref: B_A[FORAGE], min: 400 },
+      { key: "Y", title: "Catch (kt per year)", min: 40 },
+      { key: "F", title: "Fishing pressure F", min: 0.3 },
+    ];
+    const ro = new ResizeObserver(() => { W = Math.max(280, el.clientWidth); draw(); });
+    ro.observe(el);
+
+    function draw() {
+      const h = sim.history;
+      if (!h.length) return;
+      const ml = 44, mr = 12, rowH = 66, gap = 36, top = 24;
+      const H = top + rows.length * (rowH + gap) - gap + 26;
+      const t1 = Math.max(h[h.length - 1].t, 40);
+      const t0 = Math.max(0, t1 - WINDOW);
+      const vis = h.filter((r) => r.t >= t0);
+      const x = (t) => ml + (W - ml - mr) * (t - t0) / (t1 - t0 || 1);
+      let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Logbook of stocks, catches and fishing pressure over time">`;
+      layout = { ml, mr, t0, t1, W, H, x, vis };
+      rows.forEach((row, ri) => {
+        const y0 = top + ri * (rowH + gap);
+        let max;
+        if (row.key === "Y") max = Math.max(row.min, ...vis.map((r) => Math.max(r.Yp, r.Yf)));
+        else if (row.key === "F") max = Math.max(row.min, ...vis.map((r) => Math.max(r.Fp, r.Ff)));
+        else max = Math.max(row.min, row.ref * 1.15, ...vis.map((r) => r[row.key]));
+        max = niceMax(max * 1.05);
+        const y = (v) => y0 + rowH - rowH * v / max;
+        s += `<text class="row-title" x="0" y="${y0 - 12}">${row.title}</text>`;
+        for (const tv of ticks(max, 2)) {
+          s += `<line class="grid" x1="${ml}" x2="${W - mr}" y1="${y(tv)}" y2="${y(tv)}"/>`;
+          s += `<text x="${ml - 6}" y="${y(tv) + 4}" text-anchor="end">${row.key === "F" ? tv.toFixed(1) : fmt(tv)}</text>`;
+        }
+        if (row.ref) s += `<line class="ref" x1="${ml}" x2="${W - mr}" y1="${y(row.ref)}" y2="${y(row.ref)}"/>`;
+        const series = row.key === "Y" ? [["Yp", "pred"], ["Yf", "forage"]]
+          : row.key === "F" ? [["Fp", "pred"], ["Ff", "forage"]]
+          : [[row.key, row.cls]];
+        for (const [k, cls] of series) {
+          let pts;
+          if (row.key === "F") {
+            pts = [];
+            vis.forEach((r, i) => { if (i) pts.push([x(r.t), y(vis[i - 1][k])]); pts.push([x(r.t), y(r[k])]); });
+          } else pts = vis.map((r) => [x(r.t), y(r[k])]);
+          if (series.length === 1 && pts.length > 1) {
+            s += `<path class="a-${cls}" d="${path(pts)}L${pts[pts.length - 1][0]} ${y0 + rowH}L${pts[0][0]} ${y0 + rowH}Z"/>`;
+          }
+          s += `<path class="s-${cls}" d="${path(pts)}"/>`;
+        }
+        s += `<line class="axis" x1="${ml}" x2="${W - mr}" y1="${y0 + rowH}" y2="${y0 + rowH}"/>`;
+      });
+      // time axis labels
+      const yb = top + rows.length * (rowH + gap) - gap + 18;
+      const step = niceMax((t1 - t0) / 5);
+      for (let t = Math.ceil(t0 / step) * step; t <= t1; t += step) {
+        s += `<text x="${x(t)}" y="${yb}" text-anchor="middle">yr ${t}</text>`;
+      }
+      if (hoverX !== null) s += `<line class="crosshair" x1="${hoverX}" x2="${hoverX}" y1="${top - 4}" y2="${H - 20}"/>`;
+      s += `<rect x="${ml}" y="0" width="${W - ml - mr}" height="${H}" fill="transparent" id="log-hit"/>`;
+      s += "</svg>";
+      el.querySelectorAll("svg").forEach((n) => n.remove());
+      el.insertAdjacentHTML("afterbegin", s);
+      if (hoverX !== null) showTip(hoverX);
+    }
+
+    function showTip(px) {
+      if (!layout) return;
+      const { t0, t1, ml, mr, W: w, vis } = layout;
+      const t = Math.round(t0 + (t1 - t0) * (px - ml) / (w - ml - mr));
+      const r = vis.find((v) => v.t === t) || vis[vis.length - 1];
+      if (!r) return;
+      tip.hidden = false;
+      tip.innerHTML = `<div>Year ${r.t}</div>` +
+        `<div><span class="k">Predator</span> ${fmt(r.Bp)} kt · catch ${fmt(r.Yp, 1)} · F ${r.Fp.toFixed(2)}</div>` +
+        `<div><span class="k">Forage&nbsp;&nbsp;</span> ${fmt(r.Bf)} kt · catch ${fmt(r.Yf, 1)} · F ${r.Ff.toFixed(2)}</div>` +
+        `<div><span class="k">Comeback number</span> ${r.R0.toFixed(2)}</div>`;
+      const left = clamp(px, 120, w - 120);
+      tip.style.left = `${left}px`;
+      tip.style.top = `40px`;
+    }
+    el.addEventListener("pointermove", (e) => {
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      if (!layout || px < layout.ml || px > layout.W - layout.mr) { hoverX = null; tip.hidden = true; draw(); return; }
+      hoverX = px; draw();
+    });
+    el.addEventListener("pointerleave", () => { hoverX = null; tip.hidden = true; draw(); });
+    return { draw };
+  })();
+
+  function renderTable() {
+    const det = document.querySelector("details.table-view");
+    if (!det.open) return;
+    const rows = sim.history.slice(-120).reverse();
+    $("log-table").innerHTML = `<table><thead><tr><th>Year</th><th>Predator kt</th><th>Forage kt</th><th>Predator catch</th><th>Forage catch</th><th>F pred</th><th>F forage</th><th>Comeback</th></tr></thead><tbody>` +
+      rows.map((r) => `<tr><td>${r.t}</td><td>${fmt(r.Bp, 1)}</td><td>${fmt(r.Bf, 1)}</td><td>${fmt(r.Yp, 1)}</td><td>${fmt(r.Yf, 1)}</td><td>${r.Fp.toFixed(3)}</td><td>${r.Ff.toFixed(3)}</td><td>${r.R0.toFixed(2)}</td></tr>`).join("") +
+      "</tbody></table>";
+  }
+  document.querySelector("details.table-view").addEventListener("toggle", renderTable);
+
+  // ---------------------------------------------------------------------
+  // Policy chart (regime map)
+  // ---------------------------------------------------------------------
+  const regimeChart = (() => {
+    const el = $("regime-chart");
+    const tip = makeTooltip(el);
+    let W = 420, fog = false, geom = null;
+    const XMAX = 0.6, YMAX = 0.5;
+    const ro = new ResizeObserver(() => { W = Math.max(260, el.clientWidth); draw(); });
+    ro.observe(el);
+
+    function draw() {
+      const H = Math.round(Math.min(W * 0.78, 380));
+      const ml = 46, mr = 12, mt = 10, mb = 40;
+      const x = (v) => ml + (W - ml - mr) * v / XMAX;
+      const y = (v) => mt + (H - mt - mb) * (1 - v / YMAX);
+      geom = { ml, mr, mt, mb, W, H, x, y };
+      const xs = [];
+      for (let v = 0; v <= XMAX + 1e-9; v += 0.01) xs.push(Number(v.toFixed(3)));
+      const top = xs.map((v) => [x(v), y(Math.min(YMAX, Fcrit(v)))]);
+      const inv = xs.map((v) => [x(v), y(Math.min(YMAX, Finv(v)))]);
+      let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Policy chart of forage fishing against predator fishing, with safe, tipping and lost regions">`;
+      s += `<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="region-tip-base"/><line x1="0" y1="0" x2="0" y2="7" style="stroke:var(--tip)" stroke-width="2.2" opacity="0.55"/></pattern></defs>`;
+      // grid and axes
+      for (let v = 0; v <= XMAX + 1e-9; v += 0.1) {
+        s += `<line class="grid" x1="${x(v)}" x2="${x(v)}" y1="${y(0)}" y2="${y(YMAX)}" opacity="0.6"/>`;
+        s += `<text x="${x(v)}" y="${y(0) + 15}" text-anchor="middle">${v.toFixed(1)}</text>`;
+      }
+      for (let v = 0; v <= YMAX + 1e-9; v += 0.1) {
+        s += `<line class="grid" x1="${x(0)}" x2="${x(XMAX)}" y1="${y(v)}" y2="${y(v)}" opacity="0.6"/>`;
+        s += `<text x="${x(0) - 6}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(1)}</text>`;
+      }
+      s += `<text x="${(x(0) + x(XMAX)) / 2}" y="${H - 6}" text-anchor="middle" class="label-forage">Forage fish fishing F →</text>`;
+      s += `<text transform="translate(12 ${(y(0) + y(YMAX)) / 2}) rotate(-90)" text-anchor="middle" class="label-pred">Predator fishing F →</text>`;
+      if (!fog) {
+        // regions
+        s += `<path class="region-lost" d="M${x(0)} ${y(YMAX)}L${x(XMAX)} ${y(YMAX)}${top.slice().reverse().map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("")}Z"/>`;
+        s += `<path class="region-tip" d="${path(top)}${inv.slice().reverse().map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("")}Z"/>`;
+        s += `<path class="region-safe" d="${path(inv)}L${x(XMAX)} ${y(0)}L${x(0)} ${y(0)}Z"/>`;
+        // boundaries
+        const foldOnly = xs.filter((v) => interp(foldPts, v) > Finv(v) + 1e-4).map((v) => [x(v), y(interp(foldPts, v))]);
+        if (foldOnly.length) s += `<path class="line-fold" d="${path(foldOnly)}"/>`;
+        const invOnly = xs.filter((v) => Finv(v) > 0).map((v) => [x(v), y(Math.min(YMAX, Finv(v)))]);
+        if (invOnly.length) s += `<path class="line-inv" d="${path(invOnly)}"/>`;
+        // labels
+        s += `<text class="region-label" x="${x(0.03)}" y="${y(0.43)}">Predators lost</text>`;
+        s += `<text class="region-sub" x="${x(0.03)}" y="${y(0.43) + 15}">Forage fish take over</text>`;
+        s += `<text class="region-label" x="${x(0.015)}" y="${y(0.1)}">Tipping zone</text>`;
+        s += `<text class="region-sub" x="${x(0.015)}" y="${y(0.1) + 15}">The past decides</text>`;
+        s += `<text class="region-label" x="${x(0.40)}" y="${y(0.06)}" text-anchor="middle">Safe</text>`;
+        // cusp marker
+        const cusp = R.fold.find((r, i) => i > 0 && r.F_crit - Finv(r.Ff) < 2e-3 && R.fold[i - 1].F_crit - Finv(R.fold[i - 1].Ff) >= 2e-3);
+        if (cusp) s += `<circle cx="${x(cusp.Ff)}" cy="${y(cusp.F_crit)}" r="4" style="fill:var(--ink)"/><text x="${x(cusp.Ff) + 7}" y="${y(cusp.F_crit) - 7}" class="region-sub">cliff ends</text>`;
+      }
+      if (fog) {
+        s += `<rect class="fog-rect" x="${x(0)}" y="${y(YMAX)}" width="${x(XMAX) - x(0)}" height="${y(0) - y(YMAX)}"/>`;
+        s += `<text class="fog-text" x="${(x(0) + x(XMAX)) / 2}" y="${(y(0) + y(YMAX)) / 2 - 6}" text-anchor="middle">Uncharted waters</text>`;
+        s += `<text class="fog-sub" x="${(x(0) + x(XMAX)) / 2}" y="${(y(0) + y(YMAX)) / 2 + 14}" text-anchor="middle">Real managers cannot see</text>`;
+        s += `<text class="fog-sub" x="${(x(0) + x(XMAX)) / 2}" y="${(y(0) + y(YMAX)) / 2 + 30}" text-anchor="middle">where the edge is either.</text>`;
+      }
+      // track: one dot per year of policy, newest most opaque
+      const h = sim.history.slice(-300);
+      for (let i = 0; i < h.length; i++) {
+        const r = h[i];
+        const on = r.Bp > 0.05 * B_A[PRED];
+        s += `<circle class="${on ? "track-on" : "track-off"}" cx="${x(Math.min(XMAX, r.Ff))}" cy="${y(Math.min(YMAX, r.Fp))}" r="3.2" opacity="${(0.25 + 0.75 * i / h.length).toFixed(2)}"/>`;
+      }
+      s += `<circle class="boat-halo" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="11"${fog ? ' style="stroke:#f1f8f9"' : ""}/>`;
+      s += `<circle class="boat" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="6"${fog ? ' style="stroke:#f1f8f9"' : ""}/>`;
+      const locked = (mission.locks || {}).Ff && (mission.locks || {}).Fp;
+      s += `<rect class="click-layer${locked ? " locked" : ""}" x="${x(0)}" y="${y(YMAX)}" width="${x(XMAX) - x(0)}" height="${y(0) - y(YMAX)}"/>`;
+      s += "</svg>";
+      el.querySelectorAll("svg").forEach((n) => n.remove());
+      el.insertAdjacentHTML("afterbegin", s);
+    }
+
+    function toData(e) {
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left, py = e.clientY - rect.top;
+      const { ml, mr, mt, mb, W: w, H } = geom;
+      const Ff = (px - ml) / (w - ml - mr) * XMAX;
+      const Fp = (1 - (py - mt) / (H - mt - mb)) * YMAX;
+      return { px, py, Ff, Fp, inside: Ff >= 0 && Ff <= XMAX && Fp >= 0 && Fp <= YMAX };
+    }
+    el.addEventListener("click", (e) => {
+      const p = toData(e);
+      if (p.inside) setPolicy(p.Ff, p.Fp);
+    });
+    el.addEventListener("pointermove", (e) => {
+      const p = toData(e);
+      if (!p.inside) { tip.hidden = true; return; }
+      const reg = regimeAt(p.Ff, p.Fp);
+      const text = fog ? "Uncharted" : reg === "safe" ? "Safe: predators recover from any state"
+        : reg === "tip" ? "Tipping zone: healthy or collapsed, depending on the past" : "Predators lost: forage fish take over";
+      tip.hidden = false;
+      tip.innerHTML = `<div>Forage F ${Math.max(0, p.Ff).toFixed(2)} · Predator F ${Math.max(0, p.Fp).toFixed(2)}</div><div>${text}</div>`;
+      tip.style.left = `${clamp(p.px, 130, geom.W - 130)}px`;
+      tip.style.top = `${p.py}px`;
+    });
+    el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    return { draw, setFog(v) { fog = v; draw(); } };
+  })();
+
+  // ---------------------------------------------------------------------
+  // Nursery chart: predation mortality on young predators by size
+  // ---------------------------------------------------------------------
+  const nurseryChart = (() => {
+    const el = $("nursery-chart");
+    const tip = makeTooltip(el);
+    let W = 420, geom = null;
+    const ro = new ResizeObserver(() => { W = Math.max(260, el.clientWidth); draw(); });
+    ro.observe(el);
+    const idx = M.w.map((w, j) => j).filter((j) => M.w[j] <= 10);
+    const lx0 = -3, lx1 = 1;
+
+    function draw() {
+      if (!sim.diag) return;
+      const H = Math.round(Math.min(W * 0.55, 240));
+      const ml = 40, mr = 14, mt = 12, mb = 34;
+      const ymax = niceMax(Math.max(45, ...idx.map((j) => sim.diag.predMort[j])) * 1.02);
+      const x = (w) => ml + (W - ml - mr) * (Math.log10(w) - lx0) / (lx1 - lx0);
+      const y = (v) => mt + (H - mt - mb) * (1 - v / ymax);
+      geom = { x, y, ml, mr, W, H, ymax };
+      let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Predation mortality on young predators by body size, now and in reference seas">`;
+      // band where adult forage fish feed hardest (prey of 4-20 g forage at beta 200)
+      s += `<rect class="zone-band" x="${x(0.02)}" y="${y(ymax)}" width="${x(0.1) - x(0.02)}" height="${y(0) - y(ymax)}"/>`;
+      s += `<text x="${(x(0.02) + x(0.1)) / 2}" y="${y(ymax) + 12}" text-anchor="middle">forage fish bite size</text>`;
+      for (const tv of ticks(ymax, 3)) {
+        s += `<line class="grid" x1="${ml}" x2="${W - mr}" y1="${y(tv)}" y2="${y(tv)}"/>`;
+        s += `<text x="${ml - 6}" y="${y(tv) + 4}" text-anchor="end">${tv}</text>`;
+      }
+      const labels = { "-3": "1 mg", "-2": "10 mg", "-1": "0.1 g", "0": "1 g", "1": "10 g" };
+      for (let e = lx0; e <= lx1; e++) {
+        s += `<text x="${x(Math.pow(10, e))}" y="${y(0) + 15}" text-anchor="middle">${labels[e]}</text>`;
+      }
+      s += `<text x="${(ml + W - mr) / 2}" y="${H - 4}" text-anchor="middle">body size of a young predator</text>`;
+      s += `<text x="${ml}" y="${mt - 2}" text-anchor="start" style="font-size:10px">deaths per year</text>`;
+      const curve = (arr) => idx.map((j) => [x(M.w[j]), y(arr[j])]);
+      s += `<path class="ref" d="${path(curve(REF_A.predMort))}"/>`;
+      s += `<path class="ref" style="stroke:var(--forage)" d="${path(curve(REF_C.predMort))}"/>`;
+      s += `<path class="s-pred" style="stroke-width:2.5" d="${path(curve(sim.diag.predMort))}"/>`;
+      s += `<line class="axis" x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}"/>`;
+      s += `<rect x="${ml}" y="${mt}" width="${W - ml - mr}" height="${H - mt - mb}" fill="transparent"/>`;
+      s += "</svg>";
+      el.querySelectorAll("svg").forEach((n) => n.remove());
+      el.insertAdjacentHTML("afterbegin", s);
+    }
+    el.addEventListener("pointermove", (e) => {
+      if (!geom) return;
+      const rect = el.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const lw = lx0 + (lx1 - lx0) * (px - geom.ml) / (geom.W - geom.ml - geom.mr);
+      if (lw < lx0 || lw > lx1) { tip.hidden = true; return; }
+      let j = idx.reduce((a, k) => (Math.abs(Math.log10(M.w[k]) - lw) < Math.abs(Math.log10(M.w[a]) - lw) ? k : a), idx[0]);
+      const wv = M.w[j];
+      const wl = wv < 0.01 ? `${fmt(wv * 1000, 1)} mg` : wv < 1 ? `${fmt(wv, 2)} g` : `${fmt(wv, 1)} g`;
+      tip.hidden = false;
+      tip.innerHTML = `<div>Young predator of ${wl}</div><div><span class="k">now</span> ${sim.diag.predMort[j].toFixed(1)} deaths/yr</div><div><span class="k">healthy</span> ${REF_A.predMort[j].toFixed(1)} · <span class="k">forage-dominated</span> ${REF_C.predMort[j].toFixed(1)}</div>`;
+      tip.style.left = `${clamp(px, 120, geom.W - 120)}px`;
+      tip.style.top = `${geom.y(sim.diag.predMort[j])}px`;
+    });
+    el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    return { draw };
+  })();
+
+  // ---------------------------------------------------------------------
+  // The sea: an illustrative animation driven by the model state
+  // ---------------------------------------------------------------------
+  const sea = (() => {
+    const canvas = $("sea");
+    const ctx = canvas.getContext("2d");
+    let W = 800, H = 500, dpr = 1, clock = 0;
+    const forage = [], preds = [], plankton = [], larvae = [], pops = [], boats = { pred: [], forage: [] };
+    const target = { forage: 0, predWeights: [], plankton: 1, larvaRate: 0, S1: 0.5 };
+    const schools = [0, 1, 2].map((i) => ({ x: 0, y: 0, phase: i * 2.1 }));
+    const motion = reduceMotion ? 0.35 : 1;
+
+    function resize() {
+      const r = canvas.getBoundingClientRect();
+      dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = Math.max(200, r.width); H = Math.max(200, r.height);
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildBackdrop();
+      seedPlankton();
+    }
+    function seedPlankton() {
+      plankton.length = 0;
+      for (let i = 0; i < 240; i++) plankton.push({ x: rand(0, W), y: rand(surface(), H * 0.85), r: rand(0.8, 2), ph: rand(0, 6.28) });
+    }
+    new ResizeObserver(resize).observe(canvas);
+
+    // Pre-rendered water, light and seabed
+    let backdrop = null;
+    function buildBackdrop() {
+      backdrop = document.createElement("canvas");
+      backdrop.width = canvas.width; backdrop.height = canvas.height;
+      const b = backdrop.getContext("2d");
+      b.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const g = b.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, "#3f97ae"); g.addColorStop(0.18, "#1f6f8a"); g.addColorStop(0.6, "#0d4559"); g.addColorStop(1, "#062633");
+      b.fillStyle = g; b.fillRect(0, 0, W, H);
+      b.globalAlpha = 0.07; b.fillStyle = "#e6fbff";
+      for (let i = 0; i < 6; i++) {
+        const x0 = W * (0.05 + i * 0.18);
+        b.beginPath(); b.moveTo(x0, 0); b.lineTo(x0 + W * 0.07, 0); b.lineTo(x0 + W * 0.2, H * 0.85); b.lineTo(x0 + W * 0.1, H * 0.85); b.closePath(); b.fill();
+      }
+      b.globalAlpha = 1;
+      // seabed
+      b.fillStyle = "#3d3a2c";
+      b.beginPath(); b.moveTo(0, H);
+      for (let x = 0; x <= W; x += 20) b.lineTo(x, H - 18 - 9 * Math.sin(x / 70) - 5 * Math.sin(x / 23));
+      b.lineTo(W, H); b.closePath(); b.fill();
+      b.fillStyle = "#57513a";
+      b.beginPath(); b.moveTo(0, H);
+      for (let x = 0; x <= W; x += 20) b.lineTo(x, H - 8 - 5 * Math.sin(x / 50 + 1));
+      b.lineTo(W, H); b.closePath(); b.fill();
+    }
+
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const surface = () => H * 0.09;
+
+    function newForage(fromEdge) {
+      const s = Math.floor(Math.random() * schools.length);
+      return {
+        x: fromEdge ? (Math.random() < 0.5 ? -10 : W + 10) : rand(0, W), y: rand(H * 0.2, H * 0.6),
+        vx: rand(-30, 30), vy: 0, school: s, ox: rand(-60, 60), oy: rand(-30, 30),
+        alpha: fromEdge ? 1 : 0, dying: false, dart: null, len: rand(13, 17),
+      };
+    }
+    function newPred(wgt, fromEdge) {
+      const len = 8 + 40 * Math.pow(clamp(Math.log10(wgt) / Math.log10(2000), 0, 1), 1.6);
+      return {
+        x: fromEdge ? (Math.random() < 0.5 ? -40 : W + 40) : rand(0, W), y: rand(H * 0.45, H * 0.9),
+        vx: rand(-20, 20), vy: 0, len, w: wgt, alpha: fromEdge ? 1 : 0, dying: false,
+        tx: rand(0, W), ty: rand(H * 0.45, H * 0.9),
+      };
+    }
+
+    function sampleWeights(count) {
+      // sample predator weights from the biomass distribution above 1 g
+      const n = eng.state.n, wts = [], cum = [];
+      let tot = 0;
+      for (let j = 0; j < NW; j++) {
+        if (M.w[j] < 1) continue;
+        tot += n[NW + j] * M.w[j] * M.dw[j];
+        cum.push([tot, M.w[j]]);
+      }
+      for (let i = 0; i < count; i++) {
+        const u = Math.random() * tot;
+        const hit = cum.find((c) => c[0] >= u) || cum[cum.length - 1];
+        wts.push(hit ? hit[1] * rand(0.85, 1.2) : 500);
+      }
+      return wts;
+    }
+
+    function setTargets(d) {
+      const bf = eng.biomass(FORAGE, 0.5), bp = eng.biomass(PRED, 1);
+      target.forage = bf > 0.3 ? Math.min(260, Math.max(1, Math.round(bf / 9))) : 0;
+      const predCount = bp > 0.3 ? Math.min(70, Math.max(1, Math.round(bp / 10))) : 0;
+      target.predCount = predCount;
+      target.plankton = d.plankton;
+      target.larvaRate = d.Bp > 0.01 ? 7 * Math.sqrt(clamp(d.rdd / REF_A.rdd, 0, 4)) : 0;
+      target.S1 = d.S1;
+      target.boatsPred = Math.round(policy.Fp / 0.05);
+      target.boatsForage = Math.round(policy.Ff / 0.05);
+    }
+
+    function resetPopulation() {
+      forage.length = 0; preds.length = 0; larvae.length = 0; pops.length = 0;
+      setTargets(sim.diag);
+      for (let i = 0; i < target.forage; i++) { const f = newForage(false); f.alpha = 1; forage.push(f); }
+      sampleWeights(target.predCount).forEach((w) => { const p = newPred(w, false); p.alpha = 1; preds.push(p); });
+      seedPlankton();
+    }
+
+    function burst(kind) {
+      if (kind === "pred") {
+        for (let i = 0; i < 14; i++) larvae.push({ x: rand(W * 0.3, W * 0.7), y: rand(surface() + 10, H * 0.3), age: 0, life: rand(3, 4.5), doomed: Math.random() > target.S1, dieAt: rand(0.3, 0.9), vx: rand(-8, 8), vy: rand(2, 8), hunted: null });
+      } else {
+        for (let i = 0; i < 6; i++) { const f = newForage(true); forage.push(f); }
+      }
+    }
+
+    function syncCounts(dt) {
+      // forage
+      const liveF = forage.filter((f) => !f.dying);
+      let diff = target.forage - liveF.length;
+      const rate = Math.max(1, Math.ceil(Math.abs(diff) * dt * 1.5));
+      if (diff > 0) for (let i = 0; i < Math.min(diff, rate); i++) forage.push(newForage(true));
+      if (diff < 0) for (let i = 0; i < Math.min(-diff, rate); i++) liveF[Math.floor(Math.random() * liveF.length)].dying = true;
+      // predators
+      const liveP = preds.filter((p) => !p.dying);
+      diff = (target.predCount || 0) - liveP.length;
+      if (diff > 0) sampleWeights(Math.min(diff, 2)).forEach((w) => preds.push(newPred(w, true)));
+      if (diff < 0) {
+        // fishing takes the biggest fish first, other losses are random
+        const sorted = liveP.slice().sort((a, b) => b.w - a.w);
+        const victim = policy.Fp > 0 && Math.random() < 0.6 ? sorted[0] : liveP[Math.floor(Math.random() * liveP.length)];
+        if (victim) victim.dying = true;
+      }
+      // boats
+      for (const kind of ["pred", "forage"]) {
+        const want = kind === "pred" ? target.boatsPred : target.boatsForage;
+        const list = boats[kind];
+        while (list.filter((b) => !b.leaving).length < want) list.push({ x: Math.random() < 0.5 ? -60 : W + 60, dir: Math.random() < 0.5 ? 1 : -1, speed: rand(8, 16), leaving: false, phase: rand(0, 6) });
+        const active = list.filter((b) => !b.leaving);
+        if (active.length > want) active[active.length - 1].leaving = true;
+      }
+    }
+
+    function step(dt) {
+      clock += dt;
+      syncCounts(dt);
+      // schools wander
+      schools.forEach((s, i) => {
+        s.x = W * (0.5 + 0.38 * Math.sin(clock * 0.07 * motion + s.phase) * Math.cos(clock * 0.031 * motion + i));
+        s.y = H * (0.38 + 0.14 * Math.sin(clock * 0.11 * motion + s.phase * 1.7));
+      });
+      const adults = preds.filter((p) => p.len > 26);
+      for (const f of forage) {
+        if (f.dying) { f.alpha -= dt * 1.2; continue; }
+        f.alpha = Math.min(1, f.alpha + dt * 2);
+        let ax, ay;
+        if (f.dart) {
+          ax = (f.dart.x - f.x) * 6; ay = (f.dart.y - f.y) * 6;
+          f.dart.t -= dt;
+          if (f.dart.t <= 0) f.dart = null;
+        } else {
+          const s = schools[f.school];
+          ax = (s.x + f.ox - f.x) * 0.6 + rand(-25, 25);
+          ay = (s.y + f.oy - f.y) * 0.6 + rand(-15, 15);
+          for (const p of adults) {
+            const dx = f.x - p.x, dy = f.y - p.y, d2 = dx * dx + dy * dy;
+            if (d2 < 90 * 90) { const k = 9000 / (d2 + 100); ax += dx * k * 0.05; ay += dy * k * 0.05; }
+          }
+        }
+        f.vx += ax * dt; f.vy += ay * dt;
+        const sp = Math.hypot(f.vx, f.vy), max = (f.dart ? 220 : 70) * motion;
+        if (sp > max) { f.vx *= max / sp; f.vy *= max / sp; }
+        f.x += f.vx * dt; f.y += f.vy * dt;
+        f.y = clamp(f.y, surface() + 8, H - 30);
+      }
+      for (let i = forage.length - 1; i >= 0; i--) if (forage[i].alpha <= 0) forage.splice(i, 1);
+
+      for (const p of preds) {
+        if (p.dying) { p.alpha -= dt * 0.8; p.y -= dt * 25; continue; }
+        p.alpha = Math.min(1, p.alpha + dt * 1.5);
+        if (Math.hypot(p.tx - p.x, p.ty - p.y) < 30 || Math.random() < dt * 0.05) { p.tx = rand(-20, W + 20); p.ty = rand(H * 0.42, H * 0.9); }
+        p.vx += (p.tx - p.x) * 0.05 * dt; p.vy += (p.ty - p.y) * 0.05 * dt;
+        const sp = Math.hypot(p.vx, p.vy), max = (14 + p.len * 0.6) * motion;
+        if (sp > max) { p.vx *= max / sp; p.vy *= max / sp; }
+        p.x += p.vx * dt; p.y += p.vy * dt;
+      }
+      for (let i = preds.length - 1; i >= 0; i--) if (preds[i].alpha <= 0) preds.splice(i, 1);
+
+      // larvae: spawn, drift, get eaten or grow up
+      if (sim.running && target.larvaRate > 0 && Math.random() < target.larvaRate * dt) {
+        larvae.push({ x: rand(20, W - 20), y: rand(surface() + 6, H * 0.28), age: 0, life: rand(3, 4.5), doomed: Math.random() > target.S1, dieAt: rand(0.25, 0.85), vx: rand(-6, 6), vy: rand(1, 6), hunted: null });
+      }
+      for (let i = larvae.length - 1; i >= 0; i--) {
+        const l = larvae[i];
+        l.age += dt;
+        l.x += l.vx * dt * motion; l.y += l.vy * dt * motion;
+        const frac = l.age / l.life;
+        if (l.doomed && !l.hunted && frac > l.dieAt) {
+          let best = null, bd = 170 * 170;
+          for (const f of forage) {
+            if (f.dying || f.dart) continue;
+            const d2 = (f.x - l.x) ** 2 + (f.y - l.y) ** 2;
+            if (d2 < bd) { bd = d2; best = f; }
+          }
+          if (best) { best.dart = { x: l.x, y: l.y, t: 0.7 }; l.hunted = best; l.huntT = 0; }
+          else { l.fade = true; l.doomed = false; l.life = l.age + 0.6; }
+        }
+        if (l.hunted) {
+          l.huntT += dt;
+          const f = l.hunted;
+          if (Math.hypot(f.x - l.x, f.y - l.y) < 9 || l.huntT > 0.75) {
+            pops.push({ x: l.x, y: l.y, t: 0 });
+            larvae.splice(i, 1);
+            continue;
+          }
+        }
+        if (l.age >= l.life) larvae.splice(i, 1);
+      }
+      for (let i = pops.length - 1; i >= 0; i--) { pops[i].t += dt; if (pops[i].t > 0.5) pops.splice(i, 1); }
+      for (const p of plankton) { p.y -= dt * 3 * motion; p.x += Math.sin(clock + p.ph) * dt * 4 * motion; if (p.y < surface()) { p.y = H * 0.85; p.x = rand(0, W); } }
+
+      for (const kind of ["pred", "forage"]) {
+        const list = boats[kind];
+        for (let i = list.length - 1; i >= 0; i--) {
+          const b = list[i];
+          b.x += b.dir * b.speed * dt * (b.leaving ? 4 : 1) * motion;
+          if (!b.leaving && (b.x < 30 || b.x > W - 30)) b.dir = b.x < 30 ? 1 : -1;
+          if (b.leaving && (b.x < -80 || b.x > W + 80)) list.splice(i, 1);
+        }
+      }
+    }
+
+    function drawFish(x, y, vx, len, body, back, alpha) {
+      const dir = vx < 0 ? -1 : 1;
+      ctx.save();
+      ctx.globalAlpha = clamp(alpha, 0, 1);
+      ctx.translate(x, y);
+      ctx.scale(dir, 1);
+      const hgt = len * 0.32;
+      ctx.fillStyle = body;
+      ctx.beginPath();
+      ctx.moveTo(len * 0.5, 0);
+      ctx.quadraticCurveTo(len * 0.15, -hgt, -len * 0.35, -hgt * 0.25);
+      ctx.lineTo(-len * 0.35, hgt * 0.25);
+      ctx.quadraticCurveTo(len * 0.15, hgt, len * 0.5, 0);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-len * 0.3, 0);
+      ctx.lineTo(-len * 0.55, -hgt * 0.75);
+      ctx.lineTo(-len * 0.55, hgt * 0.75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = back;
+      ctx.beginPath();
+      ctx.moveTo(len * 0.45, -hgt * 0.15);
+      ctx.quadraticCurveTo(len * 0.12, -hgt * 0.95, -len * 0.33, -hgt * 0.22);
+      ctx.quadraticCurveTo(len * 0.1, -hgt * 0.35, len * 0.45, -hgt * 0.15);
+      ctx.fill();
+      if (len > 14) {
+        ctx.fillStyle = "#0b1f27";
+        ctx.beginPath(); ctx.arc(len * 0.32, -hgt * 0.15, Math.max(1, len * 0.035), 0, 6.283); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawBoat(b, kind) {
+      const x = b.x, y = surface() + Math.sin(clock * 1.5 + b.phase) * 1.5 * motion;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(b.dir, 1);
+      // net line
+      ctx.strokeStyle = "rgba(230, 245, 248, 0.35)";
+      ctx.setLineDash([3, 4]);
+      ctx.lineWidth = 1;
+      if (kind === "pred") {
+        ctx.beginPath(); ctx.moveTo(-26, 2); ctx.lineTo(-90, H * 0.62); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = "rgba(230, 245, 248, 0.3)";
+        ctx.beginPath(); ctx.moveTo(-90, H * 0.62); ctx.lineTo(-150, H * 0.6); ctx.lineTo(-150, H * 0.7); ctx.closePath(); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(-34, 4, 24, 0, Math.PI); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      // hull
+      ctx.fillStyle = "#16252b";
+      ctx.beginPath(); ctx.moveTo(-30, -4); ctx.lineTo(30, -4); ctx.lineTo(22, 7); ctx.lineTo(-26, 7); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = kind === "pred" ? "#ef8a4c" : "#8ec9ee";
+      ctx.fillRect(-28, -4, 56, 3);
+      ctx.fillStyle = "#e9f2f3";
+      ctx.fillRect(4, -14, 14, 10);
+      ctx.fillStyle = "#16252b";
+      ctx.fillRect(-14, -22, 2, 18);
+      ctx.restore();
+    }
+
+    function draw() {
+      if (!backdrop) return;
+      ctx.drawImage(backdrop, 0, 0, W, H);
+      // plankton density follows the model
+      const shown = Math.round(plankton.length * clamp(target.plankton, 0, 1.1));
+      ctx.fillStyle = "#8fd69a";
+      for (let i = 0; i < shown; i++) {
+        const p = plankton[i];
+        ctx.globalAlpha = 0.35 + 0.3 * Math.sin(clock * 2 + p.ph);
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      for (const p of preds) drawFish(p.x, p.y, p.vx, p.len, "#d9783b", "#7c3f1c", p.alpha);
+      for (const f of forage) drawFish(f.x, f.y, f.vx, f.len, "#c3e1f2", "#4f8db8", f.alpha);
+      for (const l of larvae) {
+        const frac = l.age / l.life;
+        ctx.globalAlpha = l.fade ? clamp(1 - (l.age - (l.life - 0.6)) / 0.6, 0, 1) : frac > 0.85 && !l.doomed ? (1 - frac) / 0.15 : 1;
+        ctx.fillStyle = "#ffc39a";
+        ctx.beginPath(); ctx.arc(l.x, l.y, 1.8 + 1.4 * frac, 0, 6.283); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      for (const p of pops) {
+        ctx.strokeStyle = `rgba(255, 210, 180, ${1 - p.t / 0.5})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3 + 14 * p.t, 0, 6.283); ctx.stroke();
+      }
+      // surface
+      ctx.fillStyle = "rgba(210, 240, 246, 0.25)";
+      ctx.beginPath(); ctx.moveTo(0, 0);
+      for (let x = 0; x <= W; x += 12) ctx.lineTo(x, surface() + 2 * Math.sin(x / 40 + clock * 1.2 * motion));
+      ctx.lineTo(W, 0); ctx.closePath(); ctx.fill();
+      for (const b of boats.pred) drawBoat(b, "pred");
+      for (const b of boats.forage) drawBoat(b, "forage");
+    }
+
+    return { step, draw, setTargets, resetPopulation, burst };
+  })();
+
+  // ---------------------------------------------------------------------
+  // Main loop
+  // ---------------------------------------------------------------------
+  let chartsDirty = true, lastChart = 0;
+  function onYear() {
+    sim.year++;
+    sim.diag = computeDiag();
+    record();
+    detectEvents();
+    evaluateMission();
+    sea.setTargets(sim.diag);
+    chartsDirty = true;
+  }
+
+  function renderAll(force) {
+    renderReadouts();
+    logbook.draw();
+    regimeChart.draw();
+    nurseryChart.draw();
+    renderTable();
+    if (force) sea.setTargets(sim.diag);
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dtReal = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (sim.running) {
+      sim.acc += dtReal * sim.speed;
+      let n = 0;
+      while (sim.acc >= DT && n < 200) {
+        eng.step(DT);
+        sim.acc -= DT;
+        sim.steps++;
+        n++;
+        if (sim.steps % STEPS_PER_YEAR === 0) onYear();
+        if (!sim.running) { sim.acc = 0; break; }
+      }
+    }
+    sea.step(dtReal);
+    sea.draw();
+    if (chartsDirty && now - lastChart > 120) {
+      renderAll(false);
+      chartsDirty = false;
+      lastChart = now;
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // Key numbers table
+  const fact = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+  $("facts").innerHTML = [
+    fact("Healthy sea: predators / forage fish", `${fmt(B_A[PRED])} / ${fmt(B_A[FORAGE])} kt`),
+    fact("Collapsed sea: forage fish", `${fmt(B_C[FORAGE])} kt (${fmt(B_C[FORAGE] / B_A[FORAGE])}×)`),
+    fact("Young predators surviving to 1 g, healthy / collapsed", `${fmt(1000 * REF_A.S1)} / ${fmt(1000 * REF_C.S1)} per 1,000`),
+    fact("Comeback number, healthy / collapsed", `${REF_A.R0.toFixed(2)} / ${REF_C.R0.toFixed(2)}`),
+    fact("Predator collapses above, with no forage fishing", `F ${Fcrit(0).toFixed(3)} (${pctCatch(Fcrit(0))}% a year)`),
+    fact("Best sustainable predator catch, no forage fishing", `${fmt(MSY0.Yp)} kt/yr at F ${MSY0.Fp.toFixed(3)}`),
+    fact("Forage fishing that reopens the nursery", `F ${FF_INV.toFixed(3)} (${pctCatch(FF_INV)}% a year)`),
+  ].join("");
+
+  startMission(MISSIONS[0]);
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
