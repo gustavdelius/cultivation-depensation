@@ -16,7 +16,7 @@ as the player moves the fishing levers.
 |---|---|
 | `app.html` | Page source (markup, styles, game logic) |
 | `engine.js` | JavaScript port of mizer's default Euler/upwind dynamics |
-| `model_data.js` | Rate arrays and the unfished states 0, A, B, C, exported from mizer |
+| `model_data.js` | Rate arrays and the unfished states R, RFP, RP, RF, exported from mizer |
 | `regimes_data.js` | Collapse and invasion boundaries and equilibrium yields, computed with the engine |
 | `../docs/nursery_trap.html` | Built, self-contained page (generated, served by GitHub Pages) |
 | `export_model.R` | Writes `model_data.js` and `validation/reference.json` from `cultivation_depensation_params.rds` |
@@ -44,4 +44,4 @@ mizer evaluates encounter and predation rates by FFT, which makes them circular
 convolutions over the `w_full` grid. The engine evaluates the same circular sums
 directly, wrap-around included, so that it matches mizer exactly. In this model
 the wrap-around adds about 9% to the encounter rate of 1 mg forage larvae at
-State A, because the resource grid starts only three decades below the egg size.
+State RFP, because the resource grid starts only three decades below the egg size.

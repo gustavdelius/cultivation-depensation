@@ -1,7 +1,7 @@
 // Map the (F_forage, F_pred) plane with the validated engine:
-//   * invasion boundary F_inv(F_forage): R0 of a rare predator in State C = 1
+//   * invasion boundary F_inv(F_forage): R0 of a rare predator in State RF = 1
 //   * collapse (fold) boundary F_crit(F_forage): largest F_pred at which the
-//     coexistence branch, followed by continuation from State A, survives
+//     coexistence branch, followed by continuation from State RFP, survives
 //   * equilibrium biomass and yield on both branches, for the charts
 // Writes interactive/regimes_data.js (window.REGIMES).
 // Run from the project root:  node interactive/compute_regimes.js
@@ -44,9 +44,9 @@ const Ff_grid = [];
 for (let x = 0; x <= 0.6001; x += 0.025) Ff_grid.push(round(x, 3));
 const Fp_step = 0.025;
 
-// ---- Branch C (no predator) and invasion boundary ----------------------
-const branchC = [];
-eng.loadState("State_C");
+// ---- Branch RF (no predator) and invasion boundary ---------------------
+const branchRF = [];
+eng.loadState("State_RF");
 for (const Ff of Ff_grid) {
   eng.state.effort.set([Ff, 0]);
   eng.remove(1);
@@ -68,14 +68,14 @@ for (const Ff of Ff_grid) {
     }
     Finv = 0.5 * (lo + hi);
   }
-  branchC.push({ Ff, ...base, R0_pred: round(R0_0, 4), F_inv: round(Finv, 4) });
-  console.log(`C  Ff=${Ff.toFixed(3)}  Bf=${base.Bf.toFixed(1)}  R0_pred=${R0_0.toFixed(3)}  F_inv=${Finv.toFixed(4)}`);
+  branchRF.push({ Ff, ...base, R0_pred: round(R0_0, 4), F_inv: round(Finv, 4) });
+  console.log(`RF  Ff=${Ff.toFixed(3)}  Bf=${base.Bf.toFixed(1)}  R0_pred=${R0_0.toFixed(3)}  F_inv=${Finv.toFixed(4)}`);
 }
 
-// ---- Branch A (coexistence) by continuation and collapse boundary -------
-const branchA = [];       // rows: {Ff, Fp, Bf, Bp, Yf, Yp}
+// ---- Branch RFP (coexistence) by continuation and collapse boundary ----
+const branchRFP = [];     // rows: {Ff, Fp, Bf, Bp, Yf, Yp}
 const fold = [];
-eng.loadState("State_A");
+eng.loadState("State_RFP");
 let startOfRow = eng.snapshot();
 for (const Ff of Ff_grid) {
   eng.restore(startOfRow);
@@ -89,7 +89,7 @@ for (const Ff of Ff_grid) {
     if (status === "collapsed" || eng.biomass(1) < 0.05) { firstDeadFp = Fp; break; }
     lastAlive = eng.snapshot();
     lastAliveFp = Fp;
-    branchA.push({ Ff, Fp: round(Fp, 3), ...snapshotStats() });
+    branchRFP.push({ Ff, Fp: round(Fp, 3), ...snapshotStats() });
   }
   // Bisect between the last surviving and first collapsing F_pred
   let lo = lastAliveFp, hi = firstDeadFp ?? 0.8, alive = lastAlive;
@@ -104,14 +104,14 @@ for (const Ff of Ff_grid) {
   eng.restore(alive);
   const edge = snapshotStats();
   fold.push({ Ff, F_crit: round(0.5 * (lo + hi), 4), Bp_at_edge: edge.Bp, Bf_at_edge: edge.Bf });
-  console.log(`A  Ff=${Ff.toFixed(3)}  F_crit=${(0.5 * (lo + hi)).toFixed(4)}  (Bp at edge ${edge.Bp.toFixed(1)})`);
+  console.log(`RFP Ff=${Ff.toFixed(3)}  F_crit=${(0.5 * (lo + hi)).toFixed(4)}  (Bp at edge ${edge.Bp.toFixed(1)})`);
 }
 
 const out = {
   generated: new Date().toISOString().slice(0, 10),
   dt: DT,
   Ff_grid, Fp_step,
-  branchC, branchA, fold,
+  branchRF, branchRFP, fold,
 };
 fs.writeFileSync(
   path.join(__dirname, "regimes_data.js"),

@@ -675,10 +675,10 @@ html.touring .viewer { position: static; }
         </div>
         <div class="btn-row" id="preset-row" hidden>
           <span class="eyebrow" style="align-self:center">Start from</span>
-          <button class="btn" data-preset="State_A">Healthy sea</button>
-          <button class="btn" data-preset="State_C">Collapsed sea</button>
-          <button class="btn" data-preset="State_B">Predators only</button>
-          <button class="btn" data-preset="State_0">Empty sea</button>
+          <button class="btn" data-preset="State_RFP">Healthy sea</button>
+          <button class="btn" data-preset="State_RF">Collapsed sea</button>
+          <button class="btn" data-preset="State_RP">Predators only</button>
+          <button class="btn" data-preset="State_R">Empty sea</button>
         </div>
       </div>
 
@@ -761,8 +761,8 @@ html.touring .viewer { position: static; }
   const eng = SizeSpectrumEngine.createEngine(M);
   const DT = 0.2, STEPS_PER_YEAR = 5;
   const FORAGE = 0, PRED = 1;
-  const B_A = M.states.State_A.biomass;          // healthy unfished biomass [forage, predator]
-  const B_C = M.states.State_C.biomass;
+  const B_RFP = M.states.State_RFP.biomass;          // healthy unfished biomass [forage, predator]
+  const B_RF = M.states.State_RF.biomass;
   const NW = eng.dims.NW;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -790,12 +790,12 @@ html.touring .viewer { position: static; }
       rdd: d.rates.rdd[PRED],
     };
   }
-  const REF_A = referenceDiag("State_A");
-  const REF_C = referenceDiag("State_C");
+  const REF_RFP = referenceDiag("State_RFP");
+  const REF_RF = referenceDiag("State_RF");
 
   // Interpolated regime boundaries (F_forage -> F_pred)
   const foldPts = R.fold.map((r) => [r.Ff, r.F_crit]);
-  const invPts = R.branchC.map((r) => [r.Ff, r.F_inv]);
+  const invPts = R.branchRF.map((r) => [r.Ff, r.F_inv]);
   function interp(pts, x) {
     if (x <= pts[0][0]) return pts[0][1];
     for (let i = 1; i < pts.length; i++) {
@@ -809,7 +809,7 @@ html.touring .viewer { position: static; }
   const Fcrit = (Ff) => Math.max(interp(foldPts, Ff), interp(invPts, Ff));
   // Forage fishing at which a rare predator can invade the collapsed sea (R0 = 1, no predator fishing)
   const FF_INV = (() => {
-    const c = R.branchC;
+    const c = R.branchRF;
     for (let i = 1; i < c.length; i++) {
       if (c[i - 1].R0_pred < 1 && c[i].R0_pred >= 1) {
         return c[i - 1].Ff + (c[i].Ff - c[i - 1].Ff) * (1 - c[i - 1].R0_pred) / (c[i].R0_pred - c[i - 1].R0_pred);
@@ -824,7 +824,7 @@ html.touring .viewer { position: static; }
     return "lost";
   }
   // Largest sustained predator catch with no forage fishing (on the coexistence branch)
-  const branch0 = R.branchA.filter((r) => r.Ff === 0);
+  const branch0 = R.branchRFP.filter((r) => r.Ff === 0);
   const MSY0 = branch0.reduce((a, r) => (r.Yp > a.Yp ? r : a), branch0[0]);
   const TARGET1 = Math.floor(MSY0.Yp * 0.9);   // mission 1 catch target, about 90% of the maximum
 
@@ -907,7 +907,7 @@ html.touring .viewer { position: static; }
 
   function detectEvents() {
     const d = sim.diag, f = sim.flags;
-    const bp = d.Bp / B_A[PRED], bf = d.Bf / B_A[FORAGE];
+    const bp = d.Bp / B_RFP[PRED], bf = d.Bf / B_RFP[FORAGE];
     const was = f.prev || { bp, bf, R0: d.R0 };
     if (was.bp >= 0.5 && bp < 0.5) toast("Predator stock has fallen below half its healthy level.", "");
     if (was.bp >= 0.05 && bp < 0.05) toast("The predator stock has collapsed.", "bad");
@@ -924,7 +924,7 @@ html.touring .viewer { position: static; }
   // ---------------------------------------------------------------------
   // Missions
   // ---------------------------------------------------------------------
-  const pctA = (b) => b / B_A[PRED];
+  const pctRFP = (b) => b / B_RFP[PRED];
   const streak = (key, cond) => {
     const f = sim.flags;
     f[key] = cond ? (f[key] || 0) + 1 : 0;
@@ -937,7 +937,7 @@ html.touring .viewer { position: static; }
       tab: "Find the edge",
       title: "How hard can you fish the predator?",
       brief: "The sea is healthy and nobody fishes it yet. You run the predator fishery. Raise the fishing pressure to land a big catch, but keep the stock alive.",
-      start: "State_A", Fp: 0, Ff: 0,
+      start: "State_RFP", Fp: 0, Ff: 0,
       locks: { Ff: "Closed in this mission: no forage fishery yet." },
       restock: 0, fog: true,
       goals: () => [
@@ -945,8 +945,8 @@ html.touring .viewer { position: static; }
         "Keep it up for 50 years in a row",
       ],
       check(d) {
-        const n = streak("good", d.Yp >= TARGET1 && pctA(d.Bp) > 0.05);
-        if (pctA(d.Bp) < 0.05) return { lose: true };
+        const n = streak("good", d.Yp >= TARGET1 && pctRFP(d.Bp) > 0.05);
+        if (pctRFP(d.Bp) < 0.05) return { lose: true };
         if (n >= 50) return { win: true };
         return { met: [d.Yp >= TARGET1, n >= 50], progress: n / 50 };
       },
@@ -982,7 +982,7 @@ html.touring .viewer { position: static; }
       tab: "The fishing ban",
       title: "Bring the predator back with a fishing ban",
       brief: "This sea was overfished. The predators are gone and forage fish have taken over. Predator fishing is now banned and the forage fish stay unfished, so the ban is tested on its own. Your only tool is a hatchery: release young predators up to three times.",
-      start: "State_C", Fp: 0, Ff: 0,
+      start: "State_RF", Fp: 0, Ff: 0,
       locks: {
         Fp: "Banned. No predator fishing.",
         Ff: "Fixed at zero: this mission tests the ban on its own.",
@@ -990,7 +990,7 @@ html.touring .viewer { position: static; }
       restock: 3,
       goals: () => ["Rebuild the predator stock to half its healthy level", "Within 80 years"],
       check(d) {
-        if (pctA(d.Bp) >= 0.5) return { win: true };
+        if (pctRFP(d.Bp) >= 0.5) return { win: true };
         if (sim.year >= 80) return { lose: true };
         return { met: [false, false], progress: sim.year / 80 };
       },
@@ -1003,8 +1003,8 @@ html.touring .viewer { position: static; }
       lose: {
         title: "The ban was not enough",
         body: () => [
-          `With no predators to keep them in check, forage fish are ${fmt(B_C[FORAGE] / B_A[FORAGE], 0)} times more abundant than in a healthy sea. They eat almost every predator larva: only ${fmt(1000 * REF_C.S1)} of 1,000 survive to 1 g, against ${fmt(1000 * REF_A.S1)} in a healthy sea.`,
-          `So each predator leaves fewer than one replacement (comeback number ${REF_C.R0.toFixed(2)}). Released fish die out however many you add. The sea is stuck in its new state, even though nobody fishes the predator any more.`,
+          `With no predators to keep them in check, forage fish are ${fmt(B_RF[FORAGE] / B_RFP[FORAGE], 0)} times more abundant than in a healthy sea. They eat almost every predator larva: only ${fmt(1000 * REF_RF.S1)} of 1,000 survive to 1 g, against ${fmt(1000 * REF_RFP.S1)} in a healthy sea.`,
+          `So each predator leaves fewer than one replacement (comeback number ${REF_RF.R0.toFixed(2)}). Released fish die out however many you add. The sea is stuck in its new state, even though nobody fishes the predator any more.`,
         ],
       },
     },
@@ -1013,7 +1013,7 @@ html.touring .viewer { position: static; }
       tab: "Restore the nursery",
       title: "Make the sea safe for young predators again",
       brief: "Same collapsed sea, same predator fishing ban. This time you may also fish the forage fish, and release young predators.",
-      start: "State_C", Fp: 0, Ff: 0,
+      start: "State_RF", Fp: 0, Ff: 0,
       locks: { Fp: "Banned. No predator fishing." },
       restock: 5,
       goals: () => [
@@ -1023,12 +1023,12 @@ html.touring .viewer { position: static; }
       ],
       check(d) {
         const f = sim.flags;
-        if (pctA(d.Bp) >= 0.5) f.rebuilt = true;
+        if (pctRFP(d.Bp) >= 0.5) f.rebuilt = true;
         if (f.rebuilt && policy.Ff === 0) f.closed = true;
-        const n = streak("hold", f.closed && policy.Ff === 0 && pctA(d.Bp) >= 0.5);
+        const n = streak("hold", f.closed && policy.Ff === 0 && pctRFP(d.Bp) >= 0.5);
         if (n >= 30) return { win: true };
         return { met: [!!f.rebuilt, !!f.closed && policy.Ff === 0, n >= 30],
-                 progress: (f.rebuilt ? 0.4 : 0.4 * pctA(d.Bp) / 0.5) + (f.closed && policy.Ff === 0 ? 0.1 : 0) + 0.5 * n / 30 };
+                 progress: (f.rebuilt ? 0.4 : 0.4 * pctRFP(d.Bp) / 0.5) + (f.closed && policy.Ff === 0 ? 0.1 : 0) + 0.5 * n / 30 };
       },
       hint(d) {
         if (sim.flags.rebuilt && policy.Ff > 0) return "Predators are back. Now set forage fishing to zero and see whether they hold on.";
@@ -1050,7 +1050,7 @@ html.touring .viewer { position: static; }
       tab: "Balanced harvest",
       title: "Fish the predator hard without losing it",
       brief: `Back to a healthy sea. Fishing only the predator, the stock collapses above F ${Fcrit(0).toFixed(2)}. This time you may fish both species.`,
-      start: "State_A", Fp: 0, Ff: 0,
+      start: "State_RFP", Fp: 0, Ff: 0,
       locks: {},
       restock: 0,
       goals: () => [
@@ -1059,14 +1059,14 @@ html.touring .viewer { position: static; }
         "For 60 years in a row",
       ],
       check(d) {
-        if (pctA(d.Bp) < 0.05) return { lose: true };
-        const ok = policy.Fp >= 0.25 - 1e-9 && pctA(d.Bp) >= 0.25;
+        if (pctRFP(d.Bp) < 0.05) return { lose: true };
+        const ok = policy.Fp >= 0.25 - 1e-9 && pctRFP(d.Bp) >= 0.25;
         const n = streak("good", ok);
         if (n >= 60) return { win: true };
-        return { met: [policy.Fp >= 0.25 - 1e-9, pctA(d.Bp) >= 0.25, n >= 60], progress: n / 60 };
+        return { met: [policy.Fp >= 0.25 - 1e-9, pctRFP(d.Bp) >= 0.25, n >= 60], progress: n / 60 };
       },
       hint(d) {
-        if (policy.Fp >= 0.25 && policy.Ff < 0.1 && pctA(d.Bp) < 0.6) return "On its own, that predator pressure crosses the edge. What else could keep forage fish down?";
+        if (policy.Fp >= 0.25 && policy.Ff < 0.1 && pctRFP(d.Bp) < 0.6) return "On its own, that predator pressure crosses the edge. What else could keep forage fish down?";
         return "";
       },
       overEdge: {
@@ -1094,20 +1094,20 @@ html.touring .viewer { position: static; }
       tab: "Build a sea",
       title: "Who should arrive first?",
       brief: "An empty sea with only plankton. Release predators and forage fish to build a full food web. The order matters.",
-      start: "State_0", Fp: 0, Ff: 0,
+      start: "State_R", Fp: 0, Ff: 0,
       locks: {},
       restock: 0, release: true,
       goals: () => ["Predators above half their healthy level", "Forage fish above half their healthy level", "Both together for 20 years"],
       check(d) {
-        const okP = pctA(d.Bp) >= 0.5, okF = d.Bf >= 0.5 * B_A[FORAGE];
+        const okP = pctRFP(d.Bp) >= 0.5, okF = d.Bf >= 0.5 * B_RFP[FORAGE];
         const n = streak("both", okP && okF && policy.Ff === 0 && policy.Fp === 0);
         if (n >= 20) return { win: true };
         return { met: [okP, okF, n >= 20], progress: n / 20 };
       },
       hint(d) {
         if (d.Bf > 200 && d.Bp < 1 && sim.flags.releasedPred) return "The forage fish got there first and their numbers make the nursery deadly. Restart and try the other order, or think about mission 3.";
-        if (d.Bp > 0.5 * B_A[PRED] && d.Bf < 1 && !sim.flags.releasedForage) return "The predators have settled in. Now release forage fish.";
-        if ((policy.Ff > 0 || policy.Fp > 0) && d.Bp > 0.5 * B_A[PRED] && d.Bf > 0.5 * B_A[FORAGE]) return "Both are here. Set fishing to zero to finish.";
+        if (d.Bp > 0.5 * B_RFP[PRED] && d.Bf < 1 && !sim.flags.releasedForage) return "The predators have settled in. Now release forage fish.";
+        if ((policy.Ff > 0 || policy.Fp > 0) && d.Bp > 0.5 * B_RFP[PRED] && d.Bf > 0.5 * B_RFP[FORAGE]) return "Both are here. Set fishing to zero to finish.";
         return "";
       },
       win: {
@@ -1123,7 +1123,7 @@ html.touring .viewer { position: static; }
       tab: "Free play",
       title: "Free play",
       brief: "Everything is unlocked. Pick a starting sea, then drag the dot on the fishing map to set both fishing pressures at once. Try entering the tipping zone from below and from above.",
-      start: "State_A", Fp: 0, Ff: 0,
+      start: "State_RFP", Fp: 0, Ff: 0,
       locks: {}, restock: 99, release: true, presets: true,
       goals: () => [],
       check() { return {}; },
@@ -1372,12 +1372,12 @@ html.touring .viewer { position: static; }
   // ---------------------------------------------------------------------
   function renderReadouts() {
     const d = sim.diag;
-    const bpPct = 100 * d.Bp / B_A[PRED];
+    const bpPct = 100 * d.Bp / B_RFP[PRED];
     $("r-bp").innerHTML = `${fmt(d.Bp)}<small>kt</small>`;
     const bpNote = $("r-bp-note");
     bpNote.textContent = bpPct < 5 ? "Collapsed" : `${fmt(bpPct)}% of healthy level`;
     bpNote.className = "note" + (bpPct < 5 ? " bad" : bpPct >= 80 ? " good" : "");
-    const bfX = d.Bf / B_A[FORAGE];
+    const bfX = d.Bf / B_RFP[FORAGE];
     $("r-bf").innerHTML = `${fmt(d.Bf)}<small>kt</small>`;
     const bfNote = $("r-bf-note");
     bfNote.textContent = d.Bf < 1 ? "Absent" : `${fmt(bfX, bfX < 10 ? 1 : 0)}× healthy level`;
@@ -1402,7 +1402,7 @@ html.touring .viewer { position: static; }
       : `If predators were rare here, each would leave only ${R0.toFixed(2)} replacements. A small stock dies out, even with no fishing on it.`;
 
     $("nursery-n").textContent = fmt(1000 * d.S1);
-    $("nursery-t").textContent = `of every 1,000 young predators survive to 1 gram (healthy sea: ${fmt(1000 * REF_A.S1)}; forage-dominated sea: ${fmt(1000 * REF_C.S1)})`;
+    $("nursery-t").textContent = `of every 1,000 young predators survive to 1 gram (healthy sea: ${fmt(1000 * REF_RFP.S1)}; forage-dominated sea: ${fmt(1000 * REF_RF.S1)})`;
     $("year").textContent = sim.year;
   }
 
@@ -1450,8 +1450,8 @@ html.touring .viewer { position: static; }
     let layout = null, hoverX = null;
     const WINDOW = 200;
     const rows = [
-      { key: "Bp", title: "Predator stock (kt)", cls: "pred", ref: B_A[PRED], min: 700 },
-      { key: "Bf", title: "Forage fish stock (kt)", cls: "forage", ref: B_A[FORAGE], min: 400 },
+      { key: "Bp", title: "Predator stock (kt)", cls: "pred", ref: B_RFP[PRED], min: 700 },
+      { key: "Bf", title: "Forage fish stock (kt)", cls: "forage", ref: B_RFP[FORAGE], min: 400 },
       { key: "Y", title: "Catch (kt per year)", min: 40 },
       { key: "F", title: "Fishing pressure F", min: 0.3 },
     ];
@@ -1626,7 +1626,7 @@ html.touring .viewer { position: static; }
       const h = sim.history.slice(-300);
       for (let i = 0; i < h.length; i++) {
         const r = h[i];
-        const on = r.Bp > 0.05 * B_A[PRED];
+        const on = r.Bp > 0.05 * B_RFP[PRED];
         s += `<circle class="${on ? "track-on" : "track-off"}" cx="${x(Math.min(XMAX, r.Ff))}" cy="${y(Math.min(YMAX, r.Fp))}" r="${compact ? 2.6 : 3.2}" opacity="${(0.25 + 0.75 * i / h.length).toFixed(2)}"/>`;
       }
       const halo = fog ? ' style="stroke:#f1f8f9"' : "";
@@ -1735,8 +1735,8 @@ html.touring .viewer { position: static; }
       s += `<text x="${(ml + W - mr) / 2}" y="${H - 4}" text-anchor="middle">body size of a young predator</text>`;
       s += `<text x="${ml}" y="${mt - 2}" text-anchor="start" style="font-size:10px">deaths per year</text>`;
       const curve = (arr) => idx.map((j) => [x(M.w[j]), y(arr[j])]);
-      s += `<path class="ref" d="${path(curve(REF_A.predMort))}"/>`;
-      s += `<path class="ref" style="stroke:var(--forage)" d="${path(curve(REF_C.predMort))}"/>`;
+      s += `<path class="ref" d="${path(curve(REF_RFP.predMort))}"/>`;
+      s += `<path class="ref" style="stroke:var(--forage)" d="${path(curve(REF_RF.predMort))}"/>`;
       s += `<path class="s-pred" style="stroke-width:2.5" d="${path(curve(sim.diag.predMort))}"/>`;
       s += `<line class="axis" x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}"/>`;
       s += `<rect x="${ml}" y="${mt}" width="${W - ml - mr}" height="${H - mt - mb}" fill="transparent"/>`;
@@ -1754,7 +1754,7 @@ html.touring .viewer { position: static; }
       const wv = M.w[j];
       const wl = wv < 0.01 ? `${fmt(wv * 1000, 1)} mg` : wv < 1 ? `${fmt(wv, 2)} g` : `${fmt(wv, 1)} g`;
       tip.hidden = false;
-      tip.innerHTML = `<div>Young predator of ${wl}</div><div><span class="k">now</span> ${sim.diag.predMort[j].toFixed(1)} deaths/yr</div><div><span class="k">healthy</span> ${REF_A.predMort[j].toFixed(1)} · <span class="k">forage-dominated</span> ${REF_C.predMort[j].toFixed(1)}</div>`;
+      tip.innerHTML = `<div>Young predator of ${wl}</div><div><span class="k">now</span> ${sim.diag.predMort[j].toFixed(1)} deaths/yr</div><div><span class="k">healthy</span> ${REF_RFP.predMort[j].toFixed(1)} · <span class="k">forage-dominated</span> ${REF_RF.predMort[j].toFixed(1)}</div>`;
       tip.style.left = `${clamp(px, 120, geom.W - 120)}px`;
       tip.style.top = `${geom.y(sim.diag.predMort[j])}px`;
     });
@@ -1860,7 +1860,7 @@ html.touring .viewer { position: static; }
       const predCount = bp > 0.3 ? Math.min(70, Math.max(1, Math.round(bp / 10))) : 0;
       target.predCount = predCount;
       target.plankton = d.plankton;
-      target.larvaRate = d.Bp > 0.01 ? 7 * Math.sqrt(clamp(d.rdd / REF_A.rdd, 0, 4)) : 0;
+      target.larvaRate = d.Bp > 0.01 ? 7 * Math.sqrt(clamp(d.rdd / REF_RFP.rdd, 0, 4)) : 0;
       target.S1 = d.S1;
       target.boatsPred = Math.round(policy.Fp / 0.05);
       target.boatsForage = Math.round(policy.Ff / 0.05);
@@ -2348,10 +2348,10 @@ html.touring .viewer { position: static; }
   // Key numbers table
   const fact = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
   $("facts").innerHTML = [
-    fact("Healthy sea: predators / forage fish", `${fmt(B_A[PRED])} / ${fmt(B_A[FORAGE])} kt`),
-    fact("Collapsed sea: forage fish", `${fmt(B_C[FORAGE])} kt (${fmt(B_C[FORAGE] / B_A[FORAGE])}×)`),
-    fact("Young predators surviving to 1 g, healthy / collapsed", `${fmt(1000 * REF_A.S1)} / ${fmt(1000 * REF_C.S1)} per 1,000`),
-    fact("Comeback number, healthy / collapsed", `${REF_A.R0.toFixed(2)} / ${REF_C.R0.toFixed(2)}`),
+    fact("Healthy sea: predators / forage fish", `${fmt(B_RFP[PRED])} / ${fmt(B_RFP[FORAGE])} kt`),
+    fact("Collapsed sea: forage fish", `${fmt(B_RF[FORAGE])} kt (${fmt(B_RF[FORAGE] / B_RFP[FORAGE])}×)`),
+    fact("Young predators surviving to 1 g, healthy / collapsed", `${fmt(1000 * REF_RFP.S1)} / ${fmt(1000 * REF_RF.S1)} per 1,000`),
+    fact("Comeback number, healthy / collapsed", `${REF_RFP.R0.toFixed(2)} / ${REF_RF.R0.toFixed(2)}`),
     fact("Predator collapses above, with no forage fishing", `F ${Fcrit(0).toFixed(3)} (${pctCatch(Fcrit(0))}% a year)`),
     fact("Best sustainable predator catch, no forage fishing", `${fmt(MSY0.Yp)} kt/yr at F ${MSY0.Fp.toFixed(3)}`),
     fact("Forage fishing that reopens the nursery", `F ${FF_INV.toFixed(3)} (${pctCatch(FF_INV)}% a year)`),

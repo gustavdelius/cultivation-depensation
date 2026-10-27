@@ -3,7 +3,7 @@
 # Writes
 #   interactive/model_data.js             -- window.MODEL: all rate arrays the
 #                                            JavaScript engine needs, plus the
-#                                            four unfished states 0, A, B, C
+#                                            four unfished states R, RFP, RP, RF
 #   interactive/validation/reference.json -- mizer trajectories and R0 values
 #                                            that validate.js compares against
 #
@@ -145,43 +145,43 @@ biomass_ts <- function(sim) {
   list(t = as.numeric(rownames(b)), forage = unname(b[, "Forage"]),
        predator = unname(b[, "Predator"]))
 }
-pA <- states$State_A
-pB <- states$State_B
-pC <- states$State_C
+pRFP <- states$State_RFP
+pRP <- states$State_RP
+pRF <- states$State_RF
 
-collapse <- project(pA, effort = c(Forage = 0, Predator = 0.25), t_max = 150,
+collapse <- project(pRFP, effort = c(Forage = 0, Predator = 0.25), t_max = 150,
                     dt = 0.2, t_save = 1, progress_bar = FALSE)
-balanced <- project(pA, effort = c(Forage = 0.35, Predator = 0.25), t_max = 150,
+balanced <- project(pRFP, effort = c(Forage = 0.35, Predator = 0.25), t_max = 150,
                     dt = 0.2, t_save = 1, progress_bar = FALSE)
-inv_B <- pB
-initialN(inv_B)["Forage", ] <- initialN(pA)["Forage", ] * 1e-3
-invade_B <- project(inv_B, t_max = 150, dt = 0.2, t_save = 1, progress_bar = FALSE)
-res_C <- pC
-initialN(res_C)["Predator", ] <- initialN(pA)["Predator", ] * 5e-3
-rescue_C <- project(res_C, effort = c(Forage = 0.30, Predator = 0), t_max = 150,
+inv_RP <- pRP
+initialN(inv_RP)["Forage", ] <- initialN(pRFP)["Forage", ] * 1e-3
+invade_RP <- project(inv_RP, t_max = 150, dt = 0.2, t_save = 1, progress_bar = FALSE)
+res_RF <- pRF
+initialN(res_RF)["Predator", ] <- initialN(pRFP)["Predator", ] * 5e-3
+rescue_RF <- project(res_RF, effort = c(Forage = 0.30, Predator = 0), t_max = 150,
                     dt = 0.2, t_save = 1, progress_bar = FALSE)
 
 r0 <- lapply(states, function(p) as.list(get_R0(p)))
-r0_C_fished <- as.list(get_R0(finalParams(
-  project(pC, effort = c(Forage = 0.30, Predator = 0), t_max = 300, dt = 0.2,
+r0_RF_fished <- as.list(get_R0(finalParams(
+  project(pRF, effort = c(Forage = 0.30, Predator = 0), t_max = 300, dt = 0.2,
           progress_bar = FALSE)),
   effort = c(Forage = 0.30, Predator = 0)))
 
 reference <- list(
   mizer_version = as.character(packageVersion("mizer")),
   dt = 0.2,
-  collapse = c(biomass_ts(collapse), effort = list(c(0, 0.25)), start = "State_A"),
-  balanced = c(biomass_ts(balanced), effort = list(c(0.35, 0.25)), start = "State_A"),
-  invade_B = c(biomass_ts(invade_B), effort = list(c(0, 0)), start = "State_B",
+  collapse = c(biomass_ts(collapse), effort = list(c(0, 0.25)), start = "State_RFP"),
+  balanced = c(biomass_ts(balanced), effort = list(c(0.35, 0.25)), start = "State_RFP"),
+  invade_RP = c(biomass_ts(invade_RP), effort = list(c(0, 0)), start = "State_RP",
                seed = list(list(species = 0, factor = 1e-3))),
-  rescue_C = c(biomass_ts(rescue_C), effort = list(c(0.30, 0)), start = "State_C",
+  rescue_RF = c(biomass_ts(rescue_RF), effort = list(c(0.30, 0)), start = "State_RF",
                seed = list(list(species = 1, factor = 5e-3))),
   R0 = r0,
-  R0_C_forage_0.30 = r0_C_fished,
-  rates_A = list(
-    encounter = unname(getEncounter(pA)), e_growth = unname(getEGrowth(pA)),
-    mort = unname(getMort(pA)), rdd = unname(getRDD(pA)),
-    resource_mort = unname(as.numeric(getResourceMort(pA)))
+  R0_RF_forage_0.30 = r0_RF_fished,
+  rates_RFP = list(
+    encounter = unname(getEncounter(pRFP)), e_growth = unname(getEGrowth(pRFP)),
+    mort = unname(getMort(pRFP)), rdd = unname(getRDD(pRFP)),
+    resource_mort = unname(as.numeric(getResourceMort(pRFP)))
   )
 )
 write_json(reference, "interactive/validation/reference.json", digits = I(15),
