@@ -9,7 +9,6 @@ output:
     keep_tex: true
     fig_caption: true
     latex_engine: pdflatex
-    template: template.tex
   bookdown::html_document2:
     toc: true
     toc_float: true
