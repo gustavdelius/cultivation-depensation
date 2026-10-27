@@ -1,8 +1,10 @@
 # The Nursery Trap
 
 A playable version of the cultivation–depensation model in `paper.Rmd`, aimed at
-fishery policy makers. Open `nursery_trap.html` in any browser; it is a single
-self-contained file that works offline and can be emailed.
+fishery policy makers. It is published with GitHub Pages at
+<https://gustavdelius.github.io/cultivation-depensation/nursery_trap.html>.
+The built page, `docs/nursery_trap.html`, is a single self-contained file that
+also works offline and can be emailed.
 
 The page runs the paper's mizer model live in the browser. Nothing is scripted:
 the stocks, catches, survival rates and comeback number all come from the model
@@ -16,11 +18,11 @@ as the player moves the fishing levers.
 | `engine.js` | JavaScript port of mizer's default Euler/upwind dynamics |
 | `model_data.js` | Rate arrays and the unfished states 0, A, B, C, exported from mizer |
 | `regimes_data.js` | Collapse and invasion boundaries and equilibrium yields, computed with the engine |
-| `nursery_trap.html` | Built, self-contained page (generated) |
+| `../docs/nursery_trap.html` | Built, self-contained page (generated, served by GitHub Pages) |
 | `export_model.R` | Writes `model_data.js` and `validation/reference.json` from `cultivation_depensation_params.rds` |
 | `validate.js` | Checks the engine against mizer trajectories, rates and R0 values |
 | `compute_regimes.js` | Writes `regimes_data.js` |
-| `build.js` | Inlines the scripts into `app.html` to make `nursery_trap.html` |
+| `build.js` | Inlines the scripts into `app.html` to make `docs/nursery_trap.html` |
 
 ## Rebuilding
 

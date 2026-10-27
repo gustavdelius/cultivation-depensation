@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cultivation–depensation: interactive models</title>
+<meta name="description" content="Two browser apps that run the cultivation–depensation size-spectrum model live: why an overfished predator may not recover under a fishing ban, and how fishing its prey can bring it back.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Same palette and type as the Nursery Trap, so the site reads as one piece */
+:root {
+  --bg: #e7eff0; --panel: #f8fbfb; --ink: #0d2730; --ink-2: #41606a; --ink-3: #6b8790;
+  --line: #c2d3d7; --accent: #0b6476; --accent-ink: #f3fbfc; --predator: #c4520a;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", Verdana, "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #071519; --panel: #0d2229; --ink: #e1edef; --ink-2: #a5bec5; --ink-3: #7d979e;
+    --line: #24444e; --accent: #4fb3c6; --accent-ink: #061418; --predator: #e06a2c;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 17px/1.55 var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 48px max(16px, env(safe-area-inset-right, 0px)) 56px max(16px, env(safe-area-inset-left, 0px));
+  display: grid;
+  gap: 36px;
+}
+h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+p { margin: 0; }
+a { color: var(--accent); }
+.eyebrow {
+  font: 500 12px/1.2 var(--font-data);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+header { display: grid; gap: 12px; max-width: 760px; }
+h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 800; line-height: 1.02; letter-spacing: -0.02em; }
+h1 span { color: var(--predator); }
+.lede { font-size: 18px; color: var(--ink-2); max-width: 66ch; }
+.apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 760px) { .apps { grid-template-columns: minmax(0, 1fr); } }
+.app {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--band);
+  border-radius: 12px;
+  padding: 22px 22px 24px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.app h2 { font-size: 26px; line-height: 1.1; }
+.app .who { font-weight: 700; color: var(--ink); }
+.app p { color: var(--ink-2); }
+.app ul { margin: 0; padding-left: 20px; color: var(--ink-2); display: grid; gap: 4px; }
+.open {
+  justify-self: start;
+  margin-top: 6px;
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--band);
+  color: var(--accent-ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+.open:hover { filter: brightness(1.08); }
+.open:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+footer { color: var(--ink-3); font-size: 15px; border-top: 1px solid var(--line); padding-top: 18px; max-width: 72ch; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Interactive companions to the paper</p>
+    <h1>Why fishing the prey can <span>save the predator</span></h1>
+    <p class="lede">Big predatory fish keep down the small fish that would otherwise eat their young. Overfish the predators and the small fish take over, and then a fishing ban alone will not bring the predators back. These two apps run a size-spectrum model of that community in your browser, so you can try it for yourself.</p>
+  </header>
+
+  <section class="apps" aria-label="Apps">
+    <article class="app" style="--band: var(--predator)">
+      <p class="eyebrow">Playable</p>
+      <h2>The Nursery Trap</h2>
+      <p class="who">For fishery managers and anyone new to the idea. No background needed.</p>
+      <ul>
+        <li>Five short missions, from finding the edge of safe fishing to rebuilding a collapsed sea</li>
+        <li>A live sea, a logbook and a policy chart beside the fishing levers</li>
+        <li>A guided tour on first visit; works on phones</li>
+      </ul>
+      <p>Runs the paper's mizer model exactly, ported line by line to JavaScript.</p>
+      <a class="open" href="nursery_trap.html">Play the Nursery Trap →</a>
+    </article>
+
+    <article class="app" style="--band: var(--accent)">
+      <p class="eyebrow">Detailed</p>
+      <h2>Policy Lab</h2>
+      <p class="who">For scientists and analysts who want to see the machinery.</p>
+      <ul>
+        <li>Guided scenarios and an auto-played 570-year story</li>
+        <li>Fleet controls marked with the collapse cliff and the cusp</li>
+        <li>Interventions such as seeding cohorts or a storm shock, and live telemetry including the predator's invasion number</li>
+      </ul>
+      <a class="open" href="cultivation_depensation_interactive.html">Open the Policy Lab →</a>
+    </article>
+  </section>
+
+  <footer>
+    <p>Both apps model a plankton resource, a forage fish and a predator, built with the <a href="https://sizespectrum.org/mizer/">mizer</a> R package. The model, the paper and the source of both apps are on <a href="https://github.com/gustavdelius/cultivation-depensation">GitHub</a>.</p>
+  </footer>
+</main>
+</body>
+</html>

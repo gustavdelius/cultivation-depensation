@@ -1,8 +1,9 @@
 // Inline the engine and data into app.html to make a single shareable file.
 //   node interactive/build.js [fragment-output.html]
-// Writes interactive/nursery_trap.html (a complete standalone page that works
-// offline and can be emailed). If a second path is given, also writes the
-// page body alone there, for hosts that supply their own <html> skeleton.
+// Writes docs/nursery_trap.html (a complete standalone page that works
+// offline and can be emailed; docs/ is served by GitHub Pages). If a second
+// path is given, also writes the page body alone there, for hosts that
+// supply their own <html> skeleton.
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -26,8 +27,8 @@ ${inlined}
 </body>
 </html>
 `;
-fs.writeFileSync(path.join(dir, "nursery_trap.html"), standalone);
-console.log(`Wrote interactive/nursery_trap.html (${(standalone.length / 1024).toFixed(0)} KB)`);
+fs.writeFileSync(path.join(dir, "..", "docs", "nursery_trap.html"), standalone);
+console.log(`Wrote docs/nursery_trap.html (${(standalone.length / 1024).toFixed(0)} KB)`);
 if (process.argv[2]) {
   fs.writeFileSync(process.argv[2], inlined);
   console.log(`Wrote ${process.argv[2]}`);
