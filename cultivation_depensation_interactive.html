@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cultivation–Depensation Policy Simulator — Single-Window Mizer Cockpit</title>
+  <title>Cultivation–Depensation Policy Simulator — Mizer Cockpit</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
     * { box-sizing: border-box; }
@@ -31,9 +31,57 @@
       color: #fbbf24;
       border-color: rgba(245, 158, 11, 0.5);
     }
+    @keyframes pulse-Highlight {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.75), 0 0 0 9999px rgba(2, 6, 23, 0.76); }
+      50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 1.0), 0 0 0 9999px rgba(2, 6, 23, 0.76); }
+    }
+    .tour-spotlight {
+      position: fixed;
+      border-radius: 12px;
+      pointer-events: none;
+      z-index: 60;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: pulse-Highlight 2s infinite;
+    }
+    @keyframes pulse-TourCard {
+      0%, 100% {
+        box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.45), 0 0 35px rgba(245, 158, 11, 0.45), 0 24px 60px rgba(0, 0, 0, 0.95);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.8), 0 0 45px rgba(245, 158, 11, 0.7), 0 24px 60px rgba(0, 0, 0, 0.95);
+      }
+    }
+    .tour-card {
+      position: fixed;
+      z-index: 100 !important;
+      background: linear-gradient(165deg, #1e293b 0%, #0f172a 100%);
+      border: 2.5px solid #fbbf24;
+      animation: pulse-TourCard 2.2s infinite ease-in-out;
+    }
+    .commentary-card {
+      z-index: 45;
+      background: linear-gradient(165deg, #1e293b 0%, #0f172a 100%);
+      border: 2px solid #fbbf24;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3), 0 18px 45px rgba(0, 0, 0, 0.92);
+    }
+    @keyframes sound-wave {
+      0%, 100% { transform: scaleY(0.35); }
+      50% { transform: scaleY(1.0); }
+    }
+    .voice-bar {
+      display: inline-block;
+      width: 2.5px;
+      height: 11px;
+      background-color: #34d399;
+      margin: 0 1px;
+      border-radius: 2px;
+      animation: sound-wave 0.7s infinite ease-in-out;
+    }
+    .voice-bar:nth-child(2) { animation-delay: 0.15s; }
+    .voice-bar:nth-child(3) { animation-delay: 0.30s; }
   </style>
 </head>
-<body class="bg-[var(--background)] text-[var(--foreground)] antialiased select-none h-full flex flex-col p-2.5 gap-2.5">
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased select-none h-full flex flex-col p-2.5 gap-2.5 relative">
   <script>
     // Ensure standalone browser compatibility outside Antigravity host without overriding :root CSS rules
     (function() {
@@ -55,7 +103,7 @@
   </script>
 
   <!-- TOP COMPACT HEADER & GUIDED SCENARIO BAR -->
-  <header class="shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-xl px-3.5 py-2 shadow-sm flex flex-col gap-1.5">
+  <header id="tour-header" class="shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-xl px-3.5 py-2 shadow-sm flex flex-col gap-1.5">
     <div class="flex items-center justify-between gap-2 flex-wrap">
       <div class="flex items-center gap-2 flex-wrap">
         <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -69,9 +117,24 @@
         </span>
       </div>
 
-      <!-- Playback Controls & Clock -->
-      <div class="flex items-center gap-1.5">
-        <div id="simClockBadge" class="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-black/30 border border-[var(--border)]">
+      <!-- Tour, Voice, Pop-Up & Playback Controls -->
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <button id="btnStartTour" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/40 hover:bg-indigo-500/30 transition flex items-center gap-1">
+          <span>🎓 Interface Tour</span>
+        </button>
+        <button id="btnToggleVoice" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-700/40 text-slate-300 border border-slate-600 hover:bg-white/5 transition flex items-center gap-1.5" title="Toggle spoken audio narration on or off">
+          <span id="voiceIcon">🔇 Audio: OFF</span>
+          <span id="voiceWave" class="hidden items-center">
+            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+          </span>
+        </button>
+        <button id="btnTogglePopups" class="px-2 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition" title="Toggle floating commentary pop-up cards">
+          💬 Commentary: ON
+        </button>
+
+        <div class="h-4 w-px bg-[var(--border)] mx-0.5"></div>
+
+        <div id="simClockBadge" class="text-xs font-mono font-semibold px-2 py-1 rounded bg-black/30 border border-[var(--border)]">
           Year: 0.0
         </div>
         <button id="btnPlayPause" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 hover:bg-amber-400 transition">
@@ -90,9 +153,9 @@
     </div>
 
     <!-- Guided Scenarios + 1-Line Narrative Callout -->
-    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-1.5 pt-1 border-t border-[var(--border)]">
+    <div id="tour-scenarios" class="flex flex-col xl:flex-row xl:items-center justify-between gap-1.5 pt-1 border-t border-[var(--border)]">
       <div class="flex items-center gap-1 flex-wrap shrink-0">
-        <span class="text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)] mr-1">Policy Chapters:</span>
+        <span class="text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)] mr-1">Guided Scenarios:</span>
         <button data-scenario="stateA" class="scenario-btn active px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition">
           1. Cultivated (State A)
         </button>
@@ -109,14 +172,14 @@
           5. Assembly Puzzle
         </button>
         <button data-scenario="autodirector" id="btnAutoStory" class="scenario-btn px-2 py-0.5 rounded text-xs font-semibold border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition">
-          ▶ Auto-Play 570-Yr Trajectory
+          ▶ Auto-Play 570-Yr Story
         </button>
       </div>
 
       <div class="text-xs truncate xl:max-w-2xl bg-black/20 border border-[var(--border)] rounded px-2.5 py-1">
         <span id="narrativeTitle" class="font-bold text-amber-400">Chapter 1 — Cultivated Coexistence:</span>
         <span id="narrativeText" class="text-[var(--foreground)] ml-1">
-          Adult predators (600 g) suppress forage fish (94 g), keeping larval mortality low (1.5 /yr) so R0,Pred = 4.55 &gt; 1.
+          Adult predators (600 g) suppress forage fish (94 g), keeping larval mortality low (1.5 /yr) so <i>R</i><sub>0,Pred</sub> = 4.55 &gt; 1.
         </span>
       </div>
     </div>
@@ -127,7 +190,7 @@
     <!-- PERSISTENT LEFT CONTROL & KPI DOCK -->
     <aside class="col-span-12 lg:col-span-4 xl:col-span-3 bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 shadow-sm flex flex-col justify-between gap-2.5 min-h-0 overflow-y-auto">
       <!-- Section 1: Fleet Sliders -->
-      <div class="space-y-2">
+      <div id="tour-fleets" class="space-y-2">
         <div class="flex items-center justify-between">
           <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
             🚢 Fleet Effort Controls
@@ -138,7 +201,7 @@
         <!-- Predator Fleet Slider -->
         <div class="p-2.5 rounded-lg bg-black/20 border border-[var(--border)]">
           <div class="flex justify-between items-center text-xs mb-1">
-            <span class="font-semibold text-orange-400">Predator Fleet ($F_{\text{Pred}}$, $\ge 400\text{ g}$)</span>
+            <span class="font-semibold text-orange-400">Predator Fleet (<i>F</i><sub>Pred</sub>, ≥ 400 g)</span>
             <span id="lblFPred" class="font-mono font-bold text-xs text-orange-400">0.000 /yr</span>
           </div>
           <input id="sliderFPred" type="range" min="0" max="0.50" step="0.005" value="0" class="w-full" />
@@ -153,7 +216,7 @@
         <!-- Forage Fleet Slider -->
         <div class="p-2.5 rounded-lg bg-black/20 border border-[var(--border)]">
           <div class="flex justify-between items-center text-xs mb-1">
-            <span class="font-semibold text-sky-400">Forage Fleet ($F_{\text{Forage}}$, $\ge 1\text{ g}$)</span>
+            <span class="font-semibold text-sky-400">Forage Fleet (<i>F</i><sub>Forage</sub>, ≥ 1 g)</span>
             <span id="lblFForage" class="font-mono font-bold text-xs text-sky-400">0.000 /yr</span>
           </div>
           <input id="sliderFForage" type="range" min="0" max="0.50" step="0.005" value="0" class="w-full" style="accent-color: #38bdf8;" />
@@ -167,7 +230,7 @@
       </div>
 
       <!-- Section 2: Interventions & Fixed-Point Jumps -->
-      <div class="space-y-1.5 pt-2 border-t border-[var(--border)]">
+      <div id="tour-interventions" class="space-y-1.5 pt-2 border-t border-[var(--border)]">
         <div class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
           🧪 Ecosystem Interventions
         </div>
@@ -206,14 +269,14 @@
       </div>
 
       <!-- Section 3: Compact 2x2 Live KPI Grid -->
-      <div class="pt-2 border-t border-[var(--border)] space-y-1.5">
+      <div id="tour-kpis" class="pt-2 border-t border-[var(--border)] space-y-1.5">
         <div class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
           📟 Live Ecosystem Telemetry
         </div>
         <div class="grid grid-cols-2 gap-1.5">
           <!-- Predator Biomass -->
           <div class="p-2 rounded-lg bg-black/20 border border-[var(--border)]">
-            <div class="text-xs font-semibold text-orange-400">Predator $B_{\text{Pred}}$</div>
+            <div class="text-xs font-semibold text-orange-400">Predator <i>B</i><sub>Pred</sub></div>
             <div id="kpiPredBio" class="text-base font-bold font-mono">599.9 g</div>
             <div id="kpiPredPct" class="text-xs text-[var(--muted-foreground)] truncate">100% of State A</div>
             <div class="text-xs text-[var(--muted-foreground)] mt-0.5">
@@ -223,7 +286,7 @@
 
           <!-- Forage Biomass -->
           <div class="p-2 rounded-lg bg-black/20 border border-[var(--border)]">
-            <div class="text-xs font-semibold text-sky-400">Forage $B_{\text{Forage}}$</div>
+            <div class="text-xs font-semibold text-sky-400">Forage <i>B</i><sub>Forage</sub></div>
             <div id="kpiForageBio" class="text-base font-bold font-mono">94.3 g</div>
             <div id="kpiForageMult" class="text-xs text-[var(--muted-foreground)] truncate">1.0× baseline</div>
             <div class="text-xs text-[var(--muted-foreground)] mt-0.5">
@@ -234,21 +297,21 @@
           <!-- R0 Replacement -->
           <div class="p-2 rounded-lg bg-black/20 border border-[var(--border)]">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-semibold">Pred $R_{0,\text{Pred}}$</span>
+              <span class="text-xs font-semibold">Pred <i>R</i><sub>0,Pred</sub></span>
               <span id="badgeR0Pred" class="px-1 py-0.2 rounded text-xs bg-emerald-500/20 text-emerald-400">Grows</span>
             </div>
             <div id="kpiR0Pred" class="text-base font-bold font-mono text-emerald-400">4.55</div>
-            <div class="text-xs text-[var(--muted-foreground)]">Need $R_0 &gt; 1.00$</div>
+            <div class="text-xs text-[var(--muted-foreground)]">Need <i>R</i><sub>0</sub> &gt; 1.00</div>
             <div class="text-xs text-[var(--muted-foreground)] mt-0.5">
-              Forage $R_0$: <span id="kpiR0Forage" class="font-mono text-slate-200">2.89</span>
+              Forage <i>R</i><sub>0</sub>: <span id="kpiR0Forage" class="font-mono text-slate-200">2.89</span>
             </div>
           </div>
 
           <!-- Larval Gauntlet Mortality -->
           <div class="p-2 rounded-lg bg-black/20 border border-[var(--border)]">
-            <div class="text-xs font-semibold text-rose-400">Gauntlet $\mu_p$</div>
+            <div class="text-xs font-semibold text-rose-400">Gauntlet <i>μ</i><sub>p</sub></div>
             <div id="kpiLarvalMort" class="text-base font-bold font-mono text-emerald-400">1.5 /yr</div>
-            <div class="text-xs text-[var(--muted-foreground)]">At $w = 0.05\text{ g}$</div>
+            <div class="text-xs text-[var(--muted-foreground)]">At <i>w</i> = 0.05 g</div>
             <div id="kpiGauntletStatus" class="text-xs font-semibold text-emerald-400 mt-0.5 truncate">
               Cultivated (Safe)
             </div>
@@ -258,9 +321,9 @@
     </aside>
 
     <!-- RIGHT TABBED VISUALIZATION STAGE -->
-    <main class="col-span-12 lg:col-span-8 xl:col-span-9 bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 shadow-sm flex flex-col min-h-0">
+    <main id="tour-stage" class="col-span-12 lg:col-span-8 xl:col-span-9 bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 shadow-sm flex flex-col min-h-0 relative">
       <!-- Stage Navigation Tabs -->
-      <div class="shrink-0 flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[var(--border)] flex-wrap">
+      <div id="tour-tabs" class="shrink-0 flex items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-[var(--border)] flex-wrap">
         <div class="flex items-center gap-1.5 flex-wrap">
           <button data-stage-tab="gauntlet" class="stage-tab active px-3 py-1.5 rounded-lg text-xs font-bold border border-[var(--border)] transition">
             🌊 1. Nursery Gauntlet &amp; Time Trajectory
@@ -274,20 +337,20 @@
         </div>
 
         <div id="stageHint" class="text-xs text-[var(--muted-foreground)] hidden sm:block">
-          Watch $1\text{ mg}$ larvae swim the gauntlet on top while multi-century biomass unfolds below.
+          Watch 1 mg larvae swim the gauntlet on top while multi-century biomass unfolds below.
         </div>
       </div>
 
       <!-- TAB 1: NURSERY GAUNTLET + MULTI-CENTURY BIOMASS TRAJECTORY -->
       <section id="panel-gauntlet" class="flex-1 min-h-0 flex flex-col gap-2.5">
         <!-- Top Half: Ontogenetic Nursery Gauntlet -->
-        <div class="flex-1 min-h-0 flex flex-col">
+        <div id="tour-gauntlet-box" class="flex-1 min-h-0 flex flex-col">
           <div class="shrink-0 flex items-center justify-between mb-1">
             <span class="text-xs font-bold text-[var(--foreground)]">
-              🌊 The Ontogenetic Size Corridor ($10^{-3}\text{ g}\text{ Egg} \to 2000\text{ g}\text{ Adult}$)
+              🌊 The Ontogenetic Size Corridor (10<sup>−3</sup> g Egg → 2000 g Adult)
             </span>
             <span class="text-xs text-[var(--muted-foreground)]">
-              Red zone = Forage feeding kernel ($\beta = 200$); Green zone = Adult Predator cultivation ($\beta = 100$)
+              Red zone = Forage feeding kernel (<i>β</i> = 200); Green zone = Adult Predator cultivation (<i>β</i> = 100)
             </span>
           </div>
           <div class="flex-1 min-h-0 rounded-lg overflow-hidden border border-[var(--border)] bg-slate-950">
@@ -299,11 +362,11 @@
         <div class="flex-1 min-h-0 flex flex-col">
           <div class="shrink-0 flex items-center justify-between mb-1">
             <span class="text-xs font-bold text-[var(--foreground)]">
-              📈 Live Multi-Century Biomass Trajectory ($B_{\text{Pred}}$ &amp; $B_{\text{Forage}}$)
+              📈 Live Multi-Century Biomass Trajectory (<i>B</i><sub>Pred</sub> &amp; <i>B</i><sub>Forage</sub>)
             </span>
             <div class="flex items-center gap-1.5">
               <button id="btnToggleLogY" class="px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] bg-amber-500/20 text-amber-400">
-                Log10 Scale
+                Log₁₀ Scale
               </button>
               <button id="btnClearHistory" class="px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] hover:bg-white/5">
                 Clear Trace
@@ -326,7 +389,7 @@
                 A. 2D Exploitation Regime &amp; Cusp Map (Click/Drag Crosshair)
               </div>
               <div class="text-xs text-[var(--muted-foreground)]">
-                Solid orange = Fold cliff ($F_{\text{crit}}$); Dashed green = Re-invasion ($R_{0,\text{Pred}} = 1$)
+                Solid orange = Fold cliff (<i>F</i><sub>crit</sub>); Dashed green = Re-invasion (<i>R</i><sub>0,Pred</sub> = 1)
               </div>
             </div>
             <span id="regimeMapBadge" class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/20 text-amber-300 shrink-0">
@@ -346,7 +409,7 @@
                 B. Ecosystem Stability Landscape &amp; Depensatory Barrier
               </div>
               <div class="text-xs text-[var(--muted-foreground)]">
-                Watch the State A valley vanish above $F_{\text{crit}}$ and the barrier flatten past the cusp
+                Watch the State A valley vanish above <i>F</i><sub>crit</sub> and the barrier flatten past the cusp
               </div>
             </div>
             <span id="bowlStatusBadge" class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 shrink-0">
@@ -366,7 +429,7 @@
           <div class="shrink-0 flex items-center justify-between mb-1">
             <div>
               <div class="text-xs font-bold text-[var(--foreground)]">
-                A. Live Size Spectra $B(w) = N(w)w^2$ vs. Unfished State A
+                A. Live Size Spectra <i>B</i>(<i>w</i>) = <i>N</i>(<i>w</i>)<i>w</i><sup>2</sup> vs. Unfished State A
               </div>
               <div class="text-xs text-[var(--muted-foreground)]">
                 Solid = Live spectrum; Dashed = Unfished State A reference (note the plankton grazing trough in State C)
@@ -383,10 +446,10 @@
           <div class="shrink-0 flex items-center justify-between mb-1">
             <div>
               <div class="text-xs font-bold text-[var(--foreground)]">
-                B. Depensatory Bottleneck: Predator Mortality $\mu_{p,\text{Pred}}(w)$
+                B. Depensatory Bottleneck: Predator Mortality <i>μ</i><sub>p,Pred</sub>(<i>w</i>)
               </div>
               <div class="text-xs text-[var(--muted-foreground)]">
-                Compare live larval predation mortality (gold) against State A ($1.5\text{ /yr}$) and State C ($37.3\text{ /yr}$)
+                Compare live larval predation mortality (gold) against State A (1.5 /yr) and State C (37.3 /yr)
               </div>
             </div>
           </div>
@@ -395,7 +458,132 @@
           </div>
         </div>
       </section>
+
+      <!-- FLOATING SCENARIO COMMENTARY POP-UP CARD -->
+      <div id="commentaryPopup" class="commentary-card fixed bottom-4 right-4 max-w-md w-full rounded-xl overflow-hidden transition-all duration-300">
+        <div class="bg-amber-500/20 border-b border-amber-400/40 px-3 py-2 flex items-center justify-between gap-1.5 flex-wrap">
+          <div class="flex items-center gap-1.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-extrabold bg-amber-400 text-slate-950 flex items-center gap-1">
+              <span>🎙️ Guide</span>
+            </span>
+            <span id="popupPhaseBadge" class="text-xs font-mono text-emerald-300 font-bold">State A</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button id="btnPopupPause" class="px-2 py-0.5 rounded-md text-xs font-bold bg-amber-400 text-slate-950 hover:bg-amber-300 transition" title="Pause or resume simulation &amp; guide">
+              ⏸ Pause
+            </button>
+            <button id="btnPopupToggleAudio" class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-800 text-slate-300 border border-slate-600 hover:text-white hover:bg-slate-700 transition" title="Switch spoken audio narration on or off">
+              🔇 Audio: OFF
+            </button>
+            <button id="btnClosePopup" class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-800 text-slate-300 border border-slate-600 hover:text-white hover:bg-slate-700 transition" title="Dismiss pop-up (re-enable anytime via Commentary button)">
+              ✕ Hide
+            </button>
+          </div>
+        </div>
+        <div class="p-3.5">
+          <h4 id="popupTitle" class="text-sm font-extrabold text-amber-300 mb-1">
+            Welcome to the Cultivated Sea (State A)
+          </h4>
+          <p id="popupBody" class="text-xs text-white leading-relaxed mb-3">
+            Right now, large adult predators (600 g) act as "gardeners" by keeping small forage fish (94 g) scarce. Because forage fish are kept in check, newborn predator larvae can safely swim across the red gauntlet above!
+          </p>
+          <div class="flex items-center justify-between gap-2 pt-2.5 border-t border-slate-700">
+            <span class="text-xs font-semibold text-amber-200/90">Next step:</span>
+            <button id="btnPopupNextAction" class="px-3.5 py-1.5 rounded-lg text-xs font-extrabold bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-md transition">
+              Try Chapter 2: Overfishing Cliff →
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
+  </div>
+
+  <!-- WELCOME MODAL (SHOWN ON FIRST VISIT) -->
+  <div id="welcomeModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="max-w-lg w-full bg-slate-900 border-2 border-amber-400/80 rounded-2xl p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center justify-between">
+        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+          🐟 Interactive Fisheries Policy Experience
+        </span>
+        <button id="btnDismissWelcome" class="text-xs text-slate-300 hover:text-white px-2 py-1 rounded border border-slate-700">
+          Skip to Sandbox ✕
+        </button>
+      </div>
+      <h2 class="text-lg font-bold text-white">
+        Why Didn’t the Cod Recover After Fishing Stopped?
+      </h2>
+      <p class="text-xs text-slate-200 leading-relaxed">
+        When major apex predator stocks collapsed, managers enacted strict fishing moratoria—expecting a rapid rebound. Instead, small forage fish exploded <strong>24-fold</strong> and locked the predator out of the ecosystem by eating its millimeter-sized larvae.
+      </p>
+      <div class="p-3 rounded-xl bg-slate-800/90 border border-slate-600 space-y-1.5 text-xs text-slate-100">
+        <div class="font-semibold text-amber-300">How would you like to explore?</div>
+        <div>• <strong>🎓 60-Second Guided Interface Tour:</strong> Step-by-step spotlight walk-through of the controls and visualizations.</div>
+        <div>• <strong>▶ Auto-Play 570-Year Story:</strong> Sit back and watch the 5-phase collapse, failed moratorium, and rescue unfold automatically.</div>
+        <div class="text-slate-300 pt-1">💡 <em>Spoken voice narration is OFF by default and can be toggled ON/OFF anytime directly on the guide box.</em></div>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-2 pt-1">
+        <button id="btnWelcomeSandbox" class="px-3 py-2 rounded-xl text-xs font-semibold border border-slate-600 text-slate-200 hover:bg-white/10 transition">
+          Explore Freely
+        </button>
+        <button id="btnWelcomeAutoStory" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/25 text-emerald-200 border border-emerald-400/50 hover:bg-emerald-500/35 transition">
+          ▶ Auto-Play 570-Yr Story
+        </button>
+        <button id="btnWelcomeTour" class="px-4 py-2 rounded-xl text-xs font-extrabold bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-lg transition">
+          🎓 Start Guided Tour
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERACTIVE SPOTLIGHT TOUR OVERLAY -->
+  <div id="tourOverlay" class="hidden fixed inset-0 z-50 pointer-events-none">
+    <div id="tourSpotlight" class="tour-spotlight"></div>
+    <div id="tourCard" class="tour-card pointer-events-auto max-w-md w-full rounded-2xl overflow-hidden transition-all duration-200">
+      <!-- High-contrast Gold Header Bar with Pause & Audio ON/OFF Toggle -->
+      <div class="bg-amber-400 text-slate-950 px-3.5 py-2 flex items-center justify-between gap-1.5 flex-wrap">
+        <div class="flex items-center gap-1.5">
+          <span class="text-sm">🎓</span>
+          <span id="tourStepBadge" class="text-xs font-extrabold tracking-wide uppercase">
+            GUIDE STEP 1 OF 6
+          </span>
+        </div>
+        <div class="flex items-center gap-1">
+          <button id="btnTourPause" class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-950 text-amber-300 hover:bg-slate-800 transition" title="Pause or resume simulation &amp; voice">
+            ⏸ Pause
+          </button>
+          <button id="btnTourToggleAudio" class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-950 text-slate-200 hover:bg-slate-800 transition" title="Toggle spoken audio narration on or off">
+            🔇 Audio: OFF
+          </button>
+          <button id="btnTourClose" class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-950/90 text-white hover:bg-slate-800 transition" title="Exit guided tour (Esc)">
+            ✕ Exit
+          </button>
+        </div>
+      </div>
+
+      <!-- Guide Body -->
+      <div class="p-4 space-y-3 bg-slate-900/95">
+        <h3 id="tourTitle" class="text-sm font-extrabold text-amber-300">
+          1. The Ontogenetic Nursery Gauntlet
+        </h3>
+        <p id="tourBody" class="text-xs text-white leading-relaxed">
+          Every fish starts on the left as a 1 mg egg and grows rightward. Baby predators must survive the red Larval Gauntlet before growing large enough to eat the forage fish.
+        </p>
+
+        <!-- Prominent Guide Navigation Controls & Step Dots -->
+        <div class="pt-3 border-t border-slate-700 flex items-center justify-between gap-2">
+          <button id="btnTourPrev" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 border border-slate-500 text-white hover:bg-slate-700 transition">
+            ← Back
+          </button>
+          <div id="tourStepDots" class="flex items-center gap-1"></div>
+          <button id="btnTourNext" class="px-4 py-1.5 rounded-lg text-xs font-extrabold bg-amber-400 text-slate-950 hover:bg-amber-300 shadow-lg ring-2 ring-amber-200/60 transition">
+            Next Step →
+          </button>
+        </div>
+        <div class="text-center text-xs text-amber-200/80 font-medium">
+          Click <strong>Next Step →</strong>, any step number above, or press <strong>→ / Esc</strong> keys
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -719,11 +907,20 @@
   const engine = new MizerEngine(MODEL_DATA);
 
   let isRunning = true;
-  let stepsPerFrame = 2; // 4x default
-  let activeStageTab = "gauntlet"; // "gauntlet" | "regime" | "spectra"
+  let stepsPerFrame = 2;
+  let activeStageTab = "gauntlet";
   let useLogHistory = true;
   let autoStoryActive = false;
   let autoStoryPhase = 0;
+  let tourAudioEnabled = false;
+  let commentaryAudioEnabled = false;
+  let popupsEnabled = true;
+  let lastSpokenText = "";
+  let collapseAlerted = false;
+
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
 
   const history = [];
   const events = [];
@@ -750,7 +947,446 @@
   recordHistoryPoint();
 
   // =========================================================================
-  // 3. SWIMMING FISH & SEEDED COHORT PARTICLES (GAUNTLET VISUALIZER)
+  // 3. WEB SPEECH API VOICE NARRATOR, PAUSE CONTROL & POP-UP COMMENTARY SYSTEM
+  // =========================================================================
+  const voiceIcon = document.getElementById("voiceIcon");
+  const voiceWave = document.getElementById("voiceWave");
+  const btnToggleVoice = document.getElementById("btnToggleVoice");
+  const btnTogglePopups = document.getElementById("btnTogglePopups");
+  const btnPlayPause = document.getElementById("btnPlayPause");
+
+  const commentaryPopup = document.getElementById("commentaryPopup");
+  const popupPhaseBadge = document.getElementById("popupPhaseBadge");
+  const popupTitle = document.getElementById("popupTitle");
+  const popupBody = document.getElementById("popupBody");
+  const btnPopupNextAction = document.getElementById("btnPopupNextAction");
+  const btnPopupPause = document.getElementById("btnPopupPause");
+  const btnPopupToggleAudio = document.getElementById("btnPopupToggleAudio");
+  const btnClosePopup = document.getElementById("btnClosePopup");
+
+  const welcomeModal = document.getElementById("welcomeModal");
+  const tourOverlay = document.getElementById("tourOverlay");
+  const tourSpotlight = document.getElementById("tourSpotlight");
+  const tourCard = document.getElementById("tourCard");
+  const tourStepBadge = document.getElementById("tourStepBadge");
+  const tourTitle = document.getElementById("tourTitle");
+  const tourBody = document.getElementById("tourBody");
+  const btnTourPrev = document.getElementById("btnTourPrev");
+  const btnTourNext = document.getElementById("btnTourNext");
+  const btnTourClose = document.getElementById("btnTourClose");
+  const btnTourPause = document.getElementById("btnTourPause");
+  const btnTourToggleAudio = document.getElementById("btnTourToggleAudio");
+
+  let currentPopupNextCallback = null;
+  let tourStepIndex = 0;
+
+  function pickPreferredVoice() {
+    if (!("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+    return (
+      voices.find(v => /en[-_](GB|US)/i.test(v.lang) && /Natural|Google|Online|Neural|Daniel|Samantha/i.test(v.name)) ||
+      voices.find(v => /^en/i.test(v.lang)) ||
+      voices[0]
+    );
+  }
+
+  if ("speechSynthesis" in window && window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = () => pickPreferredVoice();
+  }
+
+  function stopSpeech() {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    voiceWave.className = "hidden items-center";
+  }
+
+  function speakUtterance(text) {
+    if (!text) return;
+    if (!("speechSynthesis" in window)) return;
+
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      const v = pickPreferredVoice();
+      if (v) utter.voice = v;
+      utter.rate = 1.03;
+      utter.pitch = 1.0;
+      utter.onstart = () => {
+        voiceWave.className = "inline-flex items-center";
+      };
+      utter.onend = () => {
+        voiceWave.className = "hidden items-center";
+      };
+      utter.onerror = () => {
+        voiceWave.className = "hidden items-center";
+      };
+      window.speechSynthesis.speak(utter);
+      if (!isRunning) {
+        window.speechSynthesis.pause();
+      }
+    } catch (err) {
+      voiceWave.className = "hidden items-center";
+    }
+  }
+
+  function syncAudioButtonsUI() {
+    if (commentaryAudioEnabled) {
+      voiceIcon.textContent = "🔊 Audio: ON";
+      btnToggleVoice.className = "px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition flex items-center gap-1.5";
+      if (btnPopupToggleAudio) {
+        btnPopupToggleAudio.textContent = "🔊 Audio: ON";
+        btnPopupToggleAudio.className = "px-2 py-0.5 rounded-md text-xs font-bold bg-emerald-500/25 text-emerald-200 border border-emerald-400/50 hover:bg-emerald-500/40 transition";
+      }
+    } else {
+      voiceIcon.textContent = "🔇 Audio: OFF";
+      btnToggleVoice.className = "px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-700/40 text-slate-300 border border-slate-600 hover:bg-white/5 transition flex items-center gap-1.5";
+      if (btnPopupToggleAudio) {
+        btnPopupToggleAudio.textContent = "🔇 Audio: OFF";
+        btnPopupToggleAudio.className = "px-2 py-0.5 rounded-md text-xs font-bold bg-slate-800 text-slate-300 border border-slate-600 hover:text-white hover:bg-slate-700 transition";
+      }
+    }
+
+    if (btnTourToggleAudio) {
+      if (tourAudioEnabled) {
+        btnTourToggleAudio.textContent = "🔊 Audio: ON";
+        btnTourToggleAudio.className = "px-2 py-0.5 rounded-md text-xs font-bold bg-slate-950 text-emerald-300 ring-1 ring-emerald-400 hover:bg-slate-800 transition";
+      } else {
+        btnTourToggleAudio.textContent = "🔇 Audio: OFF";
+        btnTourToggleAudio.className = "px-2 py-0.5 rounded-md text-xs font-bold bg-slate-950 text-slate-200 hover:bg-slate-800 transition";
+      }
+    }
+  }
+
+  function setCommentaryAudioEnabled(enabled) {
+    commentaryAudioEnabled = Boolean(enabled);
+    syncAudioButtonsUI();
+    if (commentaryAudioEnabled) {
+      if (lastSpokenText && tourOverlay.classList.contains("hidden")) {
+        speakUtterance(lastSpokenText);
+      }
+    } else {
+      stopSpeech();
+    }
+  }
+
+  function setTourAudioEnabled(enabled) {
+    tourAudioEnabled = Boolean(enabled);
+    syncAudioButtonsUI();
+    if (tourAudioEnabled) {
+      if (!tourOverlay.classList.contains("hidden") && TOUR_STEPS[tourStepIndex]) {
+        speakUtterance(TOUR_STEPS[tourStepIndex].speech);
+      }
+    } else {
+      stopSpeech();
+    }
+  }
+
+  function syncPauseButtonsUI() {
+    if (isRunning) {
+      btnPlayPause.textContent = "⏸ Pause";
+      btnPlayPause.className = "px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 hover:bg-amber-400 transition";
+      if (btnPopupPause) {
+        btnPopupPause.textContent = "⏸ Pause";
+        btnPopupPause.className = "px-2 py-0.5 rounded-md text-xs font-bold bg-amber-400 text-slate-950 hover:bg-amber-300 transition";
+      }
+      if (btnTourPause) {
+        btnTourPause.textContent = "⏸ Pause";
+        btnTourPause.className = "px-2 py-0.5 rounded-md text-xs font-bold bg-slate-950 text-amber-300 hover:bg-slate-800 transition";
+      }
+    } else {
+      btnPlayPause.textContent = "▶ Resume";
+      btnPlayPause.className = "px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-400 text-slate-950 hover:bg-emerald-300 transition";
+      if (btnPopupPause) {
+        btnPopupPause.textContent = "▶ Resume";
+        btnPopupPause.className = "px-2 py-0.5 rounded-md text-xs font-extrabold bg-emerald-400 text-slate-950 hover:bg-emerald-300 transition";
+      }
+      if (btnTourPause) {
+        btnTourPause.textContent = "▶ Resume";
+        btnTourPause.className = "px-2 py-0.5 rounded-md text-xs font-extrabold bg-emerald-400 text-slate-950 hover:bg-emerald-300 transition";
+      }
+    }
+  }
+
+  function setPaused(paused) {
+    isRunning = !paused;
+    syncPauseButtonsUI();
+    if ("speechSynthesis" in window) {
+      if (paused && window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        voiceWave.className = "hidden items-center";
+      } else if (!paused && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+        if (window.speechSynthesis.speaking) {
+          voiceWave.className = "inline-flex items-center";
+        }
+      }
+    }
+  }
+
+  btnToggleVoice.addEventListener("click", () => setCommentaryAudioEnabled(!commentaryAudioEnabled));
+  if (btnPopupToggleAudio) {
+    btnPopupToggleAudio.addEventListener("click", () => setCommentaryAudioEnabled(!commentaryAudioEnabled));
+  }
+  if (btnTourToggleAudio) {
+    btnTourToggleAudio.addEventListener("click", () => setTourAudioEnabled(!tourAudioEnabled));
+  }
+
+  if (btnPopupPause) {
+    btnPopupPause.addEventListener("click", () => setPaused(isRunning));
+  }
+  if (btnTourPause) {
+    btnTourPause.addEventListener("click", () => setPaused(isRunning));
+  }
+
+  btnTogglePopups.addEventListener("click", () => {
+    popupsEnabled = !popupsEnabled;
+    if (popupsEnabled) {
+      btnTogglePopups.textContent = "💬 Commentary: ON";
+      btnTogglePopups.className = "px-2 py-1 rounded-lg text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition";
+      commentaryPopup.classList.remove("hidden");
+    } else {
+      btnTogglePopups.textContent = "💬 Commentary: OFF";
+      btnTogglePopups.className = "px-2 py-1 rounded-lg text-xs font-semibold bg-slate-700/40 text-slate-400 border border-slate-600 hover:bg-white/5 transition";
+      commentaryPopup.classList.add("hidden");
+    }
+  });
+
+  btnClosePopup.addEventListener("click", () => {
+    commentaryPopup.classList.add("hidden");
+  });
+
+  btnPopupNextAction.addEventListener("click", () => {
+    if (typeof currentPopupNextCallback === "function") {
+      currentPopupNextCallback();
+    }
+  });
+
+  function showCommentaryPopup({ badge, title, htmlBody, speechText, nextLabel, onNext, speak = true }) {
+    popupPhaseBadge.textContent = badge || "Policy Briefing";
+    popupTitle.innerHTML = title;
+    popupBody.innerHTML = htmlBody;
+    if (nextLabel && onNext) {
+      btnPopupNextAction.innerHTML = nextLabel;
+      btnPopupNextAction.classList.remove("hidden");
+      currentPopupNextCallback = onNext;
+    } else {
+      btnPopupNextAction.classList.add("hidden");
+      currentPopupNextCallback = null;
+    }
+    if (popupsEnabled) {
+      commentaryPopup.classList.remove("hidden");
+    }
+    if (speechText) {
+      lastSpokenText = speechText;
+      if (speak && commentaryAudioEnabled) {
+        speakUtterance(speechText);
+      }
+    }
+  }
+
+  // =========================================================================
+  // 4. INTERACTIVE 6-STEP SPOTLIGHT INTERFACE TOUR
+  // =========================================================================
+  const TOUR_STEPS = [
+    {
+      targetId: "tour-gauntlet-box",
+      tab: "gauntlet",
+      title: "1. The Ontogenetic Nursery Gauntlet",
+      html: "Both small forage fish (20 g) and giant apex predators (2000 g) start life on the left as tiny <strong>1 mg eggs</strong> and grow strictly rightward. Baby predators must swim through the red <strong>Larval Gauntlet</strong> where adult forage fish eat them, before growing large enough (&gt;200 g) to turn the tables and keep forage fish in check.",
+      speech: "Step 1: The Ontogenetic Nursery Gauntlet. Both small forage fish and giant predators start life on the left as tiny 1 milligram eggs and grow rightward. Baby predators must survive the red Larval Gauntlet where adult forage fish eat them, before growing large enough to turn the tables and control the forage fish."
+    },
+    {
+      targetId: "tour-fleets",
+      tab: "gauntlet",
+      title: "2. Fleet Effort Sliders",
+      html: "These two sliders control fishing intensity. If you fish only the large Predator (<i>F</i><sub>Pred</sub> &gt; 0.188), you remove the 'gardeners'—allowing forage fish to explode 24-fold. Harvesting the Forage fish (<i>F</i><sub>Forage</sub>) acts as a substitute gardener that protects baby predators.",
+      speech: "Step 2: Fleet Effort Controls. If you fish only the large Predator above 0.188 per year, you remove the ecosystem's gardeners, allowing forage fish to explode 24-fold. Harvesting the forage fish acts as a substitute gardener that protects predator larvae."
+    },
+    {
+      targetId: "tour-kpis",
+      tab: "gauntlet",
+      title: "3. Live Telemetry & Replacement Fitness (R₀)",
+      html: "Watch <strong>Pred <i>R</i><sub>0,Pred</sub></strong>—the average number of surviving daughters produced by one female predator. When <i>R</i><sub>0,Pred</sub> drops below <strong>1.00</strong> (because Gauntlet mortality <i>μ</i><sub>p</sub> spikes to 37 /yr), the predator population decays to extinction even under a total fishing ban!",
+      speech: "Step 3: Live Ecosystem Telemetry. Watch Predator R-naught, the number of surviving daughters per female. When R-naught drops below 1.0 because gauntlet mortality spikes to 37 per year, the predator cannot recover even under a complete fishing moratorium."
+    },
+    {
+      targetId: "tour-interventions",
+      tab: "gauntlet",
+      title: "4. Hatchery Seeding & Storm Shocks",
+      html: "Use these buttons to release glowing hatchery cohorts of baby predators or forage fish into the sea, or trigger an environmental storm shock, and watch how they fare in the live simulation.",
+      speech: "Step 4: Ecosystem Interventions. Use these buttons to release hatchery cohorts of baby predators or forage fish, or trigger a storm shock, and watch whether the larvae survive the gauntlet."
+    },
+    {
+      targetId: "panel-regime",
+      tab: "regime",
+      title: "5. The 2D Policy Map & Stability Bowl",
+      html: "In Tab 2, you can <strong>click and drag directly on the 2D Regime Map</strong> (left). Crossing the orange fold line collapses the State A basin in the <strong>Stability Bowl</strong> (right), rolling the ecosystem marble into the State C trap. Moving right past the Cusp Point (0.35, 0.29) eliminates the cliff completely!",
+      speech: "Step 5: The 2D Policy Map and Stability Bowl. Click and drag directly on the 2D map on the left to tilt the stability bowl on the right. Crossing the orange line collapses the predator into the State C trap, while fishing forage fish past the cusp point eliminates the cliff completely."
+    },
+    {
+      targetId: "panel-spectra",
+      tab: "spectra",
+      title: "6. Live Size Spectra & Guided Story",
+      html: "Tab 3 shows the live 80-bin <code>mizer</code> size spectra alongside the towering larval mortality wall. Ready to see the full paradox in action? Click <strong>'▶ Finish &amp; Auto-Play Story'</strong> below!",
+      speech: "Step 6: Live Size Spectra and Mortality Wall. Here you can inspect the full size spectrum alongside the larval mortality wall. Click Finish and Auto-Play Story to watch the 570-year collapse, failed moratorium, and trophic rescue unfold with live commentary!"
+    }
+  ];
+
+  const tourStepDots = document.getElementById("tourStepDots");
+
+  function renderTourDots() {
+    if (!tourStepDots) return;
+    tourStepDots.innerHTML = "";
+    for (let i = 0; i < TOUR_STEPS.length; i++) {
+      const btn = document.createElement("button");
+      const active = i === tourStepIndex;
+      btn.type = "button";
+      btn.title = `Go to Step ${i + 1}`;
+      btn.textContent = `${i + 1}`;
+      btn.className = active
+        ? "w-6 h-6 rounded-full text-xs font-extrabold bg-amber-400 text-slate-950 shadow ring-2 ring-amber-200 transition"
+        : "w-6 h-6 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700 hover:text-white transition";
+      btn.addEventListener("click", () => showTourStep(i));
+      tourStepDots.appendChild(btn);
+    }
+  }
+
+  function positionTourElements() {
+    if (tourOverlay.classList.contains("hidden")) return;
+    const step = TOUR_STEPS[tourStepIndex];
+    const el = document.getElementById(step.targetId);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const pad = 6;
+    tourSpotlight.style.left = `${Math.max(4, r.left - pad)}px`;
+    tourSpotlight.style.top = `${Math.max(4, r.top - pad)}px`;
+    tourSpotlight.style.width = `${Math.min(window.innerWidth - 8, r.width + pad * 2)}px`;
+    tourSpotlight.style.height = `${Math.min(window.innerHeight - 8, r.height + pad * 2)}px`;
+
+    const cardRect = tourCard.getBoundingClientRect();
+    const cardW = cardRect.width || 380;
+    const cardH = cardRect.height || 245;
+
+    let cx = 16;
+    let cy = 96;
+
+    if (step.targetId === "tour-gauntlet-box") {
+      // Place directly below the Nursery Gauntlet box so the gauntlet is 100% visible
+      cx = Math.max(16, r.left + (r.width - cardW) * 0.5);
+      cy = r.bottom + 16;
+      if (cy + cardH > window.innerHeight - 12) {
+        cy = window.innerHeight - cardH - 12;
+      }
+    } else if (step.targetId === "panel-regime" || step.targetId === "panel-spectra") {
+      // Place over the dimmed left dock so the full right stage is unobstructed
+      cx = 18;
+      cy = Math.max(96, Math.min(window.innerHeight - cardH - 16, r.top + 16));
+    } else {
+      // Left dock controls: place immediately to the right of the highlighted control
+      cx = r.right + 18;
+      cy = r.top;
+      if (cx + cardW > window.innerWidth - 14) {
+        cx = Math.max(14, window.innerWidth - cardW - 14);
+        cy = Math.min(window.innerHeight - cardH - 14, r.bottom + 14);
+      }
+    }
+
+    cx = Math.max(12, Math.min(window.innerWidth - cardW - 12, cx));
+    cy = Math.max(12, Math.min(window.innerHeight - cardH - 12, cy));
+    tourCard.style.left = `${cx}px`;
+    tourCard.style.top = `${cy}px`;
+  }
+
+  function showTourStep(idx) {
+    tourStepIndex = Math.max(0, Math.min(TOUR_STEPS.length - 1, idx));
+    const step = TOUR_STEPS[tourStepIndex];
+    if (step.tab && activeStageTab !== step.tab) {
+      switchStageTab(step.tab);
+    }
+    tourStepBadge.textContent = `GUIDE STEP ${tourStepIndex + 1} OF ${TOUR_STEPS.length}`;
+    tourTitle.textContent = step.title;
+    tourBody.innerHTML = step.html;
+    btnTourPrev.disabled = tourStepIndex === 0;
+    btnTourPrev.style.opacity = tourStepIndex === 0 ? "0.4" : "1";
+    btnTourNext.innerHTML = tourStepIndex === TOUR_STEPS.length - 1 ? "▶ Finish &amp; Auto-Play Story" : "Next Step →";
+    renderTourDots();
+    syncAudioButtonsUI();
+    syncPauseButtonsUI();
+
+    requestAnimationFrame(() => {
+      positionTourElements();
+      if (tourAudioEnabled) {
+        speakUtterance(step.speech);
+      }
+    });
+  }
+
+  function startTour() {
+    welcomeModal.classList.add("hidden");
+    commentaryPopup.classList.add("hidden");
+    tourOverlay.classList.remove("hidden");
+    showTourStep(0);
+  }
+
+  function endTour(launchAutoStory = false) {
+    tourOverlay.classList.add("hidden");
+    stopSpeech();
+    switchStageTab("gauntlet");
+    if (popupsEnabled) commentaryPopup.classList.remove("hidden");
+    if (launchAutoStory) {
+      activateScenario("autodirector");
+    }
+  }
+
+  document.getElementById("btnStartTour").addEventListener("click", () => {
+    startTour();
+  });
+  document.getElementById("btnWelcomeTour").addEventListener("click", () => {
+    startTour();
+  });
+  document.getElementById("btnWelcomeAutoStory").addEventListener("click", () => {
+    welcomeModal.classList.add("hidden");
+    activateScenario("autodirector");
+  });
+  document.getElementById("btnWelcomeSandbox").addEventListener("click", () => {
+    welcomeModal.classList.add("hidden");
+    activateScenario("stateA");
+  });
+  document.getElementById("btnDismissWelcome").addEventListener("click", () => {
+    welcomeModal.classList.add("hidden");
+  });
+
+  btnTourPrev.addEventListener("click", () => showTourStep(tourStepIndex - 1));
+  btnTourNext.addEventListener("click", () => {
+    if (tourStepIndex < TOUR_STEPS.length - 1) {
+      showTourStep(tourStepIndex + 1);
+    } else {
+      endTour(true);
+    }
+  });
+  btnTourClose.addEventListener("click", () => endTour(false));
+  syncAudioButtonsUI();
+  syncPauseButtonsUI();
+  window.addEventListener("keydown", (e) => {
+    if (tourOverlay.classList.contains("hidden")) return;
+    if (e.key === "ArrowRight" || e.key === "Enter") {
+      e.preventDefault();
+      if (tourStepIndex < TOUR_STEPS.length - 1) showTourStep(tourStepIndex + 1);
+      else endTour(true);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      if (tourStepIndex > 0) showTourStep(tourStepIndex - 1);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      endTour(false);
+    }
+  });
+  window.addEventListener("resize", positionTourElements);
+
+  // =========================================================================
+  // 5. SWIMMING FISH & SEEDED COHORT PARTICLES (GAUNTLET VISUALIZER)
   // =========================================================================
   const LOG_W_MIN = -3.0;
   const LOG_W_MAX = Math.log10(2200);
@@ -768,17 +1404,24 @@
   }));
 
   const foragePool = Array.from({ length: 65 }, () => ({
-    logW: -0.5 + Math.random() * 1.8,
+    logW: -1.2 + Math.random() * 2.48,
     yFrac: 0.16 + Math.random() * 0.72,
-    vx: (Math.random() - 0.5) * 0.015,
     phase: Math.random() * Math.PI * 2
   }));
 
   const predatorPool = Array.from({ length: 34 }, (_, idx) => ({
-    logW: idx < 18 ? (2.1 + Math.random() * 1.15) : (-1.5 + Math.random() * 3.5),
+    logW: idx < 18 ? (2.1 + Math.random() * 1.15) : (-1.0 + Math.random() * 4.2),
     yFrac: 0.18 + Math.random() * 0.68,
     phase: Math.random() * Math.PI * 2
   }));
+
+  function getLogGrowthStep(sp, logW) {
+    const u = (logW - (-3.0)) / (3.30103 - (-3.0));
+    const idx = Math.max(0, Math.min(engine.no_w - 1, Math.round(u * (engine.no_w - 1))));
+    const g = engine.e_growth[sp][idx];
+    const w = engine.w[idx];
+    return Math.max(0.0, (g / (w * 2.302585)) * 0.012);
+  }
 
   const trackedLarvae = [];
   const popups = [];
@@ -798,7 +1441,7 @@
   }
 
   // =========================================================================
-  // 4. DOM ELEMENTS, STAGE TABS & CONTROLS WIRING
+  // 6. DOM ELEMENTS, STAGE TABS & CONTROLS WIRING
   // =========================================================================
   const sliderFPred = document.getElementById("sliderFPred");
   const sliderFForage = document.getElementById("sliderFForage");
@@ -810,7 +1453,6 @@
   const stateBadge = document.getElementById("stateBadge");
   const stageHint = document.getElementById("stageHint");
 
-  // Stage Tabs Switching
   const panelGauntlet = document.getElementById("panel-gauntlet");
   const panelRegime = document.getElementById("panel-regime");
   const panelSpectra = document.getElementById("panel-spectra");
@@ -834,11 +1476,11 @@
       : "flex-1 min-h-0 hidden grid-cols-1 md:grid-cols-2 gap-3";
 
     if (tabName === "gauntlet") {
-      stageHint.textContent = "Watch 1 mg larvae swim the gauntlet on top while multi-century biomass unfolds below.";
+      stageHint.innerHTML = "Watch 1 mg larvae swim the gauntlet on top while multi-century biomass unfolds below.";
     } else if (tabName === "regime") {
-      stageHint.textContent = "Drag the crosshair on the 2D Regime Map (left) to tilt the Stability Landscape Bowl (right) in real time.";
+      stageHint.innerHTML = "Drag the crosshair on the 2D Regime Map (left) to tilt the Stability Landscape Bowl (right) in real time.";
     } else {
-      stageHint.textContent = "Compare live size spectra B(w) (left) with the larval predation mortality bottleneck μ_p(w) (right).";
+      stageHint.innerHTML = "Compare live size spectra <i>B</i>(<i>w</i>) (left) with the larval predation mortality bottleneck <i>μ</i><sub>p</sub>(<i>w</i>) (right).";
     }
   }
 
@@ -872,10 +1514,8 @@
     setEfforts(parseFloat(sliderFForage.value), parseFloat(sliderFPred.value));
   });
 
-  const btnPlayPause = document.getElementById("btnPlayPause");
   btnPlayPause.addEventListener("click", () => {
-    isRunning = !isRunning;
-    btnPlayPause.textContent = isRunning ? "⏸ Pause" : "▶ Play";
+    setPaused(isRunning);
   });
 
   document.querySelectorAll(".speed-btn").forEach(btn => {
@@ -909,13 +1549,52 @@
     spawnVisualCohort(1, 26, true);
     addEventMarker("Hatchery Seed (+Pred)", "#fb923c");
     recordHistoryPoint();
+
+    const [, bPred] = engine.getBiomass();
+    const r0Pred = engine.R0[1];
+    if (bPred < 50 && r0Pred < 1.0) {
+      showCommentaryPopup({
+        badge: "Hatchery Release Failed",
+        title: "Why Are the Hatchery Larvae Dying?",
+        htmlBody: `You just released a cohort of glowing predator larvae, but because uncultivated forage fish are at <strong>${engine.getBiomass()[0].toFixed(0)} g</strong>, larval mortality is <strong>${engine.pred_mort[1][engine.larvalIdx].toFixed(1)} /yr</strong> and <i>R</i><sub>0,Pred</sub> = <strong>${r0Pred.toFixed(2)} &lt; 1</strong>. Watch them get eaten in the red gauntlet!`,
+        speechText: `You just released a cohort of predator larvae, but because forage fish are uncultivated, larval mortality is ${engine.pred_mort[1][engine.larvalIdx].toFixed(0)} per year and R-naught is ${r0Pred.toFixed(2)}, which is less than 1. Watch them get eaten in the red gauntlet!`,
+        nextLabel: "Rescue by Fishing Forage (F = 0.30) →",
+        onNext: () => activateScenario("rescue")
+      });
+    } else if (bPred < 50 && r0Pred >= 1.0) {
+      showCommentaryPopup({
+        badge: "Breakthrough!",
+        title: "Hatchery Cohort Surviving the Gauntlet!",
+        htmlBody: `Because forage fishing (<i>F</i><sub>Forage</sub> = ${engine.effort[0].toFixed(2)}) has thinned out the larval gauntlet, <i>R</i><sub>0,Pred</sub> is now <strong>${r0Pred.toFixed(2)} &gt; 1</strong>! Watch the glowing larvae reach adulthood on the right and suppress the forage fish.`,
+        speechText: `Breakthrough! Because forage fishing has thinned out the larval gauntlet, Predator R-naught is now ${r0Pred.toFixed(2)}, greater than 1. Watch the larvae grow into adults and reclaim top-down control!`
+      });
+    }
   });
 
   document.getElementById("btnSeedForage").addEventListener("click", () => {
+    const [bForBefore, bPredBefore] = engine.getBiomass();
     engine.seedSpecies(0, 0.001);
     spawnVisualCohort(0, 22, true);
     addEventMarker("Forage Seed (+For)", "#38bdf8");
     recordHistoryPoint();
+
+    if (bForBefore < 1 && bPredBefore < 1) {
+      showCommentaryPopup({
+        badge: "Priority Effect Trap!",
+        title: "Forage Fish Colonized First → State C Trap!",
+        htmlBody: "Because Forage fish colonized the empty plankton sea before the Predator, they explode to <strong>2260 g</strong> (State C) and erect a lethal larval barrier (<i>R</i><sub>0,Pred</sub> = 0.46 &lt; 1) that blocks Predators from ever invading!",
+        speechText: "Because forage fish colonized the plankton sea before the predator, they explode to 2,260 grams and erect a lethal larval barrier that blocks predators from ever invading!",
+        nextLabel: "Try Seeding Predator Now (Will Fail) →",
+        onNext: () => document.getElementById("btnSeedPred").click()
+      });
+    } else if (bForBefore < 1 && bPredBefore > 100) {
+      showCommentaryPopup({
+        badge: "Successful Coexistence!",
+        title: "Forage Fish Invading State B → State A!",
+        htmlBody: "Because large Predators were already present (State B, 537 g), they keep the invading Forage fish cultivated at <strong>94 g</strong>—assembling the full 3-taxa Coexistence State A and boosting Predator biomass to 600 g!",
+        speechText: "Success! Because large predators were already established in State B, they keep the invading forage fish cultivated, assembling the full coexistence State A!"
+      });
+    }
   });
 
   document.getElementById("btnShockPred").addEventListener("click", () => {
@@ -924,12 +1603,18 @@
     engine.computeR0();
     addEventMarker("⚡ -80% Pred Shock", "#f43f5e");
     recordHistoryPoint();
+    showCommentaryPopup({
+      badge: "Environmental Shock",
+      title: "⚡ Storm Knocked Down 80% of Predators!",
+      htmlBody: `Predator biomass dropped suddenly. At current fleet effort (<i>F</i><sub>Forage</sub> = ${engine.effort[0].toFixed(2)}, <i>F</i><sub>Pred</sub> = ${engine.effort[1].toFixed(2)}), watch whether the remaining adults can hold the forage fish down or if the ecosystem tips into State C!`,
+      speechText: "An environmental shock just knocked down 80 percent of the predator stock. Watch whether the remaining adults can hold the forage fish down, or if the ecosystem tips into State C."
+    });
   });
 
   const btnToggleLogY = document.getElementById("btnToggleLogY");
   btnToggleLogY.addEventListener("click", () => {
     useLogHistory = !useLogHistory;
-    btnToggleLogY.textContent = useLogHistory ? "Log10 Scale" : "Linear Scale";
+    btnToggleLogY.textContent = useLogHistory ? "Log₁₀ Scale" : "Linear Scale";
     btnToggleLogY.className = useLogHistory
       ? "px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] bg-amber-500/20 text-amber-400"
       : "px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] hover:bg-white/5";
@@ -943,11 +1628,11 @@
   });
 
   // =========================================================================
-  // 5. GUIDED POLICY CHAPTERS & 570-YEAR AUTO-DIRECTOR
+  // 7. GUIDED POLICY CHAPTERS & 570-YEAR AUTO-DIRECTOR WITH VOICE COMMENTARY
   // =========================================================================
-  function setNarrative(title, text) {
-    narrativeTitle.textContent = title;
-    narrativeText.textContent = text;
+  function setNarrative(title, htmlText) {
+    narrativeTitle.innerHTML = title;
+    narrativeText.innerHTML = htmlText;
   }
 
   function highlightScenarioBtn(name) {
@@ -958,42 +1643,74 @@
 
   function activateScenario(name) {
     autoStoryActive = false;
+    collapseAlerted = false;
     highlightScenarioBtn(name);
-    isRunning = true;
-    btnPlayPause.textContent = "⏸ Pause";
+    setPaused(false);
 
     if (name === "stateA") {
       engine.loadState("State_A");
       setEfforts(0.0, 0.0, "State A (Unfished)");
       setNarrative(
         "Chapter 1 — Cultivated Coexistence:",
-        "Adult predators (600 g) suppress forage fish (94 g), keeping larval mortality low (1.5 /yr) so R0,Pred = 4.55 > 1."
+        "Adult predators (600 g) suppress forage fish (94 g), keeping larval mortality low (1.5 /yr) so <i>R</i><sub>0,Pred</sub> = 4.55 &gt; 1."
       );
+      showCommentaryPopup({
+        badge: "Chapter 1 of 5",
+        title: "The Healthy Cultivated Sea (State A)",
+        htmlBody: "Abundant adult predators (<strong>600 g</strong>) act as top-down 'gardeners,' cropping down forage fish to just <strong>94 g</strong>. Because forage fish are kept scarce, baby predators face mild larval mortality (<strong>1.5 /yr</strong>) and easily replace themselves (<i>R</i><sub>0,Pred</sub> = <strong>4.55</strong>).",
+        speechText: "Chapter 1: Cultivated Coexistence. Abundant adult predators act as gardeners, holding forage fish down to 94 grams. Because forage fish are scarce, baby predators easily survive the nursery gauntlet, with a replacement fitness R-naught of 4.55.",
+        nextLabel: "Next: Overfish the Predator →",
+        onNext: () => activateScenario("collapse")
+      });
     } else if (name === "collapse") {
       engine.loadState("State_A");
       setEfforts(0.0, 0.25, "Overfish Pred (F=0.25)");
       setNarrative(
-        "Chapter 2 — Selective Overfishing Cliff (F_Pred = 0.25 > 0.188):",
+        "Chapter 2 — Selective Overfishing Cliff (<i>F</i><sub>Pred</sub> = 0.25 &gt; 0.188):",
         "Eroding adult predators releases a 24× forage-fish explosion (2260 g), spiking larval mortality to 37.3 /yr and collapsing the predator!"
       );
+      showCommentaryPopup({
+        badge: "Chapter 2 of 5",
+        title: "Selective Overfishing Triggers a Trophic Cascade",
+        htmlBody: "We are now fishing only the large predator at <i>F</i><sub>Pred</sub> = <strong>0.25 /yr</strong> (above the critical cliff <i>F</i><sub>crit</sub> = 0.188). Watch the time series below: as adult predators thin out, silver forage fish explode <strong>24-fold to 2260 g</strong>, eating all predator larvae and collapsing the predator stock!",
+        speechText: "Chapter 2: Selective Overfishing. Fishing the predator at 0.25 per year pushes the stock past the tipping point. Watch as declining adult predators release a 24-fold explosion of forage fish, driving larval mortality to 37 per year and collapsing the predator!",
+        nextLabel: "Next: Enact a Moratorium →",
+        onNext: () => activateScenario("moratorium")
+      });
     } else if (name === "moratorium") {
       engine.loadState("State_C");
       setEfforts(0.0, 0.0, "Moratorium + Seed");
       engine.seedSpecies(1, 0.005);
       spawnVisualCohort(1, 30, true);
       setNarrative(
-        "Chapter 3 — The Moratorium Trap (F_Pred = 0, F_Forage = 0):",
-        "Predator fishing is banned and cohorts are seeded, yet all larvae are eaten in the 2260 g forage gauntlet (R0,Pred = 0.46 < 1)."
+        "Chapter 3 — The Moratorium Trap (<i>F</i><sub>Pred</sub> = 0, <i>F</i><sub>Forage</sub> = 0):",
+        "Predator fishing is banned and cohorts are seeded, yet all larvae are eaten in the 2260 g forage gauntlet (<i>R</i><sub>0,Pred</sub> = 0.46 &lt; 1)."
       );
+      showCommentaryPopup({
+        badge: "Chapter 3 of 5",
+        title: "The Paradox: Why a Complete Moratorium Fails",
+        htmlBody: "We have enacted a <strong>total ban on predator fishing (<i>F</i><sub>Pred</sub> = 0)</strong> and released a hatchery cohort of baby predators. Yet the ecosystem is locked in <strong>State C</strong>: 2260 g of forage fish devour every larva in the gauntlet (<i>R</i><sub>0,Pred</sub> = <strong>0.46 &lt; 1</strong>). Single-species conservation cannot recover the stock!",
+        speechText: "Chapter 3: The Moratorium Trap. Even with a complete ban on predator fishing and hatchery restocking, the predator fails to recover. The massive 2,260 gram forage fish population devours the larvae in the gauntlet, holding predator R-naught at 0.46, well below 1.",
+        nextLabel: "Next: Rescue via Forage Fishery →",
+        onNext: () => activateScenario("rescue")
+      });
     } else if (name === "rescue") {
       engine.loadState("State_C");
       setEfforts(0.30, 0.0, "Harvest Forage (F=0.30) + Seed");
       engine.seedSpecies(1, 0.005);
       spawnVisualCohort(1, 30, true);
       setNarrative(
-        "Chapter 4 — Trophic Rescue via Forage Fishery (F_Forage = 0.30 > 0.128):",
-        "Harvesting forage fish thins the gauntlet and lifts R0,Pred to 2.02 > 1! Watch seeded predators survive and reclaim control."
+        "Chapter 4 — Trophic Rescue via Forage Fishery (<i>F</i><sub>Forage</sub> = 0.30 &gt; 0.128):",
+        "Harvesting forage fish thins the gauntlet and lifts <i>R</i><sub>0,Pred</sub> to 2.02 &gt; 1! Watch seeded predators survive and reclaim control."
       );
+      showCommentaryPopup({
+        badge: "Chapter 4 of 5",
+        title: "The Counter-Intuitive Cure: Fish the Prey!",
+        htmlBody: "By opening a pelagic fishery on the forage fish (<i>F</i><sub>Forage</sub> = <strong>0.30 /yr</strong>, above the 0.128 invasion threshold), we artificially thin the larval gauntlet. Predator replacement fitness jumps to <i>R</i><sub>0,Pred</sub> = <strong>2.02 &gt; 1</strong>! Watch the seeded predators grow into adults and reclaim control.",
+        speechText: "Chapter 4: Trophic Rescue. By harvesting the forage fish at 0.30 per year, we thin out the larval gauntlet and lift predator R-naught to 2.02. Watch the baby predators survive through the gauntlet, grow into adults, and restore top-down balance!",
+        nextLabel: "Next: Try the Assembly Puzzle →",
+        onNext: () => activateScenario("assembly")
+      });
     } else if (name === "assembly") {
       engine.loadState("State_0");
       setEfforts(0.0, 0.0, "State 0 (Plankton Only)");
@@ -1001,6 +1718,24 @@
         "Chapter 5 — Assembly Puzzle (State 0):",
         "If Forage colonizes first, State C blocks Predators! Reset to State 0, seed Predators first (→ State B), then Forage (→ State A)."
       );
+      showCommentaryPopup({
+        badge: "Chapter 5 — Puzzle",
+        title: "Community Assembly Puzzle: Who Arrives First?",
+        htmlBody: "The sea currently has <strong>Plankton only (State 0)</strong>. If you introduce <strong>Forage Fish first</strong>, they lock the system into State C so Predators can never invade! Instead, click below to <strong>Seed the Predator FIRST</strong> (establishing State B), and then introduce the Forage Fish.",
+        speechText: "Chapter 5: The Community Assembly Puzzle. Starting from a plankton-only sea, order matters! If forage fish colonize first, they lock the predator out. Click the button below to seed the Predator first, establishing State B, and then introduce the forage fish!",
+        nextLabel: "Step 1: Seed Predator First →",
+        onNext: () => {
+          document.getElementById("btnSeedPred").click();
+          showCommentaryPopup({
+            badge: "Assembly Step 2",
+            title: "Predator Established (State B) — Now Add Forage!",
+            htmlBody: "The Predator is now thriving on plankton and establishing top-down control (State B). Wait ~20 years for Predator biomass to pass 300 g, then click below to introduce the Forage Fish into a cultivated sea!",
+            speechText: "Great! The predator is establishing State B. Once predator biomass builds up, click the button to introduce the forage fish into a cultivated sea!",
+            nextLabel: "Step 2: Seed Forage Fish →",
+            onNext: () => document.getElementById("btnSeedForage").click()
+          });
+        }
+      });
     } else if (name === "autodirector") {
       history.length = 0;
       events.length = 0;
@@ -1009,12 +1744,18 @@
       setEfforts(0.0, 0.0, "Phase 1: Unfished State A");
       autoStoryActive = true;
       autoStoryPhase = 1;
-      stepsPerFrame = 5;
+      stepsPerFrame = 3; // Paced so voice narration matches each phase!
       recordHistoryPoint();
       setNarrative(
         "Auto-Director [Phase 1/5, Yrs 0–50]:",
-        "Unfished Coexistence State A (B_Pred = 600 g, B_Forage = 94 g, R0,Pred = 4.55)."
+        "Unfished Coexistence State A (<i>B</i><sub>Pred</sub> = 600 g, <i>B</i><sub>Forage</sub> = 94 g, <i>R</i><sub>0,Pred</sub> = 4.55)."
       );
+      showCommentaryPopup({
+        badge: "Phase 1 / 5 (Years 0–50)",
+        title: "Phase 1: Unfished Cultivated Coexistence (State A)",
+        htmlBody: "We begin at the healthy unfished equilibrium. Large predators (<strong>600 g</strong>) cultivate the sea by holding forage fish down to <strong>94 g</strong>, keeping the nursery safe (<i>R</i><sub>0,Pred</sub> = 4.55). At Year 50, selective predator overfishing will begin.",
+        speechText: "Phase 1, Years 0 to 50: Unfished Coexistence. Large predators cultivate the ecosystem by holding forage fish down to 94 grams, keeping the nursery safe for their own larvae."
+      });
     }
   }
 
@@ -1032,8 +1773,14 @@
       setEfforts(0.0, 0.25, "Phase 2: Overfish Pred (F=0.25)");
       setNarrative(
         "Auto-Director [Phase 2/5, Yrs 50–200]:",
-        "Selective Predator Overfishing (F_Pred = 0.25 > F_crit = 0.188) triggers a 24× forage outbreak and predator collapse."
+        "Selective Predator Overfishing (<i>F</i><sub>Pred</sub> = 0.25 &gt; <i>F</i><sub>crit</sub> = 0.188) triggers a 24× forage outbreak and predator collapse."
       );
+      showCommentaryPopup({
+        badge: "Phase 2 / 5 (Years 50–200)",
+        title: "Phase 2: Selective Predator Overfishing → Collapse",
+        htmlBody: "The demersal fleet now harvests predators at <i>F</i><sub>Pred</sub> = <strong>0.25 /yr</strong> (above <i>F</i><sub>crit</sub> = 0.188) while leaving forage fish unharvested. Watch forage fish surge <strong>24-fold to 2260 g</strong>, driving the predator to extinction!",
+        speechText: "Phase 2, Years 50 to 200: Selective Predator Overfishing. Fishing predators above the critical threshold releases a 24-fold explosion of forage fish, collapsing the predator into State C."
+      });
     } else if (autoStoryPhase === 2 && y >= 200) {
       autoStoryPhase = 3;
       setEfforts(0.0, 0.0, "Phase 3: Moratorium + Seed");
@@ -1041,8 +1788,14 @@
       spawnVisualCohort(1, 30, true);
       setNarrative(
         "Auto-Director [Phase 3/5, Yrs 200–320]:",
-        "Complete Predator Moratorium (F = 0) + 0.5% seed fails because uncultivated forage fish inflict 37 /yr larval mortality (R0 = 0.46 < 1)."
+        "Complete Predator Moratorium (<i>F</i> = 0) + 0.5% seed fails because uncultivated forage fish inflict 37 /yr larval mortality (<i>R</i><sub>0</sub> = 0.46 &lt; 1)."
       );
+      showCommentaryPopup({
+        badge: "Phase 3 / 5 (Years 200–320)",
+        title: "Phase 3: Complete Predator Moratorium Fails!",
+        htmlBody: "At Year 200, managers enact a <strong>complete fishing ban (<i>F</i><sub>Pred</sub> = 0)</strong> and seed baby predators. Because uncultivated forage fish inflict <strong>37 /yr larval mortality</strong> (<i>R</i><sub>0,Pred</sub> = 0.46 &lt; 1), the seeded predators are eaten and decay back to zero!",
+        speechText: "Phase 3, Years 200 to 320: Predator Moratorium Fails. Even under a total fishing ban and hatchery seeding, uncultivated forage fish devour the predator larvae, and the stock decays back toward extinction."
+      });
     } else if (autoStoryPhase === 3 && y >= 320) {
       autoStoryPhase = 4;
       setEfforts(0.30, 0.0, "Phase 4: Harvest Forage (F=0.30)");
@@ -1050,15 +1803,27 @@
       spawnVisualCohort(1, 30, true);
       setNarrative(
         "Auto-Director [Phase 4/5, Yrs 320–470]:",
-        "Harvesting Forage Fish (F_Forage = 0.30) raises R0,Pred = 2.02 > 1, allowing seeded predators to break through and rebuild!"
+        "Harvesting Forage Fish (<i>F</i><sub>Forage</sub> = 0.30) raises <i>R</i><sub>0,Pred</sub> = 2.02 &gt; 1, allowing seeded predators to break through and rebuild!"
       );
+      showCommentaryPopup({
+        badge: "Phase 4 / 5 (Years 320–470)",
+        title: "Phase 4: Forage Fishery Unlocks Predator Recovery!",
+        htmlBody: "At Year 320, managers harvest the forage fish at <i>F</i><sub>Forage</sub> = <strong>0.30 /yr</strong> alongside a predator seed. Thinning the forage fish lowers larval mortality enough to raise <i>R</i><sub>0,Pred</sub> to <strong>2.02 &gt; 1</strong>. Watch the orange predator curve climb back to the top!",
+        speechText: "Phase 4, Years 320 to 470: Trophic Rescue via Forage Harvesting. Fishing the forage fish thins the larval gauntlet and raises predator R-naught above 2. The predator successfully invades, grows exponentially, and suppresses the forage fish!"
+      });
     } else if (autoStoryPhase === 4 && y >= 470) {
       autoStoryPhase = 5;
       setEfforts(0.0, 0.0, "Phase 5: All Fishing Halted");
       setNarrative(
         "Auto-Director [Phase 5/5, Yrs 470–570]:",
-        "All fishing halted (F = 0). Restored adult predators maintain top-down cultivation—State A is self-sustaining again!"
+        "All fishing halted (<i>F</i> = 0). Restored adult predators maintain top-down cultivation—State A is self-sustaining again!"
       );
+      showCommentaryPopup({
+        badge: "Phase 5 / 5 (Years 470–570)",
+        title: "Phase 5: Self-Sustaining Restoration Achieved",
+        htmlBody: "At Year 470, forage-fish harvesting is halted (<i>F</i><sub>Forage</sub> = 0, <i>F</i><sub>Pred</sub> = 0). Because the rebuilt adult predator guild now maintains top-down control on the forage fish, Coexistence <strong>State A</strong> is permanently self-sustaining!",
+        speechText: "Phase 5, Years 470 to 570: Self-Sustaining Restoration. All fishing is now halted. Because adult predators have reclaimed top-down control over the forage fish, the ecosystem remains permanently healthy on its own!"
+      });
     } else if (autoStoryPhase === 5 && y >= 570) {
       autoStoryActive = false;
       isRunning = false;
@@ -1067,11 +1832,23 @@
         "570-Year Trajectory Complete!",
         "Switch across the 3 tabs above or drag the fleet sliders on the left to explore any regime."
       );
+      showCommentaryPopup({
+        badge: "Simulation Complete",
+        title: "570-Year Hysteresis Loop Complete!",
+        htmlBody: "You just saw why single-species moratoria fail under cultivation–depensation and how balanced harvesting restores the ecosystem. Click below to explore the <strong>2D Cusp Regime Map &amp; Stability Bowl</strong> in Tab 2!",
+        speechText: "The 570-year management trajectory is complete! Click the button in the pop-up card to explore the 2D Regime Map and Stability Bowl in Tab 2.",
+        nextLabel: "Open Tab 2: 2D Regime Map →",
+        onNext: () => {
+          switchStageTab("regime");
+          isRunning = true;
+          btnPlayPause.textContent = "⏸ Pause";
+        }
+      });
     }
   }
 
   // =========================================================================
-  // 6. INTERACTIVE 2D REGIME MAP CROSSHAIR DRAGGING (TAB 2 LEFT)
+  // 8. INTERACTIVE 2D REGIME MAP CROSSHAIR DRAGGING (TAB 2 LEFT)
   // =========================================================================
   const regimeCanvas = document.getElementById("regimeCanvas");
   let isDraggingMap = false;
@@ -1128,7 +1905,7 @@
   }
 
   // =========================================================================
-  // 7. CANVAS RESIZE HELPER (SAFE FOR HIDDEN TABS)
+  // 9. CANVAS RESIZE HELPER (SAFE FOR HIDDEN TABS)
   // =========================================================================
   function prepCanvas(canvas) {
     const rect = canvas.getBoundingClientRect();
@@ -1146,7 +1923,7 @@
   }
 
   // =========================================================================
-  // 8. TAB 1 TOP: THE ONTOGENETIC NURSERY GAUNTLET
+  // 10. TAB 1 TOP: THE ONTOGENETIC NURSERY GAUNTLET
   // =========================================================================
   const gauntletCanvas = document.getElementById("gauntletCanvas");
 
@@ -1245,12 +2022,12 @@
     }
     ctx.restore();
 
-    // 4. Plankton dots
+    // 4. Plankton dots (bob vertically only; fixed body mass logW)
     const planktonDepletion = Math.max(0.15, 1.0 - 0.75 * Math.min(1, bFor / 2000));
     for (const p of planktonDots) {
-      p.phase += 0.03;
-      const px = logWToX(p.logW, width, padL, padR) + Math.sin(p.phase) * 3;
-      const py = padT + p.yFrac * (height - padT - padB);
+      if (isRunning) p.phase += 0.03;
+      const px = logWToX(p.logW, width, padL, padR);
+      const py = padT + p.yFrac * (height - padT - padB) + Math.sin(p.phase) * 3;
       const inGrazedBand = p.logW >= -1.8 && p.logW <= -0.2;
       ctx.fillStyle = inGrazedBand
         ? `rgba(74, 222, 128, ${0.45 * planktonDepletion})`
@@ -1260,29 +2037,39 @@
       ctx.fill();
     }
 
-    // 5. Forage fish school
+    // 5. Forage fish school (strictly growing rightward dw/dt = g_Forage(w) >= 0)
     const activeForageCount = bFor < 0.1 ? 0 : Math.min(foragePool.length, Math.max(4, Math.round(8 + (bFor / 2260) * 57)));
     for (let i = 0; i < activeForageCount; i++) {
       const f = foragePool[i];
-      f.phase += 0.06;
-      const targetMin = dangerFrac > 0.4 ? -1.8 : -0.2;
-      f.logW += f.vx;
-      if (f.logW < targetMin) { f.logW = targetMin; f.vx = Math.abs(f.vx); }
-      if (f.logW > 1.30) { f.logW = 1.30; f.vx = -Math.abs(f.vx); }
+      if (isRunning) {
+        f.phase += 0.06;
+        f.logW += getLogGrowthStep(0, f.logW);
+        if (f.logW >= 1.28 || (f.logW > 0.6 && Math.random() < 0.004)) {
+          f.logW = -2.2 + Math.random() * 0.8;
+          f.yFrac = 0.16 + Math.random() * 0.72;
+        }
+      }
 
       const fx = logWToX(f.logW, width, padL, padR);
       const fy = padT + (f.yFrac + 0.02 * Math.sin(f.phase)) * (height - padT - padB);
       const sz = 4.0 + Math.max(0, (f.logW + 1.5) * 2.2);
-      drawFishIcon(ctx, fx, fy, sz, "#38bdf8", f.vx >= 0, 0.88);
+      drawFishIcon(ctx, fx, fy, sz, "#38bdf8", true, 0.88);
     }
 
-    // 6. Predator pool
+    // 6. Predator pool (strictly growing rightward dw/dt = g_Pred(w) >= 0)
     const activePredCount = bPred < 0.05 ? 0 : Math.min(predatorPool.length, Math.max(1, Math.round((bPred / 600) * 28)));
     for (let i = 0; i < activePredCount; i++) {
       const pr = predatorPool[i];
-      pr.phase += 0.04;
-      const px = logWToX(pr.logW, width, padL, padR) + Math.sin(pr.phase) * 5;
-      const py = padT + (pr.yFrac + 0.015 * Math.cos(pr.phase)) * (height - padT - padB);
+      if (isRunning) {
+        pr.phase += 0.04;
+        pr.logW += getLogGrowthStep(1, pr.logW);
+        if (pr.logW >= 3.26 || (pr.logW > 2.4 && Math.random() < 0.0025)) {
+          pr.logW = 1.2 + Math.random() * 1.1;
+          pr.yFrac = 0.18 + Math.random() * 0.68;
+        }
+      }
+      const px = logWToX(pr.logW, width, padL, padR);
+      const py = padT + (pr.yFrac + 0.018 * Math.cos(pr.phase)) * (height - padT - padB);
       const sz = 4.5 + Math.max(0, (pr.logW + 2.5) * 2.5);
       drawFishIcon(ctx, px, py, sz, "#fb923c", true, 0.92);
     }
@@ -1293,13 +2080,12 @@
       if (bFor > 8.0 && Math.random() < 0.5) spawnVisualCohort(0, 1, false);
     }
 
-    // 8. Tracked larvae swimming rightward
+    // 8. Tracked larvae swimming rightward (dw/dt = g_i(w) >= 0)
     for (let i = trackedLarvae.length - 1; i >= 0; i--) {
       const lv = trackedLarvae[i];
       lv.age++;
       if (isRunning) {
-        const growthSpeed = lv.species === 1 ? 0.024 : 0.032;
-        lv.logW += growthSpeed;
+        lv.logW += Math.max(0.004, getLogGrowthStep(lv.species, lv.logW));
         lv.yFrac = Math.max(0.14, Math.min(0.86, lv.yFrac + lv.vy));
 
         if (lv.species === 1 && lv.logW >= -2.0 && lv.logW <= -0.65) {
@@ -1366,7 +2152,7 @@
     ctx.fillStyle = "#f43f5e";
     ctx.textAlign = "center";
     ctx.fillText(
-      `LARVAL GAUNTLET (μ_p = ${larvalMort.toFixed(1)} /yr)`,
+      `LARVAL GAUNTLET (μₚ = ${larvalMort.toFixed(1)} /yr)`,
       0.5 * (xGauntletL + xGauntletR),
       padT - 8
     );
@@ -1411,7 +2197,7 @@
   }
 
   // =========================================================================
-  // 9. TAB 2 LEFT: 2D EXPLOITATION REGIME DIAGRAM
+  // 11. TAB 2 LEFT: 2D EXPLOITATION REGIME DIAGRAM
   // =========================================================================
   function renderRegimeMap() {
     const prep = prepCanvas(regimeCanvas);
@@ -1430,7 +2216,6 @@
     const reg = MODEL_DATA.regime;
     const n = reg.F_Forage.length;
 
-    // Monostable Coexistence (Green)
     ctx.fillStyle = "rgba(16, 185, 129, 0.24)";
     ctx.beginPath();
     ctx.moveTo(toX(reg.F_Forage[0]), toY(0));
@@ -1439,7 +2224,6 @@
     ctx.closePath();
     ctx.fill();
 
-    // Bistable Wedge (Amber)
     ctx.fillStyle = "rgba(245, 158, 11, 0.30)";
     ctx.beginPath();
     for (let i = 0; i < n; i++) {
@@ -1454,7 +2238,6 @@
     ctx.closePath();
     ctx.fill();
 
-    // Forage-Dominated (Blue)
     ctx.fillStyle = "rgba(56, 189, 248, 0.18)";
     ctx.beginPath();
     for (let i = 0; i < n; i++) {
@@ -1468,7 +2251,6 @@
     ctx.closePath();
     ctx.fill();
 
-    // Transcritical curve
     ctx.strokeStyle = "#10b981";
     ctx.lineWidth = 2.2;
     ctx.setLineDash([6, 4]);
@@ -1485,7 +2267,6 @@
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Fold curve
     ctx.strokeStyle = "#f97316";
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -1499,7 +2280,6 @@
     }
     ctx.stroke();
 
-    // Cusp point
     const cxCusp = toX(0.35);
     const cyCusp = toY(0.292);
     ctx.fillStyle = "#ffffff";
@@ -1530,7 +2310,6 @@
     ctx.fillStyle = "#7dd3fc";
     ctx.fillText("Forage-Dominated (State C only)", toX(0.05), toY(0.41));
 
-    // Crosshair
     const curX = toX(engine.effort[0]);
     const curY = toY(engine.effort[1]);
 
@@ -1579,7 +2358,7 @@
   }
 
   // =========================================================================
-  // 10. TAB 2 RIGHT: STABILITY LANDSCAPE & MARBLE
+  // 12. TAB 2 RIGHT: STABILITY LANDSCAPE & MARBLE
   // =========================================================================
   const landscapeCanvas = document.getElementById("landscapeCanvas");
 
@@ -1680,10 +2459,10 @@
     ctx.textAlign = "center";
     if (fPred > fInv && fPred < fCrit && fFor < 0.35) {
       ctx.fillStyle = "#fbbf24";
-      ctx.fillText("▲ Depensatory Allee Barrier (R0,Pred < 1 in C)", padL + plotW * 0.48, height - 12);
+      ctx.fillText("▲ Depensatory Allee Barrier (R₀,Pred < 1 in C)", padL + plotW * 0.48, height - 12);
     } else if (fPred <= fInv) {
       ctx.fillStyle = "#34d399";
-      ctx.fillText("✓ Barrier Eliminated (R0,Pred > 1 in C → Predator Invades!)", padL + plotW * 0.5, height - 12);
+      ctx.fillText("✓ Barrier Eliminated (R₀,Pred > 1 in C → Predator Invades!)", padL + plotW * 0.5, height - 12);
     } else {
       ctx.fillStyle = "#38bdf8";
       ctx.fillText("State A Collapsed (F_Pred > F_crit → Rolls into State C)", padL + plotW * 0.5, height - 12);
@@ -1692,13 +2471,12 @@
   }
 
   // =========================================================================
-  // 11. TAB 3: SIDE-BY-SIDE LIVE SIZE SPECTRA & LARVAL MORTALITY WALL
+  // 13. TAB 3: SIDE-BY-SIDE LIVE SIZE SPECTRA & LARVAL MORTALITY WALL
   // =========================================================================
   const spectraCanvas = document.getElementById("spectraCanvas");
   const mortalityCanvas = document.getElementById("mortalityCanvas");
 
   function renderSpectraAndMortality() {
-    // Left Canvas: Live Size Spectra B(w) = N(w)*w^2
     const prepSpec = prepCanvas(spectraCanvas);
     if (prepSpec) {
       const { ctx, width, height } = prepSpec;
@@ -1763,19 +2541,18 @@
 
       ctx.fillStyle = "#94a3b8";
       ctx.textAlign = "center";
-      for (const lw of [-4, -2, 0, 2, 3.3]) {
-        ctx.fillText(`10^${lw}`, toX(lw), height - 18);
+      for (const [lw, lbl] of [[-4, "10⁻⁴"], [-2, "10⁻²"], [0, "10⁰"], [2, "10²"], [3.3, "2000"]]) {
+        ctx.fillText(lbl, toX(lw), height - 18);
       }
-      ctx.fillText("Body Mass w [g] (log10)", padL + plotW * 0.5, height - 4);
+      ctx.fillText("Body Mass w [g] (log₁₀)", padL + plotW * 0.5, height - 4);
 
       ctx.textAlign = "right";
-      for (const lb of [-2, 0, 2]) {
-        ctx.fillText(`10^${lb}`, padL - 6, toY(lb) + 4);
+      for (const [lb, lbl] of [[-2, "10⁻²"], [0, "10⁰"], [2, "10²"]]) {
+        ctx.fillText(lbl, padL - 6, toY(lb) + 4);
       }
       ctx.textAlign = "left";
     }
 
-    // Right Canvas: Larval Predation Mortality Wall mu_p,Pred(w)
     const prepMort = prepCanvas(mortalityCanvas);
     if (prepMort) {
       const { ctx, width, height } = prepMort;
@@ -1818,7 +2595,7 @@
 
       ctx.font = "bold 12px sans-serif";
       ctx.fillStyle = "#fbbf24";
-      ctx.fillText("━ Live μ_p,Pred(w)", padL + 10, padT + 18);
+      ctx.fillText("━ Live μₚ,Pred(w)", padL + 10, padT + 18);
       ctx.fillStyle = "#f43f5e";
       ctx.fillText("╌ State C (37.3 /yr)", padL + 138, padT + 18);
       ctx.fillStyle = "#10b981";
@@ -1841,7 +2618,7 @@
   }
 
   // =========================================================================
-  // 12. TAB 1 BOTTOM: LIVE MULTI-CENTURY BIOMASS TIME SERIES
+  // 14. TAB 1 BOTTOM: LIVE MULTI-CENTURY BIOMASS TIME SERIES
   // =========================================================================
   const historyCanvas = document.getElementById("historyCanvas");
 
@@ -1941,7 +2718,7 @@
   }
 
   // =========================================================================
-  // 13. UPDATE DOM KPI CARDS & STATUS BADGES
+  // 15. UPDATE DOM KPI CARDS & STATUS BADGES
   // =========================================================================
   const kpiPredBio = document.getElementById("kpiPredBio");
   const kpiPredPct = document.getElementById("kpiPredPct");
@@ -1996,6 +2773,19 @@
       kpiGauntletStatus.className = "text-xs font-semibold text-rose-400 mt-0.5 truncate";
     }
 
+    // Reactive commentary alert when predator collapses in manual sandbox mode
+    if (!autoStoryActive && bPred < 15.0 && bFor > 1500.0 && !collapseAlerted && engine.effort[1] > 0.15) {
+      collapseAlerted = true;
+      showCommentaryPopup({
+        badge: "Regime Shift Alert!",
+        title: "Predator Collapsed into the State C Forage Trap!",
+        htmlBody: "The Predator has fallen below the critical cultivation threshold, allowing Forage fish to surge past <strong>2000 g</strong> and erect a <strong>37 /yr larval mortality wall</strong>. Try enacting a Moratorium now to see if the Predator can recover on its own!",
+        speechText: "Regime Shift Alert! The predator has collapsed into the State C forage trap, and larval mortality has spiked to 37 per year. Click the button in the pop-up to test a complete predator moratorium!",
+        nextLabel: "Test Predator Moratorium (F = 0) →",
+        onNext: () => activateScenario("moratorium")
+      });
+    }
+
     if (bPred > 50 && bFor > 10) {
       stateBadge.textContent = "State A: Cultivated Coexistence";
       stateBadge.className = "px-2 py-0.5 text-xs rounded-md font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
@@ -2033,7 +2823,7 @@
   }
 
   // =========================================================================
-  // 14. MAIN 60 FPS SIMULATION & RENDER LOOP
+  // 16. MAIN 60 FPS SIMULATION & RENDER LOOP
   // =========================================================================
   let frameCounter = 0;
   function animate() {
@@ -2070,7 +2860,6 @@
 
   requestAnimationFrame(animate);
 })();
-
   </script>
 </body>
 </html>
