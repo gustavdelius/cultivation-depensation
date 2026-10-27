@@ -444,9 +444,10 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
 .tour-card {
   position: fixed;
   width: min(360px, calc(100vw - 32px));
-  background: var(--panel);
+  /* Tinted so the card never reads as part of the panel it points at */
+  background: color-mix(in srgb, var(--accent) 13%, var(--panel));
   color: var(--ink);
-  border: 1px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--panel));
   border-radius: var(--radius);
   padding: 16px 18px;
   display: grid; gap: 8px;
@@ -2059,10 +2060,6 @@ html.touring .viewer { position: static; }
         text: "Set how hard each species is fished. F is the yearly fishing mortality; the line beneath turns it into the share of catchable fish taken each year. A padlock means a lever is fixed in this mission." },
       { el: "#viewer", view: "sea", place: SIDE, title: "A live sea",
         text: "The model runs as you watch: orange predators and their tiny young, pale forage fish, green plankton and a boat for each step of fishing. Play, pause and speed (model years per second) are in the bar on top." },
-      { el: ".status-strip", title: "Stocks and catches",
-        text: "Each stock compared with the healthy, unfished sea, and this year's catches in thousand tonnes." },
-      { el: ".deck .gauge", title: "The comeback number",
-        text: "The number to watch. It is how many offspring a predator would leave if predators were rare. Above 1 a small stock grows back. Below 1 it dies out even with no fishing: that is the nursery trap." },
       { el: "#viewer", view: "log", place: SIDE, title: "The logbook",
         text: "Stocks, catches and fishing pressure over the last 200 years. Hover to read any year. The dashed lines mark the healthy sea." },
       { el: "#viewer", view: "policy", place: SIDE, title: "The policy chart",
@@ -2072,6 +2069,10 @@ html.touring .viewer { position: static; }
             : "The black dot is your policy. Click the chart to set both levers at once.") },
       { el: "#viewer", view: "nursery", place: SIDE, title: "The nursery",
         text: "Deaths per year for young predators of each size, now and in a healthy and a forage-dominated sea. When forage fish boom, the danger rises steeply and few young survive to 1 gram." },
+      { el: ".status-strip", title: "Stocks and catches",
+        text: "Each stock compared with the healthy, unfished sea, and this year's catches in thousand tonnes." },
+      { el: ".deck .gauge", title: "The comeback number",
+        text: "The number to watch. It is how many offspring a predator would leave if predators were rare. Above 1 a small stock grows back. Below 1 it dies out even with no fishing: that is the nursery trap." },
       { el: "#tour-btn", title: "Ready to fish",
         text: "Mission 1 asks how hard you can fish the predator. Replay this tour any time from this button." },
     ];
