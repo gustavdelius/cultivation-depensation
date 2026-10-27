@@ -1,7 +1,7 @@
 ---
-title: "Cultivation--Depensation, Sequential Community Assembly, and Balanced Exploitation in a Minimal Size-Spectrum Food Web"
+title: "Cultivation--Depensation, Priority Effects, and Forage-Fish Harvesting in a Minimal Size-Spectrum Food Web"
 author: "Size-Spectrum Ecological Modelling Study"
-date: "`r format(Sys.Date(), '%B %d, %Y')`"
+date: "`r source('paper_setup.R'); format(Sys.Date(), '%B %d, %Y')`"
 output:
   bookdown::pdf_document2:
     toc: false
@@ -9,7 +9,6 @@ output:
     keep_tex: true
     fig_caption: true
     latex_engine: pdflatex
-    template: template.tex
   bookdown::html_document2:
     toc: true
     toc_float: true
@@ -20,7 +19,7 @@ link-citations: true
 geometry: margin=1in
 fontsize: 11pt
 abstract: |
-  The cultivation--depensation hypothesis proposes that large piscivorous fishes promote the survival of their own early life stages by cropping down smaller forage fishes that would otherwise prey upon or compete with predator larvae and juveniles. Here we formulate and analyze a minimal, mechanistic three-taxa size-spectrum model in `mizer` comprising a semichemostat plankton resource, a small-bodied forage fish ($w_\infty = 20\text{ g}$), and a large-bodied predator ($w_\infty = 2000\text{ g}$). Because both fish species spawn offspring at milligram sizes ($w_{\min} = 10^{-3}\text{ g}$) and feed according to gape-limited predator--prey mass ratios, ontogenetic role reversal arises naturally: adult predators cultivate the system by suppressing forage fish, whereas abundant forage fish impose an intense predation gauntlet on predator larvae. Under identical biological parameters in the absence of fishing, the model possesses four ecologically meaningful equilibria: a plankton-only baseline (State 0), a stable three-taxa coexistence equilibrium (State A), a stable plankton--predator subsystem (State B), and a stable plankton--forage-fish subsystem (State C). Exact discrete invasion reproduction numbers ($R_0$) reveal a strict priority effect in community assembly: forage fish readily invade State B ($R_{0,\text{Forage}} = 2.59 > 1$) to assemble the coexistence state (State A), whereas predators cannot invade State C ($R_{0,\text{Predator}} = 0.46 < 1$) because uncultivated forage fish expand $24$-fold and elevate larval predation mortality from $1.5\text{ year}^{-1}$ to $37\text{ year}^{-1}$. Subjecting the predator to selective fishing mortality ($F_{\text{Pred}}$) while leaving forage fish unharvested ($F_{\text{Forage}} = 0$) preserves coexistence below a critical fold threshold ($F_{\text{crit}} \approx 0.188\text{ year}^{-1}$), above which the predator collapses catastrophically into State C and cannot recover even under a complete fishing moratorium ($F_{\text{Pred}} = 0$). Harvesting the forage fish fulfills both a preventative and a restorative role: it holds the exploited predator in the ecosystem at fishing mortalities well above $F_{\text{crit}}$ and, once $F_{\text{Forage}}$ exceeds a transcritical invasion threshold ($F_{\text{Forage,inv}} = 0.128\text{ year}^{-1}$), enables predator re-entry from State C. Mapping the two-parameter $(F_{\text{Forage}}, F_{\text{Pred}})$ phase diagram reveals that the subcritical fold and transcritical invasion boundaries meet at a codimension-2 cusp bifurcation at $(F_{\text{Forage}}, F_{\text{Pred}}) \approx (0.35, 0.29)\text{ year}^{-1}$, demonstrating how balanced exploitation across trophic guilds eliminates depensatory regime shifts.
+  The cultivation--depensation hypothesis proposes that large piscivorous fishes promote the survival of their own early life stages by cropping down smaller forage fishes that would otherwise prey upon or compete with predator larvae. We formulate a minimal three-taxa size-spectrum model in `mizer`: a semichemostat plankton resource, a small forage fish ($w_\infty = 20$ g) and a large predator ($w_\infty = 2000$ g), both spawning at $10^{-3}$ g. Individual variability in growth enters as size diffusion, and the equations are solved with a second-order scheme so that numerical diffusion, which in `mizer`'s default first-order scheme is as large as the physical diffusion, does not determine the results. Without fishing the model has a stable coexistence state (A), a stable plankton--forage state (C) and an unstable interior saddle separating them; the plankton--predator state (B) is stable within its own subspace but is invaded by forage fish. Discrete invasion reproduction numbers give a priority effect: forage fish invade B ($R_{0} = `r fmt(state("State_B")$R0_Forage)`$) and the community assembles to A, whereas predators cannot invade C ($R_{0} = `r fmt(state("State_C")$R0_Predator)`$). Decomposing $R_0$ shows that the barrier is larval predation, not competition: forage fish in C raise peak predation mortality on predator larvae from `r fmt(res$larval_predmort$max_A, 1)` to `r fmt(res$larval_predmort$max_C, 1)` year$^{-1}$, whereas the extra food they provide would on its own raise the predator's $R_0$. Selective fishing on the predator alone collapses it at a fold bifurcation at $F_{\text{Pred}} = `r fmt(res$F_crit, 3)`$ year$^{-1}$, after which a moratorium does not restore it. Harvesting the forage fish raises this collapse threshold. Above $F_{\text{Forage}} = `r fmt(res$F_forage_inv, 3)`$ year$^{-1}$ the predator can invade C, but a reintroduced predator returns to the abundant state only above $F_{\text{Forage}} = `r fmt(res$F_forage_rec, 3)`$ year$^{-1}$; in between it persists at low abundance. Mapping the $(F_{\text{Forage}}, F_{\text{Pred}})$ plane shows that invasion of C leads first to a low-abundance predator state, so that the fold of the abundant state and the invasion boundary do not meet in a single point, and that the collapse of the abundant state remains abrupt until the hysteresis closes in a cusp at $F_{\text{Forage}} \approx `r cusp_range`$ year$^{-1}$. The depensation is not robust to cannibalism: it disappears once forage fish prey on their own larvae at more than about `r fmt(100 * res$theta_FF_crit / 0.95, 0)`% of the rate at which they prey on predator larvae ($\theta_{\text{For,For}} > `r fmt(res$theta_FF_crit, 3)`$), or once predator cannibalism exceeds $\theta_{\text{Pred,Pred}} = `r fmt(res$theta_PP_crit, 3)`$.
 ---
 
 ```{r setup, include=FALSE}
@@ -35,282 +34,364 @@ knitr::opts_chunk$set(
 
 # Introduction
 
-A central paradox in marine fisheries ecology is the failure of several major piscivorous fish stocks—most notably Northwest Atlantic cod (*Gadus morhua*)—to recover following the imposition of strict fishing moratoria [@swain2000pelagic; @walters2001cultivation; @frank2005trophic]. Standard single-species stock--recruitment theory [@beverton1957dynamics] predicts that when recruitment is governed by compensatory density dependence, reducing fishing mortality ($F$) below the maximum sustainable yield threshold should allow a depleted population to rebound monotonically toward its unfished biomass. In many collapsed marine ecosystems, however, the depletion of large demersal predators was accompanied by an explosive increase in the biomass of small pelagic forage fishes (such as herring, sprat, capelin, and mackerel), which subsequently locked the ecosystem into an alternative, forage-fish-dominated regime [@swain2000pelagic; @frank2005trophic].
+A long-standing puzzle in fisheries ecology is the slow or absent recovery of several piscivorous stocks after fishing was curtailed, most prominently Northwest Atlantic cod (*Gadus morhua*) [@swain2000pelagic; @walters2001cultivation; @frank2005trophic]. Single-species stock--recruitment theory with compensatory density dependence [@beverton1957dynamics] predicts that a depleted stock rebounds once fishing mortality is reduced. In several collapsed ecosystems, however, the decline of large demersal predators was accompanied by increases in small pelagic forage fishes, and the forage fishes were suspected of holding the predators down through predation on their eggs and larvae and through competition with their juveniles [@swain2000pelagic; @frank2005trophic; @swain2012forage].
 
-To explain these dynamics, @walters2001cultivation formulated the *cultivation--depensation hypothesis*. Under this mechanism, abundant adult piscivores "cultivate" a favorable nursery environment for their own offspring by top-down predation on small-bodied forage species. When selective fishing depletes the adult predator guild, forage fishes are released from predation control and expand to high abundances, where they prey directly upon—or compete intensely with—the eggs, larvae, and early juveniles of the large predator. The resulting survival bottleneck generates an emergent Allee effect (depensation) at the population level: once the predator falls below the biomass required to suppress its forage-fish prey, per-capita juvenile survival plummets and the predator is driven to local extinction.
+@walters2001cultivation formalised this as the *cultivation--depensation* hypothesis. Abundant adult piscivores "cultivate" a favourable nursery environment by cropping down forage species; when fishing removes the adults, the forage species are released and suppress juvenile survival of the predator, producing an emergent Allee effect (depensation) at the population level. The empirical evidence is mixed. Across the North Atlantic, the abundance of small pelagics is negatively associated with cod recruitment in some stocks but not others [@minto2012interactions], and on the eastern Scotian Shelf a forage-fish outbreak was later followed by a collapse of the forage fish and the first signs of cod recovery [@frank2011transient], showing that a predator-depleted state need not be permanent. Predator--prey role reversal of this kind is also known from benthic systems [@barkai1988predator] and has been proposed as a mechanism of hysteresis in the North Sea [@fauchald2010predator].
 
-While originally framed using age-structured single-species or coupled biomass models [@walters2001cultivation], cultivation--depensation is fundamentally a consequence of body-size structure and gape-limited trophic interactions [@deroos2002size; @vanleeuwen2008individual; @deroos2013population; @andersen2019fish]. In marine teleosts, both small forage fishes ($w_\infty \sim 10\text{--}50\text{ g}$) and large apex predators ($w_\infty \sim 10^3\text{--}10^4\text{ g}$) begin life as millimeter-scale pelagic eggs and larvae weighing roughly $w_{\min} \sim 10^{-3}\text{ g}$ [@andersen2006asymptotic; @hartvig2011food]. Because aquatic predators typically consume prey that are two orders of magnitude smaller in body mass ($\beta \sim 100\text{--}200$), a growing predator cohort must traverse the exact size window ($w \in [10^{-3}, 10^{-1}]\text{ g}$) where it falls squarely within the feeding kernel of adult forage fish ($w \in [1, 20]\text{ g}$). Only after surviving this early ontogenetic gauntlet and growing past $w \sim 50\text{--}200\text{ g}$ does the predator reverse the trophic relationship and begin preying upon the forage fish.
+Size-structured population theory has identified several distinct routes to such alternative stable states. In stage-structured consumer--resource models, predators that feed on one life stage of their prey can generate bistability and an emergent Allee effect through food-dependent development of the prey [@deroos2002size; @vankooten2005bistability; @deroos2013population], a mechanism that is different from cultivation--depensation but produces similar population-level signatures [@gardmark2015regime; @vanleeuwen2008cod]. When predator and prey each eat the other's young, the system is a form of life-history intraguild predation, whose coexistence and assembly properties depend strongly on which species is the better competitor for the shared resource [@holt1997theoretical; @hin2011coexistence]. The management implication that a predator can be restored by culling its competitors and predators of its young has been demonstrated experimentally in a whole lake [@persson2007culling] and explored in models of marine reserves [@baskett2006predation].
 
-This ontogenetic role reversal has two major theoretical implications that we investigate in this paper:
+Multispecies size-spectrum models [@andersen2006asymptotic; @hartvig2011food; @andersen2019fish] describe every fish species from egg to adult, with feeding governed by a size-based prey preference rather than by species identity. Both a 20 g forage fish and a 2 kg piscivore start life at roughly a milligram, so a predator larva necessarily passes through the size window in which adult forage fish feed, and only later grows large enough to eat them. Size-spectrum models have been used to study coexistence of size-structured species [@hartvig2013coexistence], the community effects of rebuilding plans [@andersen2010direct] and balanced exploitation [@law2012balanced; @jacobsen2014consequences; @law2016balanced]. Here we ask whether the standard size-spectrum dynamics implemented in `mizer` [@scott2014mizer] produce cultivation--depensation, and if so, under which conditions. We
 
-1. **Sequential community assembly and priority effects**: In an unfished ecosystem, how can a three-taxa food web (plankton, forage fish, and large predator) assemble from a plankton-only baseline? If forage fish colonize first and establish a dense population, the larval predation gauntlet they create may prevent the large predator from ever invading. Conversely, if the large predator colonizes the plankton system first (utilizing plankton during its juvenile stages and smaller conspecifics or plankton at larger sizes), it establishes top-down control that may subsequently permit the forage fish to invade into a cultivated coexistence state.
-2. **Selective versus balanced exploitation**: Fisheries have historically targeted large, high-value predators before expanding to lower trophic levels [@garcia2012reconsidering; @law2012balanced; @law2015size]. If selective exploitation of the predator triggers a collapse into an uncultivated forage-fish state that is uninvasible by the predator even at $F_{\text{Pred}} = 0$, then single-species conservation measures (such as a predator moratorium) are dynamically insufficient. Instead, harvesting the forage fish ($F_{\text{Forage}} > 0$) may be required both to *hold* an exploited predator in the ecosystem and to *re-open* the invasion window needed for predator recovery.
-
-Here we construct a minimal, fully reproducible three-taxa size-spectrum model using the `mizer` framework [@scott2014mizer; @andersen2019fish] that captures all of these phenomena cleanly. We derive exact discrete invasion reproduction numbers ($R_0$) for each boundary equilibrium, verify local asymptotic stability via the linearized McKendrick--von Foerster operator, and map the complete two-parameter $(F_{\text{Forage}}, F_{\text{Pred}})$ bifurcation diagram.
+1. derive the discrete invasion reproduction numbers of each species at the boundary equilibria and use them to establish the assembly sequence and the priority effect;
+2. decompose the predator's invasion failure into larval predation and food effects;
+3. compute the fold and invasion boundaries in the plane of predator and forage-fish fishing mortality, including the intermediate states they imply; and
+4. test the result against numerical resolution, the strength of size diffusion, the size range of the resource and the strength of intraspecific predation.
 
 # Model Formulation and Methods
 
 ## Dynamic Size-Spectrum Framework
 
-We model a continuous size-structured marine community using the multispecies size-spectrum framework of @hartvig2011food and @andersen2019fish as implemented in `mizer` [@scott2014mizer]. The community consists of a background plankton resource spectrum $N_R(w, t)$ and two dynamic fish size spectra $N_i(w, t)$ ($i \in \{\text{Forage}, \text{Predator}\}$), where $N_i(w, t)\,dw$ represents the number of individuals in body-mass interval $[w, w + dw]$.
+We use the multispecies size-spectrum framework of @hartvig2011food and @andersen2019fish as implemented in `mizer` [@scott2014mizer] (version `r res$mizer_version`). The community consists of a plankton resource spectrum $N_R(w, t)$ and two fish size spectra $N_i(w, t)$, $i \in \{\text{Forage}, \text{Predator}\}$, where $N_i(w, t)\,dw$ is the number of individuals with body mass in $[w, w + dw]$ per unit volume. All biomasses below are in grams per this (arbitrary) unit volume, which is fixed by the choice of $\kappa$.
 
 ### Plankton Resource Dynamics
 
-The plankton resource spectrum spans body masses from $w_{\min,R} = 10^{-6}\text{ g}$ up to $w_{\text{cut},R} = 10\text{ g}$ and obeys standard semichemostat dynamics in each size class:
+The resource spans body masses from $`r pow10(res$resource$min_w_pp)`$ g to $`r res$resource$max_w_pp`$ g and follows semichemostat dynamics in each size class:
 \begin{equation}
   \frac{\partial N_R(w, t)}{\partial t} = r_R(w)\,\Big[c_R(w) - N_R(w, t)\Big] - \mu_{p,R}(w, t)\,N_R(w, t),
   (\#eq:resource)
 \end{equation}
-where $c_R(w) = \kappa\,w^{-\lambda}$ is the Sheldon carrying-capacity spectrum ($\kappa = 100\text{ g}^{\lambda - 1}$, $\lambda = 2 + q - n \approx 2.05$), $r_R(w) = r_0\,w^{n - 1}$ is the intrinsic mass-specific resource regeneration rate ($r_0 = 10\text{ g}^{1-n}\,\text{year}^{-1}$), and $\mu_{p,R}(w, t)$ is the predation mortality rate inflicted on plankton of size $w$ by all fish consumers.
+with regeneration rate $r_R(w) = r_0\,w^{n - 1}$ ($r_0 = `r res$resource$r_pp`$ g$^{1-n}$ year$^{-1}$, $n = 2/3$) and predation mortality $\mu_{p,R}$ imposed by the fish. The resource spectrum at State A is a power law that tapers off smoothly above $w_R$,
+\begin{equation}
+  N_R^{A}(w) = \frac{\kappa\,w^{-\lambda}}{1 + (w / w_R)^{`r res$resource$taper`}},
+  (\#eq:taper)
+\end{equation}
+with $\kappa = `r res$resource$kappa`$, $\lambda = 2 + q - n = `r fmt(res$resource$lambda)`$ and $w_R = `r res$resource$w_taper`$ g. During calibration (Section \@ref(community-parameterization)) `mizer` sets the capacity to $c_R = N_R^{A}\,(1 + \mu_{p,R}/r_R)$ so that this spectrum is a steady state. The capacity therefore coincides with $N_R^A$ for small plankton but exceeds it by up to a factor `r fmt(res$resource$capacity_ratio_max, 1)` at $w \approx `r sig(res$resource$w_at_capacity_ratio_max, 2)`$ g, where the fish graze the resource most heavily. A smooth taper rather than a sharp upper cutoff keeps the prey spectrum smooth, which the second-order discretisation requires (Section \@ref(community-parameterization)).
 
 ### Fish Growth, Mortality, and Reproduction
 
-For each fish species $i$ over its ontogenetic size range $[w_{\min,i}, w_{\infty,i}]$, the abundance density $N_i(w, t)$ satisfies the McKendrick--von Foerster conservation equation:
+The abundance density of each fish species satisfies the McKendrick--von Foerster equation with size diffusion,
 \begin{equation}
-  \frac{\partial N_i(w, t)}{\partial t} + \frac{\partial \big[g_i(w, t)\,N_i(w, t)\big]}{\partial w} = -\mu_i(w, t)\,N_i(w, t).
+  \frac{\partial N_i}{\partial t} + \frac{\partial \big(g_i\,N_i\big)}{\partial w} - \frac{1}{2}\frac{\partial^2 \big(D_i\,N_i\big)}{\partial w^2} = -\mu_i\,N_i,
   (\#eq:mvf)
 \end{equation}
-
-Predators of species $i$ and mass $w$ select prey of mass $w'$ according to a lognormal size-preference kernel:
+on the size range $[w_{\min,i}, w_{\max,i}]$. The diffusion rate $D_i(w)$ represents the variability of growth among individuals of the same size, which arises from the randomness of prey encounters [the jump-growth term of @datta2010jump] and, more importantly, from individual differences in foraging success, condition, physiology and environment. Without it, all individuals of a cohort would grow along the same trajectory. Under Eq. \@ref(eq:mvf) the variance of body mass within a cohort grows at rate $D_i$, so the variance $\sigma^2$ of $\ln w$ increases by
+\begin{equation}
+  \frac{d\sigma^2}{d \ln w} = \frac{D_i(w)}{g_i(w)\,w} \equiv c
+  (\#eq:cdiff)
+\end{equation}
+per unit of $\ln w$ that the cohort grows. We take $D_i(w) = D_{\text{ext},i}\,w^{n+1}$ and choose $D_{\text{ext},i} = c\,(\alpha f_0 h_i - k_{s,i})$ so that $c$ is approximately constant over the juvenile size range. In the reference model $c = `r fmt(res$c_diff, 2)`$: a cohort that grows from egg ($10^{-3}$ g) to the predator's maturation size spans $\ln(250/10^{-3}) \approx 12.4$ units of $\ln w$ and acquires a standard deviation of $\ln w$ of about `r fmt(sqrt(12.4 * res$c_diff), 1)`, i.e. adults of the same age differ in mass by a typical factor of `r fmt(exp(sqrt(12.4 * res$c_diff)), 1)`. Because this level is uncertain, we report all thresholds for $c$ between 0.02 and 0.3 (Section \@ref(robustness)). Predators of mass $w$ prefer prey of mass $w'$ according to the lognormal kernel
 \begin{equation}
   \phi_i(w / w') = \exp\!\left[-\frac{\big(\ln(w / (w'\,\beta_i))\big)^2}{2\,\sigma_i^2}\right],
   (\#eq:kernel)
 \end{equation}
- parameterized by the preferred predator--prey mass ratio $\beta_i$ and feeding kernel width $\sigma_i$. Available prey biomass $E_{a,i}(w, t)$ combines the plankton resource and all fish spectra weighted by the species interaction matrix $\theta_{ij}$:
+with preferred predator--prey mass ratio $\beta_i$ and width $\sigma_i$. The kernel expresses a size preference, not a strict gape limit. The available prey biomass combines resource and fish weighted by the interaction matrix $\theta_{ij}$ (predator $i$, prey $j$):
 \begin{equation}
   E_{a,i}(w, t) = \int \phi_i(w / w')\,\left[N_R(w', t) + \sum_{j} \theta_{ij}\,N_j(w', t)\right] w'\,dw'.
   (\#eq:encounter)
 \end{equation}
-With search volume $\gamma_i\,w^q$ and maximum intake rate $h_i\,w^n$, the Holling type II feeding level is
+With search volume $\gamma_i\,w^q$ and maximum intake rate $h_i\,w^n$ the feeding level is
 \begin{equation}
   f_i(w, t) = \frac{\gamma_i\,w^q\,E_{a,i}(w, t)}{\gamma_i\,w^q\,E_{a,i}(w, t) + h_i\,w^n}.
   (\#eq:feeding)
 \end{equation}
-Assimilated energy (efficiency $\alpha = 0.6$) after metabolic maintenance $k_{s,i}\,w^p$ is partitioned between somatic growth $g_i(w, t)$ and reproduction according to the maturation ogive $\psi_i(w)$:
+Assimilated energy (efficiency $\alpha = 0.6$) minus metabolic costs $k_{s,i}\,w^p$ is split between reproduction and growth:
 \begin{align}
   E_{r,i}(w, t) &= \max\!\Big(0,\; \alpha\,f_i(w, t)\,h_i\,w^n - k_{s,i}\,w^p\Big), (\#eq:er) \\
   g_i(w, t) &= E_{r,i}(w, t)\,\big[1 - \psi_i(w)\big]. (\#eq:growth)
 \end{align}
+The investment function $\psi_i(w) = m_i(w)\,(w / w_{\infty,i})^{1-n}$ is the product of the maturity ogive $m_i(w) = [1 + (w/w_{\text{mat},i})^{-U_i}]^{-1}$ and an allometric factor that reaches one at $w_{\infty,i}$, so that growth stops at $w_{\infty,i}$. We set the steepness $U_i = \ln 3 / \ln(w_{\text{mat},i}/w_{\text{mat25},i})$ by placing 25% maturity at 90% of the length at 50% maturity, $w_{\text{mat25},i} = 0.9^3\,w_{\text{mat},i}$, which gives $U \approx 3.5$ and a 25--75% maturation range of about 20% of the length at maturation. `mizer`'s default, $U = 10$, corresponds to a range of only 7%, steeper than typical empirical maturity ogives, and switches from immature to mature within two or three size classes of a 160-class grid. Mean growth stops at $w_{\infty,i}$, but size diffusion carries some individuals beyond it; a senescence mortality (below) keeps them from spreading further.
 
 Total mortality $\mu_i(w, t) = \mu_{p,i}(w, t) + \mu_{\text{ext},i}(w) + F_i\,S_i(w)$ comprises:
 
-1. **Endogenous predation mortality** $\mu_{p,i}(w', t)$ inflicted by all fish species $j$:
+1. **Predation mortality** imposed by all fish species $j$:
    \begin{equation}
-     \mu_{p,i}(w', t) = \sum_{j} \theta_{ji} \int \phi_j(w / w')\,\big[1 - f_j(w, t)\big]\,\gamma_j\,w^q\,N_j(w, t)\,dw,
+     \mu_{p,i}(w', t) = \sum_{j} \theta_{ji} \int \phi_j(w / w')\,\big[1 - f_j(w, t)\big]\,\gamma_j\,w^q\,N_j(w, t)\,dw;
      (\#eq:predmort)
    \end{equation}
-2. **External background mortality** $\mu_{\text{ext},i}(w) = z_{0,i} + z_{\text{ext},i}\,(w / w_{\infty,i})^{n - 1}$, which combines a constant baseline $z_{0,i}$ with an allometric senescence/non-modeled-predation term $z_{\text{ext},i}$ that prevents unrealistic biomass pile-up near $w_{\infty,i}$, and
-3. **Fishing mortality** $F_i\,S_i(w)$ with knife-edge gear selectivity $S_i(w) = \mathbb{I}(w \ge w_{\text{F},i})$.
+2. **External mortality** $\mu_{\text{ext},i}(w) = z_{0,i} + z_{\text{ext},i}\,w^{\,n-1} + z_{\text{sen}}\,(w / w_{\infty,i})^{k}$ with $w$ in grams. Because $n - 1 = -1/3$, the second term represents mortality from unmodelled predators of small fish; it is largest for larvae (`r fmt(res$ext_mort_wmin["Forage"], 1)` and `r fmt(res$ext_mort_wmin["Predator"], 1)` year$^{-1}$ at $w_{\min}$ for forage fish and predator) and small for adults. The third term ($z_{\text{sen}} = `r res$senescence$z_sen`$ year$^{-1}$, $k = `r res$senescence$k_sen`$) is a senescence mortality that is negligible below $0.8\,w_{\infty,i}$ and rises steeply above $w_{\infty,i}$. It is needed because size diffusion continues where mean growth stops: without it, adults would random-walk to several times $w_{\infty,i}$, where only the small background mortality removes them, and the results would depend on where the size grid ends. With it, `r fmt(100 * res$biomass_above_w_inf["Predator"], 0)`% of predator biomass at State A lies above $w_{\infty}$, and the grid, which ends at $w_{\max,i} = `r res$senescence$w_max_factor`\,w_{\infty,i}$, holds a negligible density at its upper end;
+3. **Fishing mortality** $F_i\,S_i(w)$ with logistic length-based selectivity
+   \begin{equation}
+     S_i(w) = \left[1 + \exp\!\left(\ln 3\,\frac{l_{50,i} - l(w)}{l_{50,i} - l_{25,i}}\right)\right]^{-1}, \qquad l(w) = (w/a)^{1/b},
+     (\#eq:selectivity)
+   \end{equation}
+   where $l_{50,i}$ and $l_{25,i}$ are the lengths at 50% and 25% selection and $w = a\,l^b$ with $a = 0.01$ g cm$^{-3}$ and $b = 3$. $F_i$ is thus the fishing mortality on fully selected fish.
 
-At the recruitment boundary $w_{\min,i}$, the density-independent egg production rate is
+The density-independent egg production rate is
 \begin{equation}
-  R_{\text{DI},i}(t) = \frac{1}{2}\,\frac{\epsilon_i}{w_{\min,i}} \int_{w_{\min,i}}^{w_{\infty,i}} E_{r,i}(w, t)\,\psi_i(w)\,N_i(w, t)\,dw,
+  R_{\text{DI},i}(t) = \frac{1}{2}\,\frac{\epsilon_i}{w_{\min,i}} \int_{w_{\min,i}}^{w_{\max,i}} E_{r,i}(w, t)\,\psi_i(w)\,N_i(w, t)\,dw,
   (\#eq:rdi)
 \end{equation}
-where $\epsilon_i$ is reproductive efficiency. Recruitment into the smallest size class follows a Beverton--Holt relationship [@beverton1957dynamics]:
+where the reproductive efficiency $\epsilon_i$ (`erepro` in `mizer`) also absorbs egg and early larval losses not otherwise modelled. Recruitment follows a Beverton--Holt relationship [@beverton1957dynamics]
 \begin{equation}
   R_{\text{DD},i}(t) = \frac{R_{\text{DI},i}(t)}{1 + R_{\text{DI},i}(t) / R_{\max,i}},
   (\#eq:rdd)
 \end{equation}
-which fixes the boundary flux $g_i(w_{\min,i}, t)\,N_i(w_{\min,i}, t) = R_{\text{DD},i}(t)$. At the calibrated reference steady state (State A), the degree of recruitment compensation is parameterized by the dimensionless *reproduction level* $L_{R,i} = R_{\text{DD},i}^* / R_{\max,i} = 1 - 1 / R_{0,i}^* \in (0, 1)$.
+which sets the flux $g_i N_i$ at $w_{\min,i}$. We parameterise the compensation by the reproduction level $L_{R,i} = R_{\text{DD},i}^* / R_{\max,i}$ at State A.
 
 ## Community Parameterization
 
-Table \@ref(tab:params-table) summarizes the parameters of the three-taxa model (`build_cultivation_model()` in `cultivation_depensation.R`). Both fish species recruit at $w_{\min} = 10^{-3}\text{ g}$. The **Forage** species grows rapidly ($k_{\text{vb}} = 1.0\text{ year}^{-1}$) to a small asymptotic size ($w_\infty = 20\text{ g}$, $w_{\text{mat}} = 4\text{ g}$) with a preferred predator--prey mass ratio $\beta_{\text{Forage}} = 200$ ($\sigma_{\text{Forage}} = 1.3$). Consequently, adult forage fish ($w \in [4, 20]\text{ g}$) have peak predation efficiency on prey weighing $w' = w / 200 \in [0.02, 0.10]\text{ g}$—directly overlapping the larval and early juvenile stages of the **Predator**.
+Table \@ref(tab:params-table) lists the parameters of the model as used in the simulations (`build_cultivation_model()` in `cultivation_depensation.R`). Both species recruit at $w_{\min} = 10^{-3}$ g. Adult forage fish ($w \in [4, 20]$ g, $\beta = 200$) feed preferentially on prey of 0.02--0.1 g, the larval and early juvenile sizes of the predator. Maturing and adult predators ($w \in [250, 2000]$ g, $\beta = 100$) prefer prey of 2.5--20 g, the juvenile and adult forage fish, but also take the larger resource classes around $w_R = `r res$resource$w_taper`$ g. Maximum intake rates $h_i$ follow from the von Bertalanffy growth rates, search volumes $\gamma_i$ from the reference feeding level $f_0 = 0.6$, and metabolic coefficients $k_{s,i}$ from `mizer`'s default critical feeding level of 0.2 [@andersen2019fish].
 
-The **Predator** grows to a large asymptotic size ($w_\infty = 2000\text{ g}$, $w_{\text{mat}} = 250\text{ g}$, $k_{\text{vb}} = 0.5\text{ year}^{-1}$) with $\beta_{\text{Predator}} = 100$ ($\sigma_{\text{Predator}} = 1.5$), so that maturing and adult predators ($w \in [200, 2000]\text{ g}$) feed preferentially on prey weighing $w' \in [2, 20]\text{ g}$—the juvenile and adult size classes of the forage fish. The interaction matrix is set to
+The interaction matrix is
 \begin{equation}
-  \boldsymbol{\theta} = \begin{pmatrix} \theta_{\text{For,For}} & \theta_{\text{For,Pred}} \\ \theta_{\text{Pred,For}} & \theta_{\text{Pred,Pred}} \end{pmatrix} = \begin{pmatrix} 0.05 & 0.95 \\ 1.00 & 0.05 \end{pmatrix},
+  \boldsymbol{\theta} = \begin{pmatrix} \theta_{\text{For,For}} & \theta_{\text{For,Pred}} \\ \theta_{\text{Pred,For}} & \theta_{\text{Pred,Pred}} \end{pmatrix} = \begin{pmatrix} 0.05 & 0.95 \\ 1.00 & 0.05 \end{pmatrix}.
   (\#eq:inter)
 \end{equation}
-reflecting strong interspecific trophic coupling ($\theta_{\text{Pred,For}} = 1.00$ for cultivation; $\theta_{\text{For,Pred}} = 0.95$ for larval predation) and weak intraspecific cannibalism ($\theta_{ii} = 0.05$). Separate knife-edge fishing gears with unit catchability (`catchability = 1`) target adult forage fish ($w \ge 1.0\text{ g}$, effort $F_{\text{Forage}}$) and adult predators ($w \ge 400.0\text{ g}$, effort $F_{\text{Pred}}$).
+This matrix is strongly asymmetric. Adult forage fish encounter predator larvae at almost full rate ($\theta_{\text{For,Pred}} = 0.95$) but their own larvae, which have exactly the same size, at only 5% of that rate. Biologically this corresponds to spatial or temporal separation of forage-fish spawning from forage-fish feeding grounds, combined with overlap between forage-fish adults and predator spawning and nursery areas, as proposed for pelagic fishes feeding on cod eggs and larvae [@swain2000pelagic; @fauchald2010predator]. Predator cannibalism is likewise weak ($\theta_{\text{Pred,Pred}} = 0.05$). Section \@ref(robustness) shows that both choices are essential for the results.
+
+The model was calibrated to the target biomasses $B_{\text{Forage}} = 100$ g and $B_{\text{Predator}} = 600$ g at State A (`matchBiomasses()` and `tuneSteadyState()`), which determines $\epsilon_i$ and the resource capacity. These targets are illustrative, not observations. The reproduction levels were then set to $L_R = 0.65$ (forage) and $0.78$ (predator), which fixes $R_{\max,i}$ while preserving the steady state, and the fixed point was solved for with `mizer`'s Newton solver. Two separate gears with unit catchability, so that effort equals the fishing mortality on fully selected fish, act on forage fish with 50% selection at 1 g ($l_{50} = `r fmt(sp("l50", "Forage"), 1)`$ cm; juveniles and adults, since maturation is at 4 g) with mortality $F_{\text{Forage}}$, and on predators with 50% selection at 400 g ($l_{50} = `r fmt(sp("l50", "Predator"), 1)`$ cm) with mortality $F_{\text{Pred}}$. For both gears $l_{25} = 0.9\,l_{50}$, a selection range ($l_{75} - l_{25}$) of 20% of $l_{50}$, typical of trawl gear; the selectivity rises from 25% to 75% over about 0.6 units of $\ln w$, i.e. over many size classes. A knife-edge selectivity would introduce a discontinuity that limits the numerical accuracy to first order. The size axis is discretised into `r res$grid$no_w` logarithmically spaced classes ($\Delta \ln w = `r fmt(res$grid$dx, 3)`$). We use `mizer`'s second-order finite-volume scheme (`second_order_w`), with a centred advective flux and bin-averaged rates, so that the numerical diffusion is small compared with the physical diffusion. This matters: `mizer`'s default first-order upwind scheme adds numerical diffusion equivalent to $c \approx \Delta \ln w$, which on a grid of 80 classes ($c \approx 0.19$) exceeds the physical diffusion assumed here and has the wrong dependence on the grid (Section \@ref(robustness)). The resource grid extends down to $10^{-9}$ g, three orders of magnitude below the smallest prey preferred by fish larvae, because `mizer` evaluates the encounter integral as a circular convolution, which for a shorter resource grid feeds larvae with contributions from the largest fish ([mizer issue 618](https://github.com/sizespectrum/mizer/issues/618)). Time-dependent simulations use the second-order TR-BDF2 method with $\Delta t = 0.1$ year; steady states are solved for with `mizer`'s Newton solver.
 
 ```{r params-table}
-param_df <- data.frame(
-  Parameter = c(
-    "Asymptotic mass $w_\\infty$ [g]",
-    "Maturation mass $w_{\\text{mat}}$ [g]",
-    "Offspring mass $w_{\\min}$ [g]",
-    "Preferred predator--prey mass ratio $\\beta$",
-    "Feeding kernel width $\\sigma$",
-    "von Bertalanffy growth rate $k_{\\text{vb}}$ [$\\text{year}^{-1}$]",
-    "Initial feeding level $f_0$",
-    "Baseline external mortality $z_0$ [$\\text{year}^{-1}$]",
-    "Allometric external mortality $z_{\\text{ext}}$ [$\\text{year}^{-1}$]",
-    "Calibrated State A biomass $B^*$ [g]",
-    "State A reproduction level $L_R = R_{\\text{DD}}^* / R_{\\max}$",
-    "Knife-edge fishing selectivity $w_{\\text{F}}$ [g]",
-    "Interaction on Forage $\\theta_{i,\\text{Forage}}$",
-    "Interaction on Predator $\\theta_{i,\\text{Predator}}$"
-  ),
-  Forage = c(
-    "20", "4", "0.001", "200", "1.3", "1.0", "0.6",
-    "0.30", "0.50", "94.31", "0.65", "1.0", "0.05", "0.95"
-  ),
-  Predator = c(
-    "2000", "250", "0.001", "100", "1.5", "0.5", "0.6",
-    "0.20", "1.20", "599.93", "0.78", "400.0", "1.00", "0.05"
-  )
-)
+spt <- res$species_params
+row <- function(label, col, digits = NULL, f = identity) {
+  v <- f(spt[[col]])
+  v <- if (is.null(digits)) as.character(v) else vapply(v, function(x) format(signif(x, digits)), "")
+  c(label, v)
+}
+param_df <- as.data.frame(rbind(
+  row("Asymptotic mass $w_\\infty$ [g]", "w_inf"),
+  row("Largest size class $w_{\\max}$ [g]", "w_max"),
+  row("Maturation mass $w_{\\text{mat}}$ [g]", "w_mat"),
+  row("Mass at which a quarter are mature, $w_{\\text{mat25}}$ [g]", "w_mat25", 3),
+  row("Egg mass $w_{\\min}$ [g]", "w_min"),
+  row("Preferred predator--prey mass ratio $\\beta$", "beta"),
+  row("Feeding kernel width $\\sigma$", "sigma"),
+  row("von Bertalanffy growth rate $k_{\\text{vb}}$ [year$^{-1}$]", "k_vb"),
+  row("Reference feeding level $f_0$", "f0"),
+  row("Search volume coefficient $\\gamma$", "gamma", 3),
+  row("Maximum intake coefficient $h$ [g$^{1-n}$ year$^{-1}$]", "h", 3),
+  row("Metabolic coefficient $k_s$ [g$^{1-p}$ year$^{-1}$]", "ks", 3),
+  row("Exponents $n$, $p$, $q$", "n", f = function(x) sprintf("%.3f, %.2f, %.3f", x, spt$p, spt$q)),
+  row("Assimilation efficiency $\\alpha$", "alpha"),
+  row("External mortality $z_0$ [year$^{-1}$]", "z0"),
+  row("External mortality $z_{\\text{ext}}$ [g$^{1/3}$ year$^{-1}$]", "z_ext"),
+  row("Reproductive efficiency $\\epsilon$ (calibrated)", "erepro", 3),
+  row("Maximum recruitment $R_{\\max}$ (calibrated)", "R_max", 3),
+  row("Reproduction level $L_R$ at State A", "reproduction_level", 3),
+  row("Size diffusion coefficient $D_{\\text{ext}}$ [g$^{1/3}$ year$^{-1}$]", "D_ext", 3),
+  row("Length at which half the fish are selected, $l_{50}$ [cm]", "l50", 3),
+  row("Length at which a quarter are selected, $l_{25}$ [cm]", "l25", 3)
+))
+names(param_df) <- c("Parameter", spt$species)
 knitr::kable(
   param_df,
   booktabs = TRUE,
   escape = FALSE,
-  caption = "Biological and fishery parameters for the dynamic fish species in the three-taxa cultivation--depensation model. Plankton resource parameters: $\\kappa = 100$, $r_0 = 10\\text{ year}^{-1}$, $w_{\\min,R} = 10^{-6}\\text{ g}$, $w_{\\text{cut},R} = 10\\text{ g}$."
+  caption = sprintf("Parameters of the two fish species as used in the simulations. Resource: $\\kappa = %s$, $\\lambda = %s$, $r_0 = %s$ g$^{1/3}$ year$^{-1}$, size range $%s$--$%s$ g, taper at $w_R = %s$ g. Interaction matrix in Eq. \\@ref(eq:inter).",
+                    res$resource$kappa, fmt(res$resource$lambda), res$resource$r_pp,
+                    pow10(res$resource$min_w_pp), res$resource$max_w_pp, res$resource$w_taper)
 )
 ```
 
-## Steady-State Identification, Linear Stability, and Invasion Fitness ($R_0$)
+## Steady States, Stability, and Invasion Reproduction Numbers
 
-Starting from the calibrated interior coexistence equilibrium (**State A**), we obtain the boundary equilibria under *identical* biological parameters (`get_fixed_points()` in `cultivation_depensation.R`):
+Starting from the calibrated coexistence equilibrium (**State A**) we obtain the boundary equilibria with *identical* parameters (`get_fixed_points()`): **State B** (plankton + predator) by removing the forage fish, projecting and solving for the fixed point, **State C** (plankton + forage fish) by removing the predator, and **State 0** (plankton only) with both fish absent and $N_R = c_R$. Over a subsequent 100-year projection no biomass changes by more than a fraction $`r sci(max(res$states$drift), 1)`$ per year.
 
-- **State B** (Plankton + Predator): set $N_{\text{Forage}}(w, 0) = 0$ and project the PDE system to machine-precision convergence (`isSteady(params_B) == TRUE`).
-- **State C** (Plankton + Forage fish): set $N_{\text{Predator}}(w, 0) = 0$ and project to convergence (`isSteady(params_C) == TRUE`).
-- **State 0** (Plankton only): set $N_{\text{Forage}}(w, 0) = N_{\text{Predator}}(w, 0) = 0$ and $N_R(w, 0) = c_R(w)$ (`isSteady(params_0) == TRUE`).
-
-Local asymptotic stability of each equilibrium within its resident subspace is evaluated using `getStability()`, which computes the leading eigenvalue $\lambda_{\max} = \max \operatorname{Re}(\lambda)$ of the Jacobian of the discretized PDE--resource system.
-
-To determine whether an absent species $i$ can invade a resident boundary equilibrium (e.g., Forage invading State B, or Predator invading State C), we evaluate the exact discrete basic reproduction number $R_{0,i}$ (`get_R0()` in `cultivation_depensation.R`). Holding the resident growth rate $g_i(w)$ and total mortality rate $\mu_i(w)$ fixed at the target equilibrium, we solve the linear homogeneous steady-state transport equation for a unit initial abundance density $N_i(w_{\min,i}) = 1$ using `mizer:::get_steady_state_n()`, integrate the resulting lifetime density-independent egg output $R_{\text{DI},i}^{(1)}$, and divide by the discrete boundary flux $R_{\text{DD,req},i}^{(1)} = g_i(w_{\min,i}) + \mu_i(w_{\min,i})\,\Delta w_{\min,i}$:
+*Invasion reproduction number.* For a species $i$ absent from a resident equilibrium, the resident environment fixes its growth rate $g_i(w)$, diffusion $D_i(w)$, mortality $\mu_i(w)$ and reproductive investment. We solve the linear steady-state transport equation of the discretised model for a unit density in the first size class, compute the resulting lifetime egg production $R_{\text{DI},i}^{(1)}$ with Eq. \@ref(eq:rdi), and divide by the recruitment flux $R_{\text{req},i}$ needed to sustain that density, which we read from the balance of the first size class in the same discretisation:
 \begin{equation}
-  R_{0,i} = \frac{R_{\text{DI},i}^{(1)}}{R_{\text{DD,req},i}^{(1)}}.
+  R_{0,i} = \frac{R_{\text{DI},i}^{(1)}}{R_{\text{req},i}}.
   (\#eq:r0)
 \end{equation}
-By construction, at any interior Beverton--Holt equilibrium where species $i$ is present, Eq. \@ref(eq:rdd) implies $R_{0,i} = R_{\text{DI},i}^* / R_{\text{DD},i}^* = 1 / (1 - L_{R,i}) > 1$. At a boundary equilibrium where species $i$ is absent ($N_i \equiv 0$, so $R_{\text{DD},i} \approx R_{\text{DI},i}$ at infinitesimal density), a small introduction of species $i$ grows exponentially if and only if $R_{0,i} > 1$, and decays exponentially to extinction if and only if $R_{0,i} < 1$.
+Because the Beverton--Holt function has unit slope at zero, a rare species increases if and only if $R_{0,i} > 1$ [@diekmann1990definition]; we confirm this below against the leading eigenvalue. For a resident species the same quantity equals $R_{\text{DI}}^*/R_{\text{DD}}^* = 1/(1 - L_R) > 1$; it measures the compensatory reserve of recruitment rather than invasion. We use this identity as a check of the calculation, which it passes to four significant figures. Section \@ref(robustness) reports how $R_0$ changes with the number of size classes.
+
+*Linear stability.* We compute the eigenvalues of the Jacobian of the discretised fish--resource system with `getStability()`. `getStability()` linearises only over species that are present; to obtain the stability of a boundary equilibrium in the full system, we add the absent species at a trace density ($10^{-12}$ of its State A abundance), which adds its invasion exponent to the spectrum. We confirm the invasion exponent against the decay of a predator seed in direct simulation.
+
+*Unstable interior equilibrium.* The saddle that separates the basins of attraction of States A and C is located by edge tracking: we bisect on the size of a predator seed added to State C to find the basin boundary, follow a trajectory started on it to where it lingers, and refine that state with `mizer`'s Newton solver.
+
+*Bifurcation boundaries.* For each forage-fish mortality $F_{\text{Forage}} \in \{0, 0.025, \ldots, 0.7\}$ year$^{-1}$ we compute (i) the predator invasion boundary $F_{\text{inv}}$, where $R_{0,\text{Pred}}(\text{State C}) = 1$; (ii) the upper limit $F_{\text{up}}$ of the abundant coexistence state, by continuation from State A in steps of 0.01 followed by bisection to 0.001, classifying a state as abundant when the predator biomass exceeds `r 100` g; and (iii) the lower limit $F_{\text{low}}$ of the depleted state, by continuation downward from State C with a predator seed. Each step is projected (with the first-order time step, $\Delta t = 0.5$ year, which leaves the fixed points unchanged) until every biomass changes by less than $10^{-5}$ per year; this strict criterion is needed because trajectories linger near a fold. Finally, we determine by bisection the smallest forage-fish mortality $F_{\text{Forage,rec}}$ at which a predator reintroduced into State C (at 0.5% of its State A abundance, with $F_{\text{Pred}} = 0$) returns to the abundant state. A leading eigenvalue that tends to zero as $F_{\text{Pred}} \to F_{\text{up}}$ identifies $F_{\text{up}}$ as a fold (saddle-node) bifurcation. Where $F_{\text{low}} < F_{\text{inv}}$, the depleted state below $F_{\text{inv}}$ contains a small predator population, so the invasion bifurcation is supercritical.
+
+*Robustness.* We rebuild and recalibrate the model with half and twice as many size classes; with the first-order upwind scheme, 80 size classes and no physical diffusion (the discretisation of the first version of this study); with the resource taper at $w_R = 1$ g instead of 10 g; for size diffusion $c$ from 0.02 to 0.3; and over a range of forage-fish and predator cannibalism ($\theta_{\text{For,For}}$ and $\theta_{\text{Pred,Pred}}$ from 0.05 to 0.95, one at a time). For $c < \Delta \ln w$ the centred flux is no longer monotone and we use the van Leer limiter instead.
 
 # Results
 
 ## Unfished Alternative Stable States and the Depensatory Bottleneck
 
-In the absence of fishing ($F_{\text{Pred}} = 0, F_{\text{Forage}} = 0$), the model admits all four required equilibria (Table \@ref(tab:states-table); Figure \@ref(fig:fig-spectra)). Every fish-bearing equilibrium (`State A`, `State B`, and `State C`) satisfies `isSteady() == TRUE` and is locally asymptotically stable within its resident subspace ($\max\operatorname{Re}(\lambda) < 0$).
+Without fishing the model has the four boundary and interior equilibria listed in Table \@ref(tab:states-table) and, in addition, an unstable interior saddle. States A and C are locally asymptotically stable in the full system. State B is stable within the plankton--predator subspace but is a saddle in the full system, because forage fish invade it. State 0 is invaded by both fish species.
 
 ```{r states-table}
+s <- res$states
 states_df <- data.frame(
   State = c("State 0", "State A", "State B", "State C"),
-  Composition = c(
-    "Plankton only",
-    "Plankton + Forage + Predator",
-    "Plankton + Predator",
-    "Plankton + Forage"
-  ),
-  Forage_B = c("0.00", "94.31", "0.00", "2260.17"),
-  Pred_B = c("0.00", "599.93", "536.71", "0.00"),
-  R0_For = c("474.90", "2.89", "2.59", "111.86"),
-  R0_Pred = c("9.31", "4.55", "3.59", "0.46"),
-  Stable = c("No", "Yes", "Yes", "Yes"),
-  Max_Eig = c("---", "-0.2832", "-0.2832", "-0.4570")
+  Composition = c("Plankton only", "Plankton + Forage + Predator", "Plankton + Predator", "Plankton + Forage"),
+  B_For = fmt(s$Forage_Biomass, 1),
+  B_Pred = fmt(s$Predator_Biomass, 1),
+  R0_For = fmt(s$R0_Forage),
+  R0_Pred = fmt(s$R0_Predator),
+  lam_res = fmt(s$lambda_resident, 3),
+  lam_full = fmt(s$lambda_full, 3),
+  Stable = ifelse(s$lambda_full < 0, "Yes", "No")
 )
 colnames(states_df) <- c(
-  "State", "Resident Taxa", "$B_{\\text{For}}^*$ [g]", "$B_{\\text{Pred}}^*$ [g]",
-  "$R_{0,\\text{For}}$", "$R_{0,\\text{Pred}}$", "Stable", "$\\max\\operatorname{Re}(\\lambda)$"
+  "State", "Resident taxa", "$B_{\\text{For}}^*$ [g]", "$B_{\\text{Pred}}^*$ [g]",
+  "$R_{0,\\text{For}}$", "$R_{0,\\text{Pred}}$", "$\\lambda_{\\text{res}}$", "$\\lambda_{\\text{full}}$", "Stable"
 )
 knitr::kable(
   states_df,
   booktabs = TRUE,
   escape = FALSE,
-  align = "llrrrrcc",
-  caption = "Summary of the four unfished fixed points ($F_{\\text{Pred}} = 0, F_{\\text{Forage}} = 0$) sharing identical biological parameters."
+  align = "llrrrrrrc",
+  caption = "The four boundary and interior equilibria without fishing. $R_0$ of an absent species is its invasion reproduction number; for a resident species it equals $1/(1 - L_R)$. $\\lambda_{\\text{res}}$ is the leading eigenvalue [year$^{-1}$] within the resident subspace (for State 0, the slowest resource relaxation rate), $\\lambda_{\\text{full}}$ the leading eigenvalue including the invasion exponents of absent species. Eigenvalues of unreachable size classes are excluded. Stable: $\\lambda_{\\text{full}} < 0$."
 )
 ```
 
-Comparing **State A** and **State C** reveals the quantitative mechanism of cultivation and depensation (Figure \@ref(fig:fig-spectra)):
+The saddle lies at $B_{\text{Forage}} = `r fmt(res$saddle$biomass["Forage"], 0)`$ g and $B_{\text{Predator}} = `r fmt(res$saddle$biomass["Predator"], 0)`$ g and has a single unstable eigenvalue (`r fmt(res$saddle$leading, 3)` year$^{-1}$). The predator invasion exponent at State C, $\lambda_{\text{full}} = `r fmt(state("State_C")$lambda_full, 3)`$ year$^{-1}$, agrees with the decay rate of a predator seed in direct simulation (`r fmt(res$invasion_C_decay_rate, 3)` year$^{-1}$; Figure \@ref(fig:fig-invasions)B), and the forage-fish invasion exponent at State B is `r fmt(state("State_B")$lambda_full, 2)` year$^{-1}$, confirming the $R_0$ criteria.
 
-- In **State A (Coexistence / Cultivated)**, the adult predator guild ($B_{\text{Predator}}^* = 599.93\text{ g}$) exerts strong top-down predation on the forage fish, holding forage-fish biomass down to $B_{\text{Forage}}^* = 94.31\text{ g}$. Because forage-fish abundance is low, the predation mortality inflicted on predator larvae ($w \in [10^{-3}, 1]\text{ g}$) remains mild ($\mu_{p,\text{Predator}} \le 1.6\text{ year}^{-1}$; Figure \@ref(fig:fig-spectra), bottom-right panel), allowing predator recruits to survive through the juvenile bottleneck and sustain $R_{0,\text{Predator}} = 4.55 > 1$.
-- In **State B (Plankton + Predator)**, the predator persists on the plankton resource and weak conspecific predation at $B_{\text{Predator}}^* = 536.71\text{ g}$ ($R_{0,\text{Predator}} = 3.59 > 1$), leaving the plankton spectrum near its carrying capacity.
-- In **State C (Plankton + Forage / Uncultivated)**, the absence of the predator releases the forage fish from top-down control. Forage-fish biomass surges $24$-fold to $B_{\text{Forage}}^* = 2260.17\text{ g}$, grazing a pronounced trough in the plankton spectrum around $w \in [0.02, 0.5]\text{ g}$ (Figure \@ref(fig:fig-spectra), bottom-left panel). This dense forage-fish population creates an intense predation gauntlet for small fish larvae: predation mortality on predator offspring peaks at $\mu_{p,\text{Predator}} \approx 37.3\text{ year}^{-1}$ around $w \approx 0.05\text{ g}$ (Figure \@ref(fig:fig-spectra), bottom-right panel). As a result, a rare predator attempting to recruit in State C achieves a lifetime reproductive output of only $R_{0,\text{Predator}} = 0.464 < 1$, rendering State C strictly uninvasible by the predator.
+Comparing States A and C exposes the mechanism (Figure \@ref(fig:fig-spectra)). In State A the predator ($B^*_{\text{Pred}} = `r fmt(state("State_A")$Predator_Biomass, 1)`$ g) holds forage-fish biomass down to `r fmt(state("State_A")$Forage_Biomass, 1)` g, and predation mortality on predator larvae ($w \le 1$ g) is at most `r fmt(res$larval_predmort$max_A, 1)` year$^{-1}$. Without the predator, forage-fish biomass rises `r fmt(state("State_C")$Forage_Biomass / state("State_A")$Forage_Biomass, 0)`-fold to `r fmt(state("State_C")$Forage_Biomass, 0)` g, grazes a trough into the resource around 0.01--0.5 g and raises predation mortality on predator larvae to a peak of `r fmt(res$larval_predmort$max_C, 1)` year$^{-1}$ at $w \approx `r fmt(res$larval_predmort$w_at_max_C, 2)`$ g. Survival of a predator from egg to maturation falls from `r sig(res$survival_to_maturity["A"], 2)` in State A to `r sig(res$survival_to_maturity["C"], 2)` in State C, a factor of `r fmt(res$survival_to_maturity["A"] / res$survival_to_maturity["C"], 0)`.
 
-```{r fig-spectra, fig.cap="Unfished equilibrium size spectra and the depensatory mortality bottleneck. Top left: Coexistence State A, where adult predators suppress forage fish. Top right: Plankton--predator State B. Bottom left: Plankton--forage State C, where release from predator control allows forage fish biomass to expand 24-fold and graze down the plankton spectrum. Bottom right: Predation mortality rate $\\mu_{p,\\text{Predator}}(w)$ experienced by early life stages of the predator ($w \\le 10\\text{ g}$) in State A (solid green) versus State C (dashed magenta)."}
+The forage fish affect the predator in two ways: they eat its larvae, and they compete with its larvae for plankton while providing food for its adults. To separate the two, we compute $R_{0,\text{Pred}}$ with growth and reproduction from one state and mortality from the other. With State A growth and State C mortality, $R_{0,\text{Pred}} = `r fmt(res$R0_decomposition["growthA_mortC"])`$; with State C growth and State A mortality, $R_{0,\text{Pred}} = `r fmt(res$R0_decomposition["growthC_mortA"], 1)`$. The invasion barrier is therefore caused entirely by larval predation. The food effect acts in the opposite direction: in State C, adult predators would find abundant forage fish and grow and reproduce faster than in State A.
+
+Even in State A, adult predators take only `r fmt(100 * res$predator_diet_A["Forage"], 0)`% of their food from forage fish and `r fmt(100 * res$predator_diet_A["Resource"], 0)`% from the resource, which extends beyond 10 g. In this model the "predator" is a generalist whose population does not depend on the forage fish for food, which is also why it persists in State B.
+
+```{r fig-spectra, fig.cap="Unfished equilibrium size spectra and the depensatory bottleneck. Top left: coexistence State A. Top right: plankton--predator State B. Bottom left: plankton--forage State C, where release from predation allows the forage fish to expand and graze down the resource. Bottom right: predation mortality on predator early life stages ($w \\le 10$ g) in State A (solid green) and State C (dashed magenta)."}
 knitr::include_graphics("plots/spectra_states_ABC.png")
 ```
 
 ## Priority Effects and Sequential Community Assembly
 
-The invasion reproduction numbers in Table \@ref(tab:states-table) establish a directional hierarchy for community assembly from the plankton-only baseline (**State 0**):
+The invasion reproduction numbers define the assembly sequence from the plankton-only State 0:
 
-1. Both fish species can invade **State 0** ($R_{0,\text{Forage}} = 474.90 > 1$, $R_{0,\text{Predator}} = 9.31 > 1$).
-2. If the **Predator** colonizes first (**State 0 $\to$ State B**), the resulting plankton--predator subsystem is invasible by the **Forage** fish ($R_{0,\text{Forage}}(\text{State B}) = 2.59 > 1$). Introducing a trace density of forage fish ($10^{-3}\times$ State A abundance) into State B leads to rapid exponential growth of the forage fish and smooth convergence to the three-taxa coexistence equilibrium **State A** (Figure \@ref(fig:fig-invasions)A), slightly boosting predator biomass from $536.7\text{ g}$ to $599.9\text{ g}$ as adult predators gain access to forage-fish prey.
-3. Conversely, if the **Forage** fish colonizes first (**State 0 $\to$ State C**), community assembly arrests at the two-taxa subsystem **State C**. Introducing a seed population of predators ($10^{-2}\times$ State A abundance) into State C fails: after a brief initial transient, the predator cohort is wiped out by larval predation from the forage fish and decays exponentially toward zero at rate $\approx -0.065\text{ year}^{-1}$ ($R_{0,\text{Predator}}(\text{State C}) = 0.464 < 1$; Figure \@ref(fig:fig-invasions)B).
+1. Both fish species can invade State 0 ($R_{0,\text{For}} = `r fmt(state("State_0")$R0_Forage, 0)`$, $R_{0,\text{Pred}} = `r fmt(state("State_0")$R0_Predator, 1)`$).
+2. If the predator establishes first (State 0 $\to$ B), forage fish can invade ($R_{0,\text{For}} = `r fmt(state("State_B")$R0_Forage)`$). A forage seed of $10^{-3}$ of its State A abundance grows and the community converges to State A (Figure \@ref(fig:fig-invasions)A), with predator biomass increasing from `r fmt(state("State_B")$Predator_Biomass, 1)` to `r fmt(res$invasion_B_final["Predator"], 1)` g.
+3. If the forage fish establishes first (State 0 $\to$ C), the predator cannot invade ($R_{0,\text{Pred}} = `r fmt(state("State_C")$R0_Predator)`$). A predator seed of $10^{-2}$ of its State A abundance briefly increases as the seeded adults spawn, then declines exponentially at a rate of `r fmt(-res$invasion_C_decay_rate, 3)` year$^{-1}$ (Figure \@ref(fig:fig-invasions)B).
 
-Thus, unfished parameter space is bistable between **State A** and **State C**, and assembling the full three-taxa food web without external intervention requires the large predator to establish prior to the forage fish.
+Without fishing the system is therefore bistable between States A and C, and assembly of the full food web from rare invaders requires the predator to arrive first. Because the forage fish has the much larger invasion number in State 0, simultaneous arrival of rare colonists of both species would favour State C. Priority effects of this kind are expected in life-history intraguild predation, where each species preys on the other's young [@holt1997theoretical; @hin2011coexistence].
 
-```{r fig-invasions, fig.cap="Community assembly and mutual invasion experiments in the absence of fishing ($F_{\\text{Pred}} = 0, F_{\\text{Forage}} = 0$). (A) Introducing a trace population of forage fish into the plankton--predator equilibrium (State B) results in successful invasion ($R_{0,\\text{Forage}} = 2.59 > 1$) and convergence to the three-taxa coexistence equilibrium (State A). (B) Introducing a seed population of predators into the plankton--forage equilibrium (State C) fails ($R_{0,\\text{Predator}} = 0.46 < 1$), as intense predation by forage fish on predator larvae drives the invading predator exponentially to extinction."}
+```{r fig-invasions, fig.cap="Invasion experiments without fishing. (A) A trace population of forage fish introduced into the plankton--predator State B invades and the community converges to State A. (B) A seed population of predators introduced into the plankton--forage State C declines exponentially, because predation by forage fish on predator larvae keeps $R_{0,\\text{Pred}} < 1$."}
 knitr::include_graphics("plots/assembly_invasions.png")
 ```
 
 ## Selective Predator Exploitation and Catastrophic Collapse
 
-We next examine the response of the three-taxa coexistence state (**State A**) to selective exploitation of the adult predator ($w \ge 400\text{ g}$) at tunable fishing mortality rate $F_{\text{Pred}}$ (Figure \@ref(fig:fig-bifurcation)).
+```{r}
+b0 <- bound(0); b35 <- bound(0.35)
+bd_fold <- res$bounds[res$bounds$F_Forage < res$cusp_F_Forage, ]
+br <- res$branches
+up0 <- br[br$F_Forage == 0 & grepl("Increasing", br$Sweep), ]
+```
 
-When the forage fish is unexploited ($F_{\text{Forage}} = 0$, solid curves in Figure \@ref(fig:fig-bifurcation)):
+When only the predator is fished, increasing $F_{\text{Pred}}$ gradually lowers predator biomass and releases the forage fish (Figure \@ref(fig:fig-bifurcation), left), until the abundant coexistence state disappears at $F_{\text{crit}} = `r fmt(res$F_crit, 3)`$ year$^{-1}$. Just below this threshold the predator biomass is still `r fmt(b0$B_up, 0)` g, and the leading eigenvalue is within `r fmt(max(abs(bd_fold$lead_up)), 3)` year$^{-1}$ of zero, as it is at every point of the upper boundary below the cusp (Section \@ref(two-parameter-exploitation-diagram)): State A is lost at a fold bifurcation, where it merges with the saddle. Above $F_{\text{crit}}$ the community jumps to State C. Because State C is uninvasible for every $F_{\text{Pred}} \ge 0$ when $F_{\text{Forage}} = 0$, reducing $F_{\text{Pred}}$ again does not bring the predator back: the decreasing sweep stays in State C down to $F_{\text{Pred}} = 0$.
 
-- **Low to moderate predator fishing ($0 \le F_{\text{Pred}} \le 0.175\text{ year}^{-1}$)**: The interior fixed point **State A** remains locally stable and shifts gradually. As $F_{\text{Pred}}$ increases from $0$ to $0.175\text{ year}^{-1}$, equilibrium predator biomass declines from $599.9\text{ g}$ to $386.6\text{ g}$, partially releasing the forage fish whose biomass increases from $94.3\text{ g}$ to $327.0\text{ g}$.
-- **Threshold collapse ($F_{\text{Pred}} > F_{\text{crit}} \approx 0.188\text{ year}^{-1}$)**: Above $F_{\text{crit}}$, the remaining adult predator biomass can no longer suppress the forage-fish population below the threshold where larval predation mortality overwhelms compensatory predator recruitment ($R_{0,\text{Predator}}$ drops below $1$). A saddle-node (fold) bifurcation annihilates the interior coexistence equilibrium, driving the predator to extinction ($B_{\text{Predator}}^* \to 0$) and causing forage-fish biomass to jump abruptly to the **State C** plateau ($B_{\text{Forage}}^* = 2260.2\text{ g}$).
+Harvesting the forage fish at $F_{\text{Forage}} = 0.35$ year$^{-1}$ (Figure \@ref(fig:fig-bifurcation), right) raises the collapse threshold to $F_{\text{up}} = `r fmt(b35$F_up, 3)`$ year$^{-1}$, again a fold (predator biomass `r fmt(b35$B_up, 0)` g just below it). The state it collapses to is different. At this forage harvest the predator can invade State C for $F_{\text{Pred}} < F_{\text{inv}} = `r fmt(b35$F_inv, 3)`$ year$^{-1}$, and the invasion leads to a low-abundance coexistence state rather than to State A. `r if (b35$A_low) sprintf("When fishing pressure is reduced again, this low-predator state persists down to $F_{\\text{Pred}} = %s$ year$^{-1}$ before the predator recovers to the abundant state, so the hysteresis loop spans %s--%s year$^{-1}$.", fmt(b35$F_low, 3), fmt(b35$F_low, 3), fmt(b35$F_up, 3)) else ""`
 
-In contrast, when exploitation is balanced by simultaneously harvesting the forage fish at $F_{\text{Forage}} = 0.35\text{ year}^{-1}$ (dashed curves in Figure \@ref(fig:fig-bifurcation)), fishing mortality directly restrains forage-fish expansion as the predator is fished down. Consequently, the exploited predator is held in the ecosystem far past the unbalanced collapse threshold, persisting up to $F_{\text{Pred}} \approx 0.29\text{ year}^{-1}$.
-
-```{r fig-bifurcation, fig.cap="Equilibrium biomass of Forage fish (blue) and Predator (orange) as a function of predator fishing mortality $F_{\\text{Pred}}$, starting from Coexistence State A. Solid lines show unbalanced exploitation targeting only the predator ($F_{\\text{Forage}} = 0$): State A persists up to the critical fold threshold $F_{\\text{crit}} \\approx 0.19\\text{ year}^{-1}$ (vertical dotted line), above which the predator collapses to zero and the community jumps to State C. Dashed lines show balanced exploitation with concurrent forage-fish harvesting ($F_{\\text{Forage}} = 0.35\\text{ year}^{-1}$), which prevents the forage-fish outbreak and holds the exploited predator in the ecosystem."}
+```{r fig-bifurcation, fig.cap="Equilibrium biomass of forage fish (blue) and predator (orange) along increasing (solid, starting from State A) and decreasing (dashed, starting from State C with a predator seed) predator fishing mortality, without forage-fish harvesting (left) and with $F_{\\text{Forage}} = 0.35$ year$^{-1}$ (right). The vertical scale is pseudo-logarithmic so that both zero and small predator biomasses are visible. Where the two sweeps differ, the system is bistable."}
 knitr::include_graphics("plots/predator_exploitation_bifurcation.png")
 ```
 
 ## Hysteresis Under Moratorium and Recovery via Forage-Fish Harvesting
 
-To illustrate the management consequences of cultivation--depensation, Figure \@ref(fig:fig-hysteresis) tracks a five-phase management trajectory over $570\text{ years}$:
+```{r}
+h <- res$hysteresis
+```
 
-1. **Phase 1 (Years 0--50, Unfished Coexistence)**: The community resides at the unfished **State A** equilibrium ($B_{\text{Predator}} = 599.9\text{ g}$, $B_{\text{Forage}} = 94.3\text{ g}$).
-2. **Phase 2 (Years 50--200, Predator Overfishing $\to$ Collapse)**: Selective predator fishing above the fold threshold ($F_{\text{Pred}} = 0.25\text{ year}^{-1}, F_{\text{Forage}} = 0$) triggers a trophic cascade: as adult predators decline, forage fish surge to $2260\text{ g}$, accelerating the collapse of the predator into **State C**.
-3. **Phase 3 (Years 200--320, Predator Moratorium Fails)**: At Year 200, a complete moratorium on predator fishing is enacted ($F_{\text{Pred}} = 0, F_{\text{Forage}} = 0$) and a re-introduction seed of predators ($0.5\%$ of State A abundance) is added. Because the ecosystem is trapped in the basin of attraction of **State C** where $R_{0,\text{Predator}} = 0.464 < 1$, the introduced predators cannot overcome larval predation by the uncultivated forage fish and decay exponentially back toward extinction.
-4. **Phase 4 (Years 320--470, Forage-Fish Harvesting Enables Re-Entry)**: At Year 320, managers initiate a targeted fishery on the forage fish ($F_{\text{Forage}} = 0.30\text{ year}^{-1}, F_{\text{Pred}} = 0$) alongside a predator seed. Harvesting the forage fish reduces its equilibrium biomass in State C from $2260.2\text{ g}$ down toward $1534.4\text{ g}$, lowering larval predation mortality enough to raise predator invasion fitness to $R_{0,\text{Predator}} = 2.02 > 1$. The predator successfully invades, grows exponentially over $\sim 60\text{ years}$, and re-establishes top-down cultivation over the forage fish.
-5. **Phase 5 (Years 470--570, Self-Sustaining Restoration)**: At Year 470, forage-fish harvesting is halted ($F_{\text{Forage}} = 0, F_{\text{Pred}} = 0$). Because the restored predator population now maintains top-down control on the forage fish, the community remains permanently at the unfished coexistence equilibrium **State A**.
+Figure \@ref(fig:fig-hysteresis) follows a five-phase management scenario:
 
-```{r fig-hysteresis, fig.cap="Five-phase time-series simulation demonstrating irreversible predator collapse under single-species management and recovery via forage-fish harvesting. Phase 1 (Years 0--50): Unfished Coexistence State A. Phase 2 (Years 50--200): Selective predator overfishing ($F_{\\text{Pred}} = 0.25\\text{ year}^{-1}, F_{\\text{Forage}} = 0$) drives the predator to collapse and releases forage fish to State C. Phase 3 (Years 200--320): A complete predator moratorium ($F_{\\text{Pred}} = 0, F_{\\text{Forage}} = 0$) with predator seeding fails because State C is uninvasible ($R_{0,\\text{Predator}} = 0.46 < 1$). Phase 4 (Years 320--470): Harvesting the forage fish ($F_{\\text{Forage}} = 0.30\\text{ year}^{-1}$) raises $R_{0,\\text{Predator}} = 2.02 > 1$, enabling the predator to re-enter and suppress the forage fish. Phase 5 (Years 470--570): Removing all fishing ($F_{\\text{Pred}} = 0, F_{\\text{Forage}} = 0$) leaves Coexistence State A self-sustaining."}
+1. **Years 0--50, unfished**: the community is at State A.
+2. **Years 50--200, predator overfishing** ($F_{\text{Pred}} = `r h$f_over`$ year$^{-1}$, above $F_{\text{crit}}$; $F_{\text{Forage}} = 0$): the predator collapses and forage fish rise to `r fmt(h$end_phase2["Forage"], 0)` g.
+3. **Years 200--320, moratorium**: all fishing stops and predators are reintroduced at 0.5% of their State A abundance. Because $R_{0,\text{Pred}}(\text{State C}) = `r fmt(state("State_C")$R0_Predator)`$, the reintroduced population declines.
+4. **Years 320--470, forage-fish harvest**: forage fish are fished at $F_{\text{Forage}} = `r fmt(h$f_forage_restore)`$ year$^{-1}$ and predators are reintroduced again. This is above $F_{\text{Forage,rec}} = `r fmt(res$F_forage_rec, 3)`$ year$^{-1}$ (Section \@ref(two-parameter-exploitation-diagram)). Forage-fish biomass in State C falls to `r fmt(BC(h$f_forage_restore), 0)` g and $R_{0,\text{Pred}}$ rises to `r fmt(r0C(h$f_forage_restore))`. The predator invades, exceeds half its State A biomass by year `r fmt(h$year_pred_above_half_A, 0)`, and suppresses the forage fish.
+5. **Years 470--570, unfished**: when the forage fishery stops, the community remains in State A ($B_{\text{Pred}} = `r fmt(h$end_phase5["Predator"], 1)`$ g, $B_{\text{For}} = `r fmt(h$end_phase5["Forage"], 1)`$ g), the state it occupied before overfishing.
+
+The deterministic model can only recover the predator from a reintroduction or immigration, since an extinct population cannot invade; this is why predators are seeded in phases 3 and 4.
+
+```{r fig-hysteresis, fig.cap="Five-phase management scenario. Phase 2: selective predator overfishing collapses the predator. Phase 3: a moratorium with predator reintroduction fails because State C is uninvasible. Phase 4: harvesting the forage fish makes State C invasible and the reintroduced predator recovers. Phase 5: after all fishing stops, the restored State A persists."}
 knitr::include_graphics("plots/hysteresis_and_recovery.png")
 ```
 
-## Two-Parameter Exploitation Phase Diagram and Cusp Bifurcation
+## Two-Parameter Exploitation Diagram
 
-To generalize these results across all combinations of fishing effort, we compute the predator's invasion reproduction number $R_{0,\text{Predator}}(\text{State C})$ as a function of $F_{\text{Forage}}$ (Figure \@ref(fig:fig-regime)A) and map the complete two-parameter bifurcation diagram in the $(F_{\text{Forage}}, F_{\text{Pred}})$ plane (Figure \@ref(fig:fig-regime)B).
+```{r}
+bd <- res$bounds
+```
 
-In **State C**, increasing $F_{\text{Forage}}$ monotonically reduces uncultivated forage-fish biomass and increases $R_{0,\text{Predator}}$ from $0.464$ (at $F_{\text{Forage}} = 0$) across the invasion threshold $R_{0,\text{Predator}} = 1$ at the critical forage-fish harvest rate
+In State C, harvesting the forage fish reduces its biomass and increases $R_{0,\text{Pred}}$ (Figure \@ref(fig:fig-regime)A), from `r fmt(r0C(0))` at $F_{\text{Forage}} = 0$ to `r fmt(r0C(max(res$r0_curve$F_Forage)))` at $F_{\text{Forage}} = `r fmt(max(res$r0_curve$F_Forage), 1)`$ year$^{-1}$. The predator can invade State C once
 \begin{equation}
-  F_{\text{Forage,inv}} = 0.128\text{ year}^{-1} \quad \big(B_{\text{Forage}}^*(\text{State C}) \approx 1895\text{ g}\big),
+  F_{\text{Forage}} > F_{\text{Forage,inv}} = `r fmt(res$F_forage_inv, 3)`\text{ year}^{-1},
   (\#eq:ff-inv)
 \end{equation}
-reaching $R_{0,\text{Predator}} = 3.44$ at $F_{\text{Forage}} = 0.50\text{ year}^{-1}$ (Figure \@ref(fig:fig-regime)A).
+at which State C holds `r fmt(res$B_forage_C_at_inv, 0)` g of forage fish.
 
-In the two-parameter $(F_{\text{Forage}}, F_{\text{Pred}})$ plane (Figure \@ref(fig:fig-regime)B), two bifurcation curves organize the community dynamics:
+Figure \@ref(fig:fig-regime)B shows the computed regimes in the $(F_{\text{Forage}}, F_{\text{Pred}})$ plane. The fold that bounds the abundant coexistence state, $F_{\text{up}}$, rises from `r fmt(res$F_crit, 3)` year$^{-1}$ without forage harvest to `r fmt(bound(0.25)$F_up, 3)` at $F_{\text{Forage}} = 0.25$ and `r fmt(b35$F_up, 3)` at $F_{\text{Forage}} = 0.35$ year$^{-1}$. The predator invasion boundary of State C, $F_{\text{inv}}$, rises more steeply, from zero at $F_{\text{Forage,inv}}$ to `r fmt(b35$F_inv, 3)` year$^{-1}$ at $F_{\text{Forage}} = 0.35$. The two curves cross, but they do not meet at a single codimension-two point as the simplest picture would suggest. Instead the plane divides as follows:
 
-1. **The fold / collapse boundary $F_{\text{crit}}(F_{\text{Forage}})$** (solid orange curve), above which the interior coexistence state **State A** ceases to exist, and
-2. **The transcritical invasion boundary $F_{\text{inv}}(F_{\text{Forage}})$** (dashed green curve), defined implicitly by $R_{0,\text{Predator}}\big(\text{State C}(F_{\text{Forage}}, F_{\text{Pred}})\big) = 1$, below which **State C** becomes unstable to predator invasion.
+1. **No invasion** ($F_{\text{Forage}} < F_{\text{Forage,inv}}$). State C is uninvasible for every $F_{\text{Pred}} \ge 0$, so the abundant state and State C are both stable from $F_{\text{Pred}} = 0$ up to the fold $F_{\text{up}}$ (amber region), and only State C remains above it. This is why a moratorium on predator fishing alone cannot restore the predator.
+2. **Invasion to a low-predator state** ($F_{\text{Forage}} > F_{\text{Forage,inv}}$). Wherever $F_{\text{inv}} > 0$, the invasion bifurcation of State C is supercritical: a predator invading at $F_{\text{Pred}}$ just below $F_{\text{inv}}$ settles at a low abundance rather than returning to the abundant state. The low-predator state persists down to its own lower limit $F_{\text{low}}$, below which the predator recovers fully. Between $\max(0, F_{\text{low}})$ and $F_{\text{up}}$ the abundant state is bistable with State C (amber, above $F_{\text{inv}}$) or with the low-predator state (yellow, below $F_{\text{inv}}$), and where $F_{\text{up}} < F_{\text{inv}}$ the low-predator state is the only attractor between them (pink). Because $F_{\text{low}}$ is negative only for $F_{\text{Forage}} > F_{\text{Forage,rec}} = `r fmt(res$F_forage_rec, 3)`$ year$^{-1}$, a predator reintroduced without any predator fishing recovers fully only above this forage harvest; for $`r fmt(res$F_forage_inv, 3)` < F_{\text{Forage}} < `r fmt(res$F_forage_rec, 3)`$ year$^{-1}$ it persists only as a remnant.
+3. **Cusp** ($F_{\text{Forage}} \approx `r cusp_range`$ year$^{-1}$). The upper fold of the abundant state and the lower limit of the low-predator state approach each other as forage harvest increases: the width of the bistable interval shrinks from `r fmt(hyst_width(0.35), 3)` year$^{-1}$ at $F_{\text{Forage}} = 0.35$ to `r fmt(hyst_width(0.6), 3)` year$^{-1}$ at $F_{\text{Forage}} = 0.6$ and has closed at `r fmt(res$cusp_F_Forage, 3)` year$^{-1}$. Beyond the cusp the predator declines continuously with increasing $F_{\text{Pred}}$ and recovers along the same path when fishing is reduced.
 
-These two boundaries partition exploitation space into three distinct regimes and meet tangentially at a **codimension-2 cusp bifurcation** at $(F_{\text{Forage}}, F_{\text{Pred}}) \approx (0.35, 0.292)\text{ year}^{-1}$:
+Forage-fish harvesting therefore removes the regime shift only at forage-fish fishing mortalities above about `r fmt(res$cusp_F_Forage - 0.025, 2)` year$^{-1}$, well beyond the level needed to make State C invasible.
 
-- **Bistable Cultivation--Depensation Regime (amber wedge)**: For $0 \le F_{\text{Forage}} < 0.35\text{ year}^{-1}$ and $\max(0, F_{\text{inv}}(F_{\text{Forage}})) < F_{\text{Pred}} < F_{\text{crit}}(F_{\text{Forage}})$, both **State A** and **State C** are locally stable. An established predator population persists via top-down cultivation, but if overfishing pushes the system across $F_{\text{crit}}$, the predator cannot re-invade without shifting $(F_{\text{Forage}}, F_{\text{Pred}})$ across the dashed transcritical boundary. Notably, for $F_{\text{Forage}} < 0.128\text{ year}^{-1}$, the bistable region extends all the way down to $F_{\text{Pred}} = 0$, explaining why a predator moratorium alone cannot achieve recovery.
-- **Monostable Coexistence Regime (green region)**: For $F_{\text{Forage}} > 0.128\text{ year}^{-1}$ and $F_{\text{Pred}} < F_{\text{inv}}(F_{\text{Forage}})$, forage-fish harvesting sufficiently weakens the larval predation gauntlet that **State C** is unstable to predator invasion ($R_{0,\text{Predator}} > 1$). Here **State A** is the unique stable attractor when both fish species are present, guaranteeing predator recovery from arbitrarily low densities.
-- **Forage-Dominated Regime (blue region)**: Above $\max(F_{\text{crit}}, F_{\text{inv}})$, direct fishing mortality on the predator exceeds its reproductive capacity even under cultivated conditions, leaving **State C** as the unique stable attractor.
-
-```{r fig-regime, fig.cap="Two-parameter exploitation analysis across $(F_{\\text{Forage}}, F_{\\text{Pred}})$. (A) Predator invasion reproduction number $R_{0,\\text{Predator}}$ in the uncultivated plankton--forage state (State C) as a function of forage-fish fishing mortality $F_{\\text{Forage}}$ (at $F_{\\text{Pred}} = 0$); State C becomes invasible ($R_{0,\\text{Predator}} > 1$) above $F_{\\text{Forage,inv}} = 0.128\\text{ year}^{-1}$. (B) Two-parameter regime diagram in $(F_{\\text{Forage}}, F_{\\text{Pred}})$ space showing the Bistable Regime (amber), the Monostable Coexistence Regime (green), and the Forage-Dominated Regime (blue), bounded by the saddle-node fold curve $F_{\\text{crit}}(F_{\\text{Forage}})$ (solid orange) and the transcritical invasion curve $R_{0,\\text{Predator}}(\\text{State C}) = 1$ (dashed green), which merge at a codimension-2 cusp point at $(0.35, 0.292)\\text{ year}^{-1}$."}
+```{r fig-regime, fig.cap="(A) Predator invasion reproduction number in State C as a function of forage-fish fishing mortality; State C becomes invasible above $F_{\\text{Forage,inv}}$. (B) Regimes in the $(F_{\\text{Forage}}, F_{\\text{Pred}})$ plane computed from the upper limit of the abundant coexistence state (solid), the lower limit of the depleted state (dotted) and the predator invasion boundary of State C (dashed). Beyond the cusp the abundant and low-predator states form one continuous branch; the vertical edge of the pink region there marks where the branch at the upper limit falls below the 100 g used to tell the two apart, not a bifurcation."}
 knitr::include_graphics("plots/regime_diagram_2D.png")
+```
+
+## Robustness
+
+```{r robustness-table}
+rb <- res$robustness
+rob_df <- data.frame(
+  Variant = rb$Variant,
+  B_For_C = fmt(rb$B_For_C, 0),
+  R0_For_B = fmt(rb$R0_For_B), R0_Pred_C = fmt(rb$R0_Pred_C, 3),
+  F_crit = fmt(rb$F_crit, 3), F_inv = fmt(rb$F_forage_inv, 3), F_rec = fmt(rb$F_forage_rec, 3),
+  diet = fmt(rb$Forage_in_diet, 2)
+)
+colnames(rob_df) <- c("Variant", "$B_{\\text{For}}(\\text{C})$", "$R_{0,\\text{For}}(\\text{B})$",
+                      "$R_{0,\\text{Pred}}(\\text{C})$", "$F_{\\text{crit}}$", "$F_{\\text{Forage,inv}}$",
+                      "$F_{\\text{Forage,rec}}$", "Forage share of diet")
+knitr::kable(rob_df, booktabs = TRUE, escape = FALSE, align = "lrrrrrrr",
+             caption = "Dependence of the results on numerical resolution and model structure. Each variant is rebuilt and recalibrated to the same State A targets. Bistability between A and C without fishing requires $R_{0,\\text{Pred}}(\\text{C}) < 1$. The original model is the first-order discretisation without physical diffusion used in the first version of this study.")
+```
+
+```{r}
+ref <- rb[1, ]; orig <- rb[grepl("Original", rb$Variant), ]; res1 <- rb[grepl("1 g", rb$Variant), ]
+ds <- res$diffusion_scan
+ths <- res$theta_scan
+pp <- ths[ths$Parameter == "theta_PP", ]
+pct <- function(x, y) fmt(100 * abs(x / y - 1), 0)
+```
+
+*Numerical resolution.* With the second-order scheme and physical diffusion, the thresholds are converged: halving or doubling the number of size classes changes $F_{\text{crit}}$ by at most `r fmt(max(abs(rb$F_crit[2:3] - ref$F_crit)), 3)` year$^{-1}$ and $R_{0,\text{Pred}}(\text{C})$ by at most `r pct(rb$R0_Pred_C[grepl("^160|^640", rb$Variant)][which.max(abs(rb$R0_Pred_C[grepl("^160|^640", rb$Variant)] - ref$R0_Pred_C))], ref$R0_Pred_C)`% (Table \@ref(tab:robustness-table)). The original first-order discretisation without physical diffusion gives $F_{\text{crit}} = `r fmt(orig$F_crit, 3)`$ and $R_{0,\text{Pred}}(\text{C}) = `r fmt(orig$R0_Pred_C, 3)`$, against `r fmt(ref$F_crit, 3)` and `r fmt(ref$R0_Pred_C, 3)` in the reference model. Its numerical diffusion is of a similar magnitude to the physical diffusion assumed here, so its qualitative results stand, but its thresholds depend on the grid rather than on any biological assumption; its forage-harvest thresholds ($F_{\text{Forage,inv}} = `r fmt(orig$F_forage_inv, 3)`$, $F_{\text{Forage,rec}} = `r fmt(orig$F_forage_rec, 3)`$ year$^{-1}$) are less than half those of the reference model.
+
+*Size diffusion.* Figure \@ref(fig:fig-diffusion) shows the thresholds for size diffusion between $c = 0.02$ and $c = 0.3$. Over this range, $R_{0,\text{Pred}}(\text{C})$ varies between `r fmt(min(ds$R0_Pred_C), 2)` and `r fmt(max(ds$R0_Pred_C), 2)`, $F_{\text{crit}}$ between `r fmt(min(ds$F_crit), 3)` and `r fmt(max(ds$F_crit), 3)` year$^{-1}$, $F_{\text{Forage,inv}}$ between `r fmt(min(ds$F_forage_inv), 3)` and `r fmt(max(ds$F_forage_inv), 3)` year$^{-1}$, and $F_{\text{Forage,rec}}$ between `r fmt(min(ds$F_forage_rec), 3)` and `r fmt(max(ds$F_forage_rec), 3)` year$^{-1}$. `r if (all(ds$R0_Pred_C < 1, na.rm = TRUE)) "The predator cannot invade State C at any of these diffusion levels, so the bistability and the failure of a moratorium do not depend on the assumed growth variability." else "At some of these diffusion levels the predator can invade State C, so the bistability depends on the assumed growth variability."`
+
+*Resource size range.* Moving the resource taper from 10 g to 1 g, so that adult predators depend more on forage fish (`r fmt(100 * res1$Forage_in_diet, 0)`% of their diet instead of `r fmt(100 * ref$Forage_in_diet, 0)`%), strengthens the depensation: $R_{0,\text{Pred}}(\text{C})$ falls to `r fmt(res1$R0_Pred_C, 3)` and $F_{\text{crit}}$ rises to `r fmt(res1$F_crit, 3)` year$^{-1}$, and the predator recovers fully only above $F_{\text{Forage}} = `r fmt(res1$F_forage_rec, 3)`$ year$^{-1}$.
+
+```{r fig-diffusion, fig.cap="Dependence of the fishing thresholds (A) and of the predator invasion reproduction number in State C (B) on the strength of size diffusion $c = d\\sigma^2/d\\ln w$. Each point is a separately calibrated model; the reference model has $c = 0.1$."}
+knitr::include_graphics("plots/robustness_diffusion.png")
+```
+
+The result is, however, sensitive to cannibalism in either species (Figure \@ref(fig:fig-robustness)). $R_{0,\text{Pred}}(\text{C})$ increases steeply with forage-fish cannibalism and exceeds one at $\theta_{\text{For,For}} = `r fmt(res$theta_FF_crit, 3)`$. When forage fish eat their own larvae, they regulate their own recruitment, State C contains fewer forage fish, and the predator can invade. Cultivation--depensation in this model therefore requires that adult forage fish prey on predator larvae at least `r fmt(0.95 / res$theta_FF_crit, 0)` times more readily than on their own larvae. Predator cannibalism has the same effect: $R_{0,\text{Pred}}(\text{C})$ exceeds one at $\theta_{\text{Pred,Pred}} = `r fmt(res$theta_PP_crit, 3)`$. With strong cannibalism, predator larvae in State A are eaten mainly by their own adults, and the calibration compensates with a higher reproductive efficiency; a predator invading State C has no conspecific adults to eat its larvae and invades easily. (At high cannibalism the calibration also fails to reach the 600 g predator target: State A then holds `r fmt(min(pp$B_Pred_A), 0)`--`r fmt(max(pp$B_Pred_A), 0)` g of predators across the scan.) In short, cultivation--depensation arises here only if forage fish, rather than the predator's own adults, are the main predators of predator larvae.
+
+```{r fig-robustness, fig.cap="Predator invasion reproduction number in State C as a function of the strength of forage-fish cannibalism $\\theta_{\\text{For,For}}$ (left) and predator cannibalism $\\theta_{\\text{Pred,Pred}}$ (right), with all other entries of the interaction matrix unchanged. Each point is a separately calibrated model. To the right of the dotted line the predator can invade State C and there is no bistability without fishing."}
+knitr::include_graphics("plots/robustness_cannibalism.png")
 ```
 
 # Discussion
 
-## Size-Structured Ontogeny as the Engine of Cultivation--Depensation
+## Size-Structured Ontogeny and Cultivation--Depensation
 
-Our model demonstrates that cultivation--depensation does not require bespoke functional forms or ad-hoc depensatory stock--recruitment terms: it emerges directly from standard size-spectrum bioenergetics [@hartvig2011food; @scott2014mizer; @andersen2019fish] whenever a small-bodied forage species and a large-bodied predator share a common milligram recruitment size and interact via gape-limited predation. The key ecological condition is that the uncultivated forage-fish equilibrium (**State C**) achieves a high enough biomass density on the Sheldon scale of the plankton resource that the predation mortality inflicted by adult forage fish on predator larvae ($\mu_{p,\text{Predator}} \sim 37\text{ year}^{-1}$ at $w \sim 0.05\text{ g}$) exceeds the compensatory reserve of predator recruitment ($L_{R,\text{Predator}} = 0.78$, corresponding to an unfished cultivated $R_{0,\text{Predator}} = 4.55$). When the adult predator is present (**State A**), top-down predation holds forage-fish biomass down by a factor of $24$, reducing larval predation mortality to $\sim 1.5\text{ year}^{-1}$ and maintaining a wide safety margin for predator recruitment.
+Cultivation--depensation emerges in the standard size-spectrum dynamics without any explicitly depensatory stock--recruitment function: a forage fish and a predator that spawn at the same size and interact through size-based feeding can produce alternative stable states, a predator Allee effect and a moratorium that fails. The decomposition of $R_{0,\text{Pred}}$ shows that the mechanism here is predation on predator larvae, as in the original hypothesis [@walters2001cultivation], and not the food-dependent development that underlies emergent Allee effects in stage-structured consumer--resource models [@deroos2002size; @vankooten2005bistability; @deroos2013population]. Indeed the food effect works against depensation: an uncultivated system with many forage fish would be a rich feeding ground for the few predators that survive to adulthood. Distinguishing these mechanisms in real systems is difficult, because both produce the same population-level signature [@gardmark2015regime].
 
-## Priority Effects in Size-Spectrum Community Assembly
+The mechanism is, however, conditional. It requires that forage fish prey on predator larvae much more than on their own larvae, and that predator larvae are not mainly eaten by their own adults. With symmetric larval predation, the self-regulation of the forage fish keeps State C sparse enough for the predator to invade; with strong predator cannibalism, a predator invading State C escapes the main source of its larval mortality. A biological basis for the asymmetry must come from spatial or seasonal segregation of spawning and feeding grounds, which a single well-mixed size spectrum cannot represent. Cod, the motivating example, are notably cannibalistic, so the second condition in particular deserves empirical scrutiny. In addition, the predator in this model obtains most of its food from the resource, which extends beyond 10 g; restricting the resource to small plankton strengthened rather than weakened the depensation, but the model's "predator" is closer to a generalist than to an obligate piscivore.
 
-A striking consequence of this ontogenetic asymmetry is the directional assembly rule linking the boundary equilibria (**State 0**, **State B**, and **State C**) to the interior coexistence state (**State A**). In classical Lotka--Volterra intraguild predation models, an intermediate consumer (forage fish) must be a superior exploiter of the basal resource to coexist with an intraguild predator, and assembly typically proceeds from basal resource to consumer to predator. In a size-structured marine food web where all teleosts spawn at $w_{\min} \sim 10^{-3}\text{ g}$, the reverse assembly order can be required: the large predator can colonize the plankton-only system first (**State 0 $\to$ State B**) and subsequently facilitate—or tolerate—the invasion of the forage fish (**State B $\to$ State A**, $R_{0,\text{Forage}} = 2.59 > 1$), whereas early colonization by the forage fish (**State 0 $\to$ State C**) erects a larval predation barrier that blocks predator entry ($R_{0,\text{Predator}} = 0.46 < 1$). This provides a mechanistic size-spectrum explanation for priority effects and alternative community states in marine food webs [@deroos2002size; @vanleeuwen2008individual; @deroos2013population].
+## Priority Effects
 
-## Why Exploitation Must Be Balanced Across Species
+The invasion numbers establish a priority effect: the full food web assembles if the predator arrives first but not if the forage fish does. This is the pattern expected from life-history intraguild predation, in which each species preys on the other's young [@holt1997theoretical; @hin2011coexistence]. The forage fish, which preys on the predator's young, can exclude the predator; the predator, whose adults eat forage fish but cannot eliminate them, cannot exclude the forage fish.
 
-From a fisheries management perspective, the two-parameter regime diagram (Figure \@ref(fig:fig-regime)B) provides a clear dynamical justification for balanced harvesting across trophic guilds [@garcia2012reconsidering; @law2012balanced; @law2015size]:
+## Implications for Exploitation
 
-1. **Vulnerability of unbalanced, apex-focused fisheries**: When fishing targets only the large predator ($F_{\text{Forage}} = 0$), the fishery operates along the vertical axis of Figure \@ref(fig:fig-regime)B—entirely inside the bistable cultivation--depensation regime. Not only is the maximum sustainable predator fishing mortality comparatively low ($F_{\text{crit}} \approx 0.188\text{ year}^{-1}$), but any overshoot of $F_{\text{crit}}$ triggers an irreversible collapse into **State C** from which a single-species moratorium ($F_{\text{Pred}} = 0$) cannot recover the stock.
-2. **Preventative stabilization via forage harvesting**: Applying moderate fishing mortality to the forage fish ($F_{\text{Forage}} \in [0.15, 0.35]\text{ year}^{-1}$) shifts the fishery rightward in Figure \@ref(fig:fig-regime)B, raising the predator collapse threshold $F_{\text{crit}}(F_{\text{Forage}})$ by more than $50\%$ (from $0.188$ to $0.292\text{ year}^{-1}$ at the cusp point) and progressively narrowing the bistable hysteresis zone. Beyond the cusp point ($F_{\text{Forage}} \ge 0.35\text{ year}^{-1}$), the fold bifurcation disappears altogether, replacing catastrophic collapse with a smooth, reversible transcritical transition.
-3. **Trophic restoration of collapsed predators**: When an ecosystem is already locked in the uncultivated forage-fish regime (**State C**), harvesting the forage fish above $F_{\text{Forage,inv}} = 0.128\text{ year}^{-1}$ acts as an artificial substitute for the missing adult predator's cultivation service. Once the predator re-invades and rebuilds its adult biomass, it resumes top-down control over the forage fish, allowing the system to remain in **State A** even if forage-fish harvesting is subsequently reduced.
+The model supports three management conclusions, each with qualifications.
+
+1. **Selective predator fishing risks an irreversible collapse.** Without forage harvest, the abundant predator state is lost at a fold at $F_{\text{Pred}} = `r fmt(res$F_crit, 3)`$ year$^{-1}$, and a predator moratorium alone cannot restore it because State C is uninvasible. Whether real systems are locked in this way is an empirical question; the Scotian Shelf, where the forage-fish outbreak eventually collapsed and cod began to recover [@frank2011transient], shows that additional dynamics not in this model, such as the forage fish overshooting its own food supply, can open an escape route.
+2. **Forage-fish harvesting raises the collapse threshold.** At $F_{\text{Forage}} = 0.35$ year$^{-1}$ the threshold increases by `r fmt(100 * (b35$F_up / res$F_crit - 1), 0)`%. The collapse remains abrupt, although above $F_{\text{Forage}} \approx `r fmt(inv_above_up, 2)`$ year$^{-1}$, where the invasion boundary of State C lies above the fold, it leads to a low-abundance predator state rather than to extinction; only beyond the cusp at $F_{\text{Forage}} \approx `r cusp_range`$ year$^{-1}$ does the predator decline continuously.
+3. **Forage-fish harvesting can restore a collapsed predator.** Once $F_{\text{Forage}} > `r fmt(res$F_forage_inv, 3)`$ year$^{-1}$, a reintroduced or immigrating predator can invade, and once $F_{\text{Forage}} > `r fmt(res$F_forage_rec, 3)`$ year$^{-1}$ it recovers fully, re-establishes top-down control, and the community stays in State A when the forage harvest ends. The difference between the two thresholds matters for management: a forage harvest that just makes invasion possible leaves the predator as a remnant population. This is the model analogue of the whole-lake experiment in which culling of a prey and competitor population allowed a predator to recover [@persson2007culling], and of the recovery of predators in marine reserves through suppression of their competitors and predators [@baskett2006predation].
+
+These conclusions concern fishing two species at different rates. They do not amount to *balanced harvesting* in the sense of @garcia2012reconsidering, which distributes fishing mortality across all species and sizes in proportion to their productivity, and which has been analysed in size-spectrum models by @law2012balanced, @jacobsen2014consequences and @law2016balanced. Our forage-fish gear also takes juveniles from 1 g. The historical tendency of fisheries to move from large predators to lower trophic levels [@pauly1998fishing; @essington2006fishing] is the opposite of the order that the model suggests would protect predators, but the model provides no estimate of the yields or ecosystem consequences of such a strategy.
+
+## Limitations
+
+The results are for one hand-tuned parameter set. Calibrated quantities such as the predator's reproductive efficiency ($\epsilon_{\text{Pred}} = `r sci(sp("erepro", "Predator"), 2)`$) directly scale its invasion number, and the target biomasses are illustrative. The model is deterministic, spatially unstructured and has a single resource spectrum; recovery requires a reintroduced or immigrating seed; and each gear catches only one species. The thresholds depend quantitatively on the assumed size diffusion (Figure \@ref(fig:fig-diffusion)), which is poorly constrained, and on the senescence mortality that limits how far adults diffuse beyond $w_\infty$, whose form is an assumption.
 
 ## Reproducibility
 
-All model construction, steady-state verification, linear stability analysis, exact discrete $R_0$ calculations, and figure generation are implemented in `cultivation_depensation.R`, with the calibrated `MizerParams` object archived in `cultivation_depensation_params.rds`.
+All model construction, steady-state and stability analysis, bifurcation mapping, robustness checks and figures are produced by `cultivation_depensation.R` with `mizer` `r res$mizer_version`; the second-order scheme and the scheme-consistent invasion numbers require `mizer` $\ge$ 3.4. It saves the calibrated model to `cultivation_depensation_params.rds` (written with `saveParams()`, readable with `readParams()` in `mizer` $\ge$ 3.4) and every number quoted in this paper to `results/cultivation_results.rds`, which this document reads when it is knitted.
 
 # References
