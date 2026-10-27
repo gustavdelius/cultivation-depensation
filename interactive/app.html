@@ -147,15 +147,15 @@ h1 .hook { color: var(--predator); }
 .view-tab:hover { color: var(--ink); }
 .view-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .bar-right { display: flex; align-items: center; gap: 12px; padding: 6px 0; margin-left: auto; }
-.transport { display: flex; gap: 2px; align-items: center; background: var(--panel-2); border-radius: 8px; padding: 3px; }
-.transport button {
+.transport, .seg { display: flex; gap: 2px; align-items: center; background: var(--panel-2); border-radius: 8px; padding: 3px; }
+.transport button, .seg button {
   border: 0; background: transparent; cursor: pointer;
   padding: 5px 8px; border-radius: 6px; font-size: 13px; line-height: 1.2;
   color: var(--ink-2);
   white-space: nowrap;
 }
-.transport button:hover { color: var(--ink); }
-.transport button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(5, 30, 40, 0.2); }
+.transport button:hover, .seg button:hover { color: var(--ink); }
+.transport button[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(5, 30, 40, 0.2); }
 .transport .play { background: var(--accent); color: var(--accent-ink); font-weight: 700; min-width: 78px; }
 .transport .play:hover { color: var(--accent-ink); filter: brightness(1.1); }
 .transport .sep { width: 1px; align-self: stretch; background: var(--line); margin: 3px 2px; }
@@ -306,6 +306,16 @@ input[type="range"] { width: 100%; margin: 4px 0; cursor: pointer; }
 input[type="range"]:disabled { cursor: not-allowed; opacity: 0.45; }
 #fp-slider { accent-color: var(--predator); }
 #ff-slider { accent-color: var(--forage); }
+/* Free play: one map in place of the two sliders */
+.mode-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mode-label { font-weight: 700; }
+.pad-lever { display: grid; gap: 6px; }
+.chart.pad { height: clamp(180px, 26vh, 250px); border-radius: 6px; }
+.chart.pad:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pad-values { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; }
+.pad-values span { display: inline-flex; align-items: center; gap: 6px; }
+.pad-values b { font: 500 14px/1.2 var(--font-data); }
+.pad-values small { font: 12.5px/1.2 var(--font-body); color: var(--ink-2); margin-left: 3px; }
 
 .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn {
@@ -364,7 +374,6 @@ input[type="range"]:disabled { cursor: not-allowed; opacity: 0.45; }
 .chart .label-pred { fill: var(--predator); font-weight: 500; }
 .chart .label-forage { fill: var(--forage); font-weight: 500; }
 .chart .region-safe { fill: var(--safe); opacity: 0.22; }
-.chart .region-tip { fill: url(#hatch); }
 .chart .region-tip-base { fill: var(--tip); opacity: 0.2; }
 .chart .region-lost { fill: var(--lost); opacity: 0.2; }
 .chart .line-fold { stroke: var(--bad); stroke-width: 2.5; fill: none; }
@@ -377,6 +386,9 @@ input[type="range"]:disabled { cursor: not-allowed; opacity: 0.45; }
 .chart .boat-halo { fill: none; stroke: var(--ink); stroke-width: 1.5; opacity: 0.35; }
 .chart .click-layer { fill: transparent; cursor: crosshair; }
 .chart .click-layer.locked { cursor: not-allowed; }
+.chart.dragging .click-layer { cursor: grabbing; }
+.chart.draggable { touch-action: none; user-select: none; }   /* a finger drags the dot instead of scrolling */
+.chart.pad .region-label { font-size: 12.5px; }
 .chart .fog-rect { fill: var(--fog); }
 .chart .fog-text { font-family: var(--font-display); font-size: 16px; font-weight: 700; fill: #f1f8f9; }
 .chart .fog-sub { font-family: var(--font-body); font-size: 12.5px; fill: #c9dde1; }
@@ -548,7 +560,7 @@ html.touring .viewer { position: static; }
         <div class="view view-chart" id="view-policy" role="tabpanel" aria-labelledby="tab-policy" hidden>
           <div class="view-head">
             <h2>Where your fishing policy sits</h2>
-            <p>Each point is one year of your policy, coloured by whether predators were still there. Click the chart to set both fishing pressures at once.</p>
+            <p>Each point is one year of your policy, coloured by whether predators were still there. Click or drag on the chart to set both fishing pressures at once.</p>
           </div>
           <div class="chart fill" id="regime-chart"></div>
           <div class="legend">
@@ -622,6 +634,23 @@ html.touring .viewer { position: static; }
       </div>
 
       <div class="panel controls" role="group" aria-label="Fishing policy">
+        <div class="mode-row" id="mode-row" hidden>
+          <span class="mode-label">Set fishing with</span>
+          <div class="seg" role="group" aria-label="Fishing controls">
+            <button type="button" data-mode="map" aria-pressed="true">Map</button>
+            <button type="button" data-mode="sliders" aria-pressed="false">Sliders</button>
+          </div>
+        </div>
+        <div class="pad-lever" id="pad-lever" hidden>
+          <div class="chart pad" id="policy-pad" tabindex="0" role="slider" aria-roledescription="fishing map"
+               aria-label="Fishing map. Left and right arrows change forage fishing, up and down change predator fishing."
+               aria-valuemin="0" aria-valuemax="0.5"></div>
+          <div class="pad-values">
+            <span><i class="swatch" style="background:var(--predator)"></i>Predator <b id="pad-fp">F 0.00</b></span>
+            <span><i class="swatch" style="background:var(--forage)"></i>Forage fish <b id="pad-ff">F 0.00</b></span>
+          </div>
+          <p class="lever-sub" id="pad-sub"></p>
+        </div>
         <div class="lever" id="fp-lever">
           <div class="lever-head">
             <label for="fp-slider"><span class="swatch" style="background:var(--predator)"></span>Predator fishing</label>
@@ -1093,7 +1122,7 @@ html.touring .viewer { position: static; }
       id: "free",
       tab: "Free play",
       title: "Free play",
-      brief: "All levers unlocked. Pick a starting sea and explore. Try entering the tipping zone from below and from above.",
+      brief: "Everything is unlocked. Pick a starting sea, then drag the dot on the fishing map to set both fishing pressures at once. Try entering the tipping zone from below and from above.",
       start: "State_A", Fp: 0, Ff: 0,
       locks: {}, restock: 99, release: true, presets: true,
       goals: () => [],
@@ -1138,6 +1167,7 @@ html.touring .viewer { position: static; }
     $("release-forage-btn").hidden = !m.release;
     $("restock-btn").hidden = !m.restock || m.release;
     regimeChart.setFog(!!m.fog);
+    syncMode();
     syncControls();
     sim.running = true;
     syncPlay();
@@ -1243,6 +1273,13 @@ html.touring .viewer { position: static; }
     $("ff-value").textContent = `F ${policy.Ff.toFixed(2)}`;
     $("fp-sub").textContent = locks.Fp ? "🔒 " + locks.Fp : describeF(policy.Fp, PRED);
     $("ff-sub").textContent = locks.Ff ? "🔒 " + locks.Ff : describeF(policy.Ff, FORAGE);
+    $("pad-fp").innerHTML = `F ${policy.Fp.toFixed(2)} <small>${pctCatch(policy.Fp)}% a year</small>`;
+    $("pad-ff").innerHTML = `F ${policy.Ff.toFixed(2)} <small>${pctCatch(policy.Ff)}% a year</small>`;
+    const region = REGION_TEXT[regimeAt(policy.Ff, policy.Fp)];
+    $("pad-sub").textContent = region + ".";
+    const pad = $("policy-pad");
+    pad.setAttribute("aria-valuenow", policy.Fp);
+    pad.setAttribute("aria-valuetext", `Predator F ${policy.Fp.toFixed(2)}, forage fish F ${policy.Ff.toFixed(2)}. ${region}.`);
     const left = Math.max(0, mission.restock - sim.restocks);
     $("restock-btn").disabled = left === 0;
     $("restock-count").textContent = mission.restock && mission.restock < 99 ? `${left} left` : "";
@@ -1255,9 +1292,28 @@ html.touring .viewer { position: static; }
     policy.Ff = Number(policy.Ff.toFixed(3)); policy.Fp = Number(policy.Fp.toFixed(3));
     syncControls();
     regimeChart.draw();
+    policyPad.draw();
   }
   fpSlider.addEventListener("input", () => setPolicy(undefined, Number(fpSlider.value)));
   ffSlider.addEventListener("input", () => setPolicy(Number(ffSlider.value), undefined));
+
+  // Free play can swap the two sliders for one map of both fishing pressures
+  let controlMode = store.get("nursery-trap-controls", "map");
+  function syncMode() {
+    const free = mission.id === "free";
+    const map = free && controlMode === "map";
+    $("mode-row").hidden = !free;
+    $("pad-lever").hidden = !map;
+    $("fp-lever").hidden = map;
+    $("ff-lever").hidden = map;
+    document.querySelectorAll("#mode-row [data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === controlMode)));
+    policyPad.draw();
+  }
+  document.querySelectorAll("#mode-row [data-mode]").forEach((b) => b.addEventListener("click", () => {
+    controlMode = b.dataset.mode;
+    store.set("nursery-trap-controls", controlMode);
+    syncMode();
+  }));
 
   $("restock-btn").addEventListener("click", () => {
     if (sim.restocks >= mission.restock) return;
@@ -1496,20 +1552,25 @@ html.touring .viewer { position: static; }
   document.querySelector("details.table-view").addEventListener("toggle", renderTable);
 
   // ---------------------------------------------------------------------
-  // Policy chart (regime map)
+  // Policy chart (regime map), and the small copy that is the lever in free play
   // ---------------------------------------------------------------------
-  const regimeChart = (() => {
-    const el = $("regime-chart");
-    const tip = makeTooltip(el);
-    let fog = false, geom = null;
+  const REGION_TEXT = {
+    safe: "Safe: predators recover from any state",
+    tip: "Tipping zone: healthy or collapsed, depending on the past",
+    lost: "Predators lost: forage fish take over",
+  };
+  function makeRegimeMap(el, compact) {
+    const tip = compact ? null : makeTooltip(el);
+    const hatch = `hatch-${el.id}`;   // each map needs its own pattern: the other may be hidden
+    let fog = false, geom = null, dragging = null;
     const XMAX = 0.6, YMAX = 0.5;
     observeSize(el, draw);
 
     function draw() {
-      const box = chartBox(el, 260, 200);
+      const box = compact ? chartBox(el, 220, 170) : chartBox(el, 260, 200);
       if (!box) return;
       const { W, H } = box;
-      const ml = 46, mr = 12, mt = 10, mb = 40;
+      const [ml, mr, mt, mb] = compact ? [44, 10, 8, 36] : [46, 12, 10, 40];
       const x = (v) => ml + (W - ml - mr) * v / XMAX;
       const y = (v) => mt + (H - mt - mb) * (1 - v / YMAX);
       geom = { ml, mr, mt, mb, W, H, x, y };
@@ -1518,7 +1579,7 @@ html.touring .viewer { position: static; }
       const top = xs.map((v) => [x(v), y(Math.min(YMAX, Fcrit(v)))]);
       const inv = xs.map((v) => [x(v), y(Math.min(YMAX, Finv(v)))]);
       let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Policy chart of forage fishing against predator fishing, with safe, tipping and lost regions">`;
-      s += `<defs><pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="region-tip-base"/><line x1="0" y1="0" x2="0" y2="7" style="stroke:var(--tip)" stroke-width="2.2" opacity="0.55"/></pattern></defs>`;
+      s += `<defs><pattern id="${hatch}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="region-tip-base"/><line x1="0" y1="0" x2="0" y2="7" style="stroke:var(--tip)" stroke-width="2.2" opacity="0.55"/></pattern></defs>`;
       // grid and axes
       for (let v = 0; v <= XMAX + 1e-9; v += 0.1) {
         s += `<line class="grid" x1="${x(v)}" x2="${x(v)}" y1="${y(0)}" y2="${y(YMAX)}" opacity="0.6"/>`;
@@ -1528,12 +1589,12 @@ html.touring .viewer { position: static; }
         s += `<line class="grid" x1="${x(0)}" x2="${x(XMAX)}" y1="${y(v)}" y2="${y(v)}" opacity="0.6"/>`;
         s += `<text x="${x(0) - 6}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(1)}</text>`;
       }
-      s += `<text x="${(x(0) + x(XMAX)) / 2}" y="${H - 6}" text-anchor="middle" class="label-forage">Forage fish fishing F →</text>`;
-      s += `<text transform="translate(12 ${(y(0) + y(YMAX)) / 2}) rotate(-90)" text-anchor="middle" class="label-pred">Predator fishing F →</text>`;
+      s += `<text x="${(x(0) + x(XMAX)) / 2}" y="${H - 6}" text-anchor="middle" class="label-forage">${compact ? "Forage fish F →" : "Forage fish fishing F →"}</text>`;
+      s += `<text transform="translate(12 ${(y(0) + y(YMAX)) / 2}) rotate(-90)" text-anchor="middle" class="label-pred">${compact ? "Predator F →" : "Predator fishing F →"}</text>`;
       if (!fog) {
         // regions
         s += `<path class="region-lost" d="M${x(0)} ${y(YMAX)}L${x(XMAX)} ${y(YMAX)}${top.slice().reverse().map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("")}Z"/>`;
-        s += `<path class="region-tip" d="${path(top)}${inv.slice().reverse().map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("")}Z"/>`;
+        s += `<path style="fill:url(#${hatch})" d="${path(top)}${inv.slice().reverse().map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("")}Z"/>`;
         s += `<path class="region-safe" d="${path(inv)}L${x(XMAX)} ${y(0)}L${x(0)} ${y(0)}Z"/>`;
         // boundaries
         const foldOnly = xs.filter((v) => interp(foldPts, v) > Finv(v) + 1e-4).map((v) => [x(v), y(interp(foldPts, v))]);
@@ -1542,13 +1603,18 @@ html.touring .viewer { position: static; }
         if (invOnly.length) s += `<path class="line-inv" d="${path(invOnly)}"/>`;
         // labels
         s += `<text class="region-label" x="${x(0.03)}" y="${y(0.43)}">Predators lost</text>`;
-        s += `<text class="region-sub" x="${x(0.03)}" y="${y(0.43) + 15}">Forage fish take over</text>`;
         s += `<text class="region-label" x="${x(0.015)}" y="${y(0.1)}">Tipping zone</text>`;
-        s += `<text class="region-sub" x="${x(0.015)}" y="${y(0.1) + 15}">The past decides</text>`;
         s += `<text class="region-label" x="${x(0.40)}" y="${y(0.06)}" text-anchor="middle">Safe</text>`;
+        if (!compact) {
+          s += `<text class="region-sub" x="${x(0.03)}" y="${y(0.43) + 15}">Forage fish take over</text>`;
+          s += `<text class="region-sub" x="${x(0.015)}" y="${y(0.1) + 15}">The past decides</text>`;
+        }
         // cusp marker
         const cusp = R.fold.find((r, i) => i > 0 && r.F_crit - Finv(r.Ff) < 2e-3 && R.fold[i - 1].F_crit - Finv(R.fold[i - 1].Ff) >= 2e-3);
-        if (cusp) s += `<circle cx="${x(cusp.Ff)}" cy="${y(cusp.F_crit)}" r="4" style="fill:var(--ink)"/><text x="${x(cusp.Ff) + 7}" y="${y(cusp.F_crit) - 7}" class="region-sub">cliff ends</text>`;
+        if (cusp) {
+          s += `<circle cx="${x(cusp.Ff)}" cy="${y(cusp.F_crit)}" r="${compact ? 3 : 4}" style="fill:var(--ink)"/>`;
+          if (!compact) s += `<text x="${x(cusp.Ff) + 7}" y="${y(cusp.F_crit) - 7}" class="region-sub">cliff ends</text>`;
+        }
       }
       if (fog) {
         s += `<rect class="fog-rect" x="${x(0)}" y="${y(YMAX)}" width="${x(XMAX) - x(0)}" height="${y(0) - y(YMAX)}"/>`;
@@ -1561,45 +1627,78 @@ html.touring .viewer { position: static; }
       for (let i = 0; i < h.length; i++) {
         const r = h[i];
         const on = r.Bp > 0.05 * B_A[PRED];
-        s += `<circle class="${on ? "track-on" : "track-off"}" cx="${x(Math.min(XMAX, r.Ff))}" cy="${y(Math.min(YMAX, r.Fp))}" r="3.2" opacity="${(0.25 + 0.75 * i / h.length).toFixed(2)}"/>`;
+        s += `<circle class="${on ? "track-on" : "track-off"}" cx="${x(Math.min(XMAX, r.Ff))}" cy="${y(Math.min(YMAX, r.Fp))}" r="${compact ? 2.6 : 3.2}" opacity="${(0.25 + 0.75 * i / h.length).toFixed(2)}"/>`;
       }
-      s += `<circle class="boat-halo" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="11"${fog ? ' style="stroke:#f1f8f9"' : ""}/>`;
-      s += `<circle class="boat" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="6"${fog ? ' style="stroke:#f1f8f9"' : ""}/>`;
-      const locked = (mission.locks || {}).Ff && (mission.locks || {}).Fp;
+      const halo = fog ? ' style="stroke:#f1f8f9"' : "";
+      s += `<circle class="boat-halo" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="${compact ? 12 : 11}"${halo}/>`;
+      s += `<circle class="boat" cx="${x(policy.Ff)}" cy="${y(policy.Fp)}" r="${compact ? 7 : 6}"${halo}/>`;
+      const locked = lockedBoth();
       s += `<rect class="click-layer${locked ? " locked" : ""}" x="${x(0)}" y="${y(YMAX)}" width="${x(XMAX) - x(0)}" height="${y(0) - y(YMAX)}"/>`;
       s += "</svg>";
       el.querySelectorAll("svg").forEach((n) => n.remove());
       el.insertAdjacentHTML("afterbegin", s);
+      el.classList.toggle("draggable", !locked);
     }
+    function lockedBoth() { return !!((mission.locks || {}).Ff && (mission.locks || {}).Fp); }
 
+    // Pointer position in data units. The svg scales down when the box is
+    // narrower than its minimum width, so map through the rendered size.
     function toData(e) {
       const rect = el.getBoundingClientRect();
-      const px = e.clientX - rect.left, py = e.clientY - rect.top;
-      const { ml, mr, mt, mb, W: w, H } = geom;
-      const Ff = (px - ml) / (w - ml - mr) * XMAX;
+      const k = geom.W / rect.width;
+      const px = (e.clientX - rect.left) * k, py = (e.clientY - rect.top) * k;
+      const { ml, mr, mt, mb, W, H } = geom;
+      const Ff = (px - ml) / (W - ml - mr) * XMAX;
       const Fp = (1 - (py - mt) / (H - mt - mb)) * YMAX;
-      return { px, py, Ff, Fp, inside: Ff >= 0 && Ff <= XMAX && Fp >= 0 && Fp <= YMAX };
+      const slack = 14;   // the dot at F 0 sits on the axis, half outside the plot
+      return {
+        px: px / k, py: py / k, Ff, Fp,
+        inside: Ff >= 0 && Ff <= XMAX && Fp >= 0 && Fp <= YMAX,
+        near: px >= ml - slack && px <= W - mr + slack && py >= mt - slack && py <= H - mb + slack,
+      };
     }
-    el.addEventListener("click", (e) => {
-      if (!geom) return;
+    // Press anywhere on the plot to move the dot there, then drag it
+    el.addEventListener("pointerdown", (e) => {
+      if (!geom || e.button !== 0 || lockedBoth()) return;
       const p = toData(e);
-      if (p.inside) setPolicy(p.Ff, p.Fp);
+      if (!p.near) return;
+      dragging = e.pointerId;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add("dragging");
+      if (tip) tip.hidden = true;
+      setPolicy(p.Ff, p.Fp);
     });
+    const endDrag = (e) => {
+      if (dragging !== e.pointerId) return;
+      dragging = null;
+      el.classList.remove("dragging");
+    };
+    el.addEventListener("pointerup", endDrag);
+    el.addEventListener("pointercancel", endDrag);
     el.addEventListener("pointermove", (e) => {
       if (!geom) return;
       const p = toData(e);
+      if (dragging === e.pointerId) { setPolicy(p.Ff, p.Fp); return; }
+      if (!tip) return;
       if (!p.inside) { tip.hidden = true; return; }
-      const reg = regimeAt(p.Ff, p.Fp);
-      const text = fog ? "Uncharted" : reg === "safe" ? "Safe: predators recover from any state"
-        : reg === "tip" ? "Tipping zone: healthy or collapsed, depending on the past" : "Predators lost: forage fish take over";
       tip.hidden = false;
-      tip.innerHTML = `<div>Forage F ${Math.max(0, p.Ff).toFixed(2)} · Predator F ${Math.max(0, p.Fp).toFixed(2)}</div><div>${text}</div>`;
-      tip.style.left = `${clamp(p.px, 130, geom.W - 130)}px`;
+      tip.innerHTML = `<div>Forage F ${Math.max(0, p.Ff).toFixed(2)} · Predator F ${Math.max(0, p.Fp).toFixed(2)}</div><div>${fog ? "Uncharted" : REGION_TEXT[regimeAt(p.Ff, p.Fp)]}</div>`;
+      tip.style.left = `${clamp(p.px, 130, el.clientWidth - 130)}px`;
       tip.style.top = `${p.py}px`;
     });
-    el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    if (tip) el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    // Arrow keys move the dot: left and right for forage fish, up and down for predators
+    if (el.tabIndex >= 0) el.addEventListener("keydown", (e) => {
+      const step = e.shiftKey ? 0.05 : 0.01;
+      const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowDown: [0, -step], ArrowUp: [0, step] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      setPolicy(policy.Ff + d[0], policy.Fp + d[1]);
+    });
     return { draw, setFog(v) { fog = v; draw(); } };
-  })();
+  }
+  const regimeChart = makeRegimeMap($("regime-chart"), false);
+  const policyPad = makeRegimeMap($("policy-pad"), true);
 
   // ---------------------------------------------------------------------
   // Nursery chart: predation mortality on young predators by size
@@ -2057,7 +2156,9 @@ html.touring .viewer { position: static; }
       { el: "#mission-card", title: "Your current mission",
         text: "The goal, your progress towards it and, when you seem stuck, a hint. When the mission ends, a debrief explains what happened." },
       { el: ".controls", title: "The fishing levers",
-        text: "Set how hard each species is fished. F is the yearly fishing mortality; the line beneath turns it into the share of catchable fish taken each year. A padlock means a lever is fixed in this mission." },
+        text: () => mission.id === "free" && controlMode === "map"
+          ? "In free play the two levers become one map. Drag the dot, or use the arrow keys, to set predator and forage fishing together; the colours show what happens to the predator. Sliders are one click away."
+          : "Set how hard each species is fished. F is the yearly fishing mortality; the line beneath turns it into the share of catchable fish taken each year. A padlock means a lever is fixed in this mission." },
       { el: "#viewer", view: "sea", place: SIDE, title: "A live sea",
         text: "The model runs as you watch: orange predators and their tiny young, pale forage fish, green plankton and a boat for each step of fishing. Play, pause and speed (model years per second) are in the bar on top." },
       { el: "#viewer", view: "log", place: SIDE, title: "The logbook",
@@ -2066,7 +2167,7 @@ html.touring .viewer { position: static; }
         text: () => "Every mix of predator and forage fishing, coloured by what happens to the predator: safe, a tipping zone where the past decides, or lost. " +
           (mission.fog && missionStatus === "active"
             ? "In mission 1 it is hidden, as the edge is for real managers. It is uncovered when the mission ends."
-            : "The black dot is your policy. Click the chart to set both levers at once.") },
+            : "The black dot is your policy. Click or drag on the chart to set both levers at once.") },
       { el: "#viewer", view: "nursery", place: SIDE, title: "The nursery",
         text: "Deaths per year for young predators of each size, now and in a healthy and a forage-dominated sea. When forage fish boom, the danger rises steeply and few young survive to 1 gram." },
       { el: ".status-strip", title: "Stocks and catches",
@@ -2213,6 +2314,7 @@ html.touring .viewer { position: static; }
   function renderAll(force) {
     renderReadouts();
     drawView();
+    policyPad.draw();
     renderTable();
     if (force) sea.setTargets(sim.diag);
   }
