@@ -1,0 +1,2048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cultivation–Depensation Policy Simulator — Live Mizer Size-Spectrum Lab</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    input[type="range"] {
+      accent-color: #d97706;
+      cursor: pointer;
+    }
+    .canvas-panel {
+      width: 100%;
+      display: block;
+    }
+    .scenario-btn.active {
+      outline: 2px solid #f59e0b;
+      background-color: rgba(245, 158, 11, 0.16);
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-3 md:p-5 select-none">
+  <script>
+    // Ensure standalone browser compatibility outside Antigravity host without overriding :root CSS rules
+    (function() {
+      const style = getComputedStyle(document.documentElement);
+      if (!style.getPropertyValue('--background').trim()) {
+        const root = document.documentElement.style;
+        root.setProperty('--background', '#0f172a');
+        root.setProperty('--foreground', '#f8fafc');
+        root.setProperty('--card', '#1e293b');
+        root.setProperty('--border', '#334155');
+        root.setProperty('--muted-foreground', '#94a3b8');
+        root.setProperty('--primary', '#f59e0b');
+        root.setProperty('--primary-foreground', '#0f172a');
+        root.setProperty('--secondary', '#334155');
+        root.setProperty('--secondary-foreground', '#f8fafc');
+        root.setProperty('--accent', '#0284c7');
+      }
+    })();
+  </script>
+
+  <div class="max-w-7xl mx-auto space-y-3">
+    <!-- Top Header & Scenario Bar -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 shadow-sm">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 pb-2.5 border-b border-[var(--border)]">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              LIVE 80-BIN MIZER PDE ENGINE
+            </span>
+            <h1 class="text-base md:text-lg font-bold tracking-tight text-[var(--foreground)]">
+              The Cultivation–Depensation Policy Lab: Why Fishing the Prey Saves the Predator
+            </h1>
+          </div>
+          <p class="text-xs text-[var(--muted-foreground)] mt-0.5">
+            Interactive size-spectrum food web: Plankton ($w \le 10\text{ g}$), Forage Fish ($w_\infty = 20\text{ g}$), and Apex Predator ($w_\infty = 2000\text{ g}$). Both fish spawn at $1\text{ mg}$ ($10^{-3}\text{ g}$).
+          </p>
+        </div>
+
+        <!-- Simulation Playback Controls -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button id="btnPlayPause" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 hover:bg-amber-400 transition">
+            ⏸ Pause
+          </button>
+          <div class="flex items-center bg-black/20 border border-[var(--border)] rounded-lg p-0.5 text-xs">
+            <button data-speed="1" class="speed-btn px-2 py-1 rounded-md font-medium">1×</button>
+            <button data-speed="4" class="speed-btn px-2 py-1 rounded-md font-medium bg-amber-500/20 text-amber-400">4×</button>
+            <button data-speed="12" class="speed-btn px-2 py-1 rounded-md font-medium">12×</button>
+            <button data-speed="30" class="speed-btn px-2 py-1 rounded-md font-medium">30×</button>
+          </div>
+          <button id="btnResetA" class="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition" title="Reset to Unfished Coexistence State A">
+            ↺ Reset State A
+          </button>
+        </div>
+      </div>
+
+      <!-- Guided Story Scenarios -->
+      <div class="pt-2.5 flex flex-col gap-2">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-xs font-semibold uppercase tracking-wider text-[var(--muted-foreground)] mr-1">Guided Policy Chapters:</span>
+          <button data-scenario="stateA" class="scenario-btn active px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition">
+            1. Cultivated Coexistence (State A)
+          </button>
+          <button data-scenario="collapse" class="scenario-btn px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition">
+            2. Overfishing Cliff (F_Pred = 0.25)
+          </button>
+          <button data-scenario="moratorium" class="scenario-btn px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition">
+            3. Moratorium Trap (F_Pred = 0 + Seed)
+          </button>
+          <button data-scenario="rescue" class="scenario-btn px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition">
+            4. Rescue via Forage Fishery (F_For = 0.30)
+          </button>
+          <button data-scenario="assembly" class="scenario-btn px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition">
+            5. Assembly Puzzle (State 0)
+          </button>
+          <button data-scenario="autodirector" id="btnAutoStory" class="scenario-btn px-2.5 py-1 rounded-lg text-xs font-semibold border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition">
+            ▶ Auto-Play 570-Yr Paper Trajectory
+          </button>
+        </div>
+
+        <!-- Live Narrative Callout Box -->
+        <div id="narrativeBanner" class="rounded-lg px-3 py-2 bg-black/20 border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="text-xs leading-relaxed">
+            <span id="narrativeTitle" class="font-bold text-amber-400">Chapter 1 — Cultivated Coexistence (State A):</span>
+            <span id="narrativeText" class="text-[var(--foreground)] ml-1">
+              Large adult predators ($599.9\text{ g}$) act as "gardeners," cropping down forage fish ($94.3\text{ g}$) so baby predators experience mild larval mortality ($\mu_p \approx 1.5\text{ yr}^{-1}$) and easily replace themselves ($R_{0,\text{Pred}} = 4.55 > 1$).
+            </span>
+          </div>
+          <div id="simClockBadge" class="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-black/30 border border-[var(--border)] shrink-0">
+            Year: 0.0
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO VISUALIZER: The Ontogenetic Nursery Gauntlet -->
+    <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+        <div>
+          <h2 class="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
+            <span>🌊 The Ontogenetic Size Corridor ($10^{-3}\text{ g} \to 2000\text{ g}$)</span>
+            <span id="stateBadge" class="px-2 py-0.5 text-xs rounded-md font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              State A: Cultivated Coexistence
+            </span>
+          </h2>
+          <p class="text-xs text-[var(--muted-foreground)]">
+            Every predator starts on the left as a $1\text{ mg}$ egg and must swim right through the <strong>Forage-Fish Predation Gauntlet ($0.01\text{–}0.2\text{ g}$)</strong> before growing large enough ($>200\text{ g}$) to turn the tables and eat the forage fish.
+          </p>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button id="btnSeedPred" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/40 hover:bg-orange-500/30 transition">
+            🐟 Release Predator Hatchery Cohort (+0.5%)
+          </button>
+          <button id="btnSeedForage" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/40 hover:bg-sky-500/30 transition">
+            🐟 Introduce Forage Seed (+0.1%)
+          </button>
+          <button id="btnShockPred" class="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--border)] hover:bg-white/5 transition" title="Knock down Predator biomass by 80% to test bistable resilience">
+            ⚡ Storm Shock (-80% Pred)
+          </button>
+        </div>
+      </div>
+
+      <div class="relative rounded-lg overflow-hidden border border-[var(--border)] bg-slate-950">
+        <canvas id="gauntletCanvas" height="215" class="canvas-panel"></canvas>
+      </div>
+    </div>
+
+    <!-- FLEET CONTROLS + LIVE METRICS BAR -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+      <!-- Left: Fleet Effort Sliders & Quick State Jumps -->
+      <div class="lg:col-span-5 bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 shadow-sm flex flex-col justify-between gap-3">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+              🚢 Fishery Fleet Controls (Knife-Edge Selectivity)
+            </h3>
+            <span class="text-xs text-[var(--muted-foreground)]">Drag sliders or click 2D map</span>
+          </div>
+
+          <!-- Predator Fleet Slider -->
+          <div class="mb-3 p-2.5 rounded-lg bg-black/20 border border-[var(--border)]">
+            <div class="flex justify-between items-center text-xs mb-1">
+              <span class="font-semibold text-orange-400">Demersal Predator Fleet ($F_{\text{Pred}}$, $w \ge 400\text{ g}$)</span>
+              <span id="lblFPred" class="font-mono font-bold text-sm text-orange-400">0.000 /yr</span>
+            </div>
+            <input id="sliderFPred" type="range" min="0" max="0.50" step="0.005" value="0" class="w-full" />
+            <div class="flex justify-between text-xs text-[var(--muted-foreground)] mt-1">
+              <span>0.00 (Moratorium)</span>
+              <span class="text-amber-400/90">Unbalanced cliff: 0.188</span>
+              <span class="text-emerald-400/90">Cusp: 0.292</span>
+              <span>0.50</span>
+            </div>
+          </div>
+
+          <!-- Forage Fleet Slider -->
+          <div class="p-2.5 rounded-lg bg-black/20 border border-[var(--border)]">
+            <div class="flex justify-between items-center text-xs mb-1">
+              <span class="font-semibold text-sky-400">Pelagic Forage Fleet ($F_{\text{Forage}}$, $w \ge 1\text{ g}$)</span>
+              <span id="lblFForage" class="font-mono font-bold text-sm text-sky-400">0.000 /yr</span>
+            </div>
+            <input id="sliderFForage" type="range" min="0" max="0.50" step="0.005" value="0" class="w-full" style="accent-color: #38bdf8;" />
+            <div class="flex justify-between text-xs text-[var(--muted-foreground)] mt-1">
+              <span>0.00 (Unfished)</span>
+              <span class="text-emerald-400/90">Re-invasion: 0.128</span>
+              <span class="text-amber-400/90">Cusp: 0.350</span>
+              <span>0.50</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instant Equilibrium Jump Buttons -->
+        <div class="pt-1 border-t border-[var(--border)] flex items-center justify-between gap-1.5 flex-wrap">
+          <span class="text-xs text-[var(--muted-foreground)] font-medium">Jump to Unfished Fixed Point:</span>
+          <div class="flex gap-1 flex-wrap">
+            <button data-jump="State_A" class="jump-btn px-2 py-1 rounded text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25">
+              State A (Coexist)
+            </button>
+            <button data-jump="State_B" class="jump-btn px-2 py-1 rounded text-xs font-medium bg-orange-500/15 text-orange-300 border border-orange-500/30 hover:bg-orange-500/25">
+              State B (Pred Only)
+            </button>
+            <button data-jump="State_C" class="jump-btn px-2 py-1 rounded text-xs font-medium bg-sky-500/15 text-sky-300 border border-sky-500/30 hover:bg-sky-500/25">
+              State C (Forage Trap)
+            </button>
+            <button data-jump="State_0" class="jump-btn px-2 py-1 rounded text-xs font-medium bg-slate-500/20 text-slate-300 border border-slate-500/30 hover:bg-slate-500/30">
+              State 0 (Plankton)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Live Ecological & Invasion Metrics -->
+      <div class="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <!-- Metric 1: Predator Biomass & Yield -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-semibold text-orange-400">Predator Biomass</div>
+            <div id="kpiPredBio" class="text-xl font-bold font-mono mt-1">599.9 g</div>
+            <div id="kpiPredPct" class="text-xs text-[var(--muted-foreground)]">100% of unfished State A</div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-[var(--border)] text-xs flex justify-between">
+            <span class="text-[var(--muted-foreground)]">Catch Yield:</span>
+            <span id="kpiPredYield" class="font-mono font-semibold text-orange-300">0.0 g/yr</span>
+          </div>
+        </div>
+
+        <!-- Metric 2: Forage Biomass & Yield -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-semibold text-sky-400">Forage Biomass</div>
+            <div id="kpiForageBio" class="text-xl font-bold font-mono mt-1">94.3 g</div>
+            <div id="kpiForageMult" class="text-xs text-[var(--muted-foreground)]">1.0× cultivated baseline</div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-[var(--border)] text-xs flex justify-between">
+            <span class="text-[var(--muted-foreground)]">Catch Yield:</span>
+            <span id="kpiForageYield" class="font-mono font-semibold text-sky-300">0.0 g/yr</span>
+          </div>
+        </div>
+
+        <!-- Metric 3: Exact Predator Invasion/Replacement Fitness R0 -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-semibold flex items-center justify-between">
+              <span>Predator $R_{0,\text{Pred}}$</span>
+              <span id="badgeR0Pred" class="px-1.5 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400">Viable</span>
+            </div>
+            <div id="kpiR0Pred" class="text-xl font-bold font-mono mt-1 text-emerald-400">4.55</div>
+            <div class="text-xs text-[var(--muted-foreground)]">Daughters / female (need &gt; 1)</div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-[var(--border)] text-xs flex justify-between">
+            <span class="text-[var(--muted-foreground)]">Forage $R_{0,\text{For}}$:</span>
+            <span id="kpiR0Forage" class="font-mono font-semibold">2.89</span>
+          </div>
+        </div>
+
+        <!-- Metric 4: Larval Predation Gauntlet Mortality -->
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3 flex flex-col justify-between">
+          <div>
+            <div class="text-xs font-semibold text-rose-400">Larval Gauntlet $\mu_p$</div>
+            <div id="kpiLarvalMort" class="text-xl font-bold font-mono mt-1 text-emerald-400">1.5 /yr</div>
+            <div class="text-xs text-[var(--muted-foreground)]">Predator mortality at $w = 0.05\text{ g}$</div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-[var(--border)] text-xs flex justify-between">
+            <span class="text-[var(--muted-foreground)]">Gauntlet Status:</span>
+            <span id="kpiGauntletStatus" class="font-semibold text-emerald-400">Cultivated (Safe)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2x2 SCIENTIFIC & TACTILE DIAGNOSTIC PANELS -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <!-- Panel A: 2D Exploitation Regime Diagram (Interactive Crosshair) -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 shadow-sm">
+        <div class="flex items-center justify-between mb-1.5">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">
+              A. 2D Exploitation Regime Diagram &amp; Cusp Bifurcation (Click/Drag on Map)
+            </h3>
+            <p class="text-xs text-[var(--muted-foreground)]">
+              Amber = Bistable hysteresis (moratorium fails); Green = Monostable coexistence ($R_{0,\text{Pred}} &gt; 1$); Blue = Predator excluded.
+            </p>
+          </div>
+          <span id="regimeMapBadge" class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/20 text-amber-300 shrink-0">
+            Bistable Regime
+          </span>
+        </div>
+        <div class="rounded-lg overflow-hidden border border-[var(--border)] bg-slate-950">
+          <canvas id="regimeCanvas" height="250" class="canvas-panel cursor-crosshair"></canvas>
+        </div>
+      </div>
+
+      <!-- Panel B: Dynamic Stability Landscape (Marble & Basin) -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 shadow-sm">
+        <div class="flex items-center justify-between mb-1.5">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">
+              B. Ecosystem Stability Landscape &amp; Depensatory Barrier
+            </h3>
+            <p class="text-xs text-[var(--muted-foreground)]">
+              Visualizes the effective potential wells of <strong>State C (Forage Trap)</strong> vs. <strong>State A (Cultivated Coexistence)</strong> as fleets change.
+            </p>
+          </div>
+          <span id="bowlStatusBadge" class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 shrink-0">
+            In State A Basin
+          </span>
+        </div>
+        <div class="rounded-lg overflow-hidden border border-[var(--border)] bg-slate-950">
+          <canvas id="landscapeCanvas" height="250" class="canvas-panel"></canvas>
+        </div>
+      </div>
+
+      <!-- Panel C: Live Size Spectra & Larval Predation Mortality Bottleneck -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 shadow-sm">
+        <div class="flex items-center justify-between mb-1.5">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">
+              C. Live Size Spectra $B(w)$ &amp; Larval Predation Mortality $\mu_{p,\text{Pred}}(w)$
+            </h3>
+            <p class="text-xs text-[var(--muted-foreground)]">
+              Left/ Solid: Biomass density $N(w)w^2$ vs. State A baseline (dashed). Toggle to inspect the $\mu_{p,\text{Pred}}(w)$ mortality wall.
+            </p>
+          </div>
+          <div class="flex bg-black/20 border border-[var(--border)] rounded-lg p-0.5 text-xs shrink-0">
+            <button id="tabSpectra" class="px-2 py-0.5 rounded font-semibold bg-amber-500/20 text-amber-400">Size Spectra</button>
+            <button id="tabMortality" class="px-2 py-0.5 rounded font-medium text-[var(--muted-foreground)]">Mortality Wall $\mu_p(w)$</button>
+          </div>
+        </div>
+        <div class="rounded-lg overflow-hidden border border-[var(--border)] bg-slate-950">
+          <canvas id="spectraCanvas" height="250" class="canvas-panel"></canvas>
+        </div>
+      </div>
+
+      <!-- Panel D: Live Multi-Century Biomass Time Series -->
+      <div class="bg-[var(--card)] border border-[var(--border)] rounded-xl p-3.5 shadow-sm">
+        <div class="flex items-center justify-between mb-1.5">
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-[var(--foreground)]">
+              D. Live Multi-Century Biomass Trajectory ($B_{\text{Pred}}$ &amp; $B_{\text{Forage}}$)
+            </h3>
+            <p class="text-xs text-[var(--muted-foreground)]">
+              Real-time PDE integration trace with policy event markers. Watch hysteresis unfold as you adjust fleets and seed cohorts.
+            </p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button id="btnToggleLogY" class="px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] bg-amber-500/20 text-amber-400">
+              Log10 Scale
+            </button>
+            <button id="btnClearHistory" class="px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] hover:bg-white/5">
+              Clear Trace
+            </button>
+          </div>
+        </div>
+        <div class="rounded-lg overflow-hidden border border-[var(--border)] bg-slate-950">
+          <canvas id="historyCanvas" height="250" class="canvas-panel"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MODEL_DATA = {"no_sp":2,"no_w":80,"no_w_full":117,"idx_sp_offset":37,"w":[0.001,0.001207782900397338,0.001458739534492206,0.0017618406658932574,0.0021279210294905355,0.0025700666328145683,0.0031040825319951994,0.003749057803565871,0.0045280479077480611,0.0054688988351580502,0.0066052424971068131,0.0079776989409834215,0.009635328365437729,0.011637384839489109,0.014055434414478166,0.016975913343462989,0.020503217854861602,0.024763435928223231,0.029908854469193082,0.036123402998363904,0.043629228445585831,0.052694636074107695,0.063643680392967944,0.076867748896980018,0.092839552709808801,0.11213002424344441,0.13542872590237098,0.16356849936748172,0.1975552365796972,0.23860383662490894,0.28818163384476481,0.3480608495662737,0.42038194240391558,0.50773012167126785,0.61322775897121717,0.74064600133441549,0.89453957565937103,1.0804096032100792,1.3049002441822064,1.5760362016475782,1.9035095747571156,2.2990263151342525,2.7767246709826519,3.3536805767242712,4.0505180539622527,4.8921464433263111,5.9086508204891732,7.136367425405524,8.6191825473573669,10.410101296101397,12.573142336835431,15.18562631869163,18.340939799539527,22.15187346710082,26.754653985329863,32.313813589528898,39.028071500060129,47.137437393257308,56.931790852126241,68.76124348019566,83.048654085438088,100.30474430540565,121.14635500079621,146.31849601542717,176.72097749928898,213.44057476514394,257.78987645232041,311.35420467465497,376.04828437286119,454.18468758929629,548.55649929265905,662.53715974749798,800.20105242084753,966.46914799385354,1167.2849107085606,1409.8267550456328,1702.7646472667818,2056.5700243699239,2483.8901089037254,3000.0000000000014],"dw":[0.00020778290039733771,0.00025095663409486775,0.00030310113140105281,0.00036608036359727785,0.00044214560332403224,0.00053401589918063055,0.00064497527157067437,0.00077899010418218905,0.00094085092740998878,0.0011363436619487614,0.0013724564438766071,0.0016576294244543047,0.0020020564740513905,0.0024180495749890536,0.0029204789289848294,0.0035273045113986064,0.0042602180733616246,0.0051454185409698615,0.0062145485291708151,0.0075058254472219373,0.0090654076285218536,0.010949044318860278,0.013224068504012053,0.015971803812828766,0.019290471533635587,0.023298701658926672,0.0281397734651107,0.03398673721221545,0.041048600045211714,0.049577797219856092,0.059879215721508811,0.072321092837641793,0.087348179267352152,0.10549763729994921,0.12741824236319904,0.15389357432495532,0.18587002755070783,0.22449064097212704,0.27113595746537306,0.32747337310953717,0.39551674037713641,0.4776983558483987,0.5769559057416187,0.69683747723798539,0.84162838936405693,1.0165043771628608,1.2277166049163497,1.4828151219518413,1.7909187487440272,2.1630410407340328,2.6124839818562262,3.1553134808478931,3.8109336675612884,4.6027805182290376,5.5591596041990297,6.714257910531221,8.1093658931971682,9.7943534588689261,11.82945262806941,14.287410605242583,17.256090219967536,20.841610695390528,25.172141014630952,30.402481483861759,36.719597265854922,44.349301687176414,53.564328222334488,64.694079698206139,78.136403216435937,94.371811703362695,113.98066045483883,137.66389267334941,166.26809557300578,200.81576271470672,242.54184433707209,292.93789222114856,353.80537710314161,427.32008453380627,516.10989109627508,623.34870119201344],"w_full":[9.2557489032754928e-07,1.1178935255747555e-06,1.3501726846540839e-06,1.6307154811087665e-06,1.9695502734963902e-06,2.3787891418018356e-06,2.8730608491191215e-06,3.4700337653671238e-06,4.1910474456118003e-06,5.0618754395638751e-06,6.1136465998465065e-06,7.3839578223669368e-06,8.9182179951099328e-06,1.0771271196509628e-05,1.3009357166686677e-05,1.571247913108573e-05,1.8977263617375367e-05,2.2920414493398498e-05,2.768288469514602e-05,3.343491476846854e-05,4.0382118333598719e-05,4.8772832005142373e-05,5.8906992499762973e-05,7.1146858255047814e-05,8.5929958817439924e-05,0.0001037847348915514,0.00012534942812428675,0.00015139489586309869,0.00018285216643088627,0.0002208457199158326,0.00026673368414028214,0.00032215638266461742,0.0003890949702361863,0.00046994225168187694,0.00056758821575559259,0.0006855233414566396,0.00082796336963457482,0.001,0.001207782900397338,0.001458739534492206,0.0017618406658932574,0.0021279210294905355,0.0025700666328145683,0.0031040825319951994,0.003749057803565871,0.0045280479077480611,0.0054688988351580502,0.0066052424971068131,0.0079776989409834215,0.009635328365437729,0.011637384839489109,0.014055434414478166,0.016975913343462989,0.020503217854861602,0.024763435928223231,0.029908854469193082,0.036123402998363904,0.043629228445585831,0.052694636074107695,0.063643680392967944,0.076867748896980018,0.092839552709808801,0.11213002424344441,0.13542872590237098,0.16356849936748172,0.1975552365796972,0.23860383662490894,0.28818163384476481,0.3480608495662737,0.42038194240391558,0.50773012167126785,0.61322775897121717,0.74064600133441549,0.89453957565937103,1.0804096032100792,1.3049002441822064,1.5760362016475782,1.9035095747571156,2.2990263151342525,2.7767246709826519,3.3536805767242712,4.0505180539622527,4.8921464433263111,5.9086508204891732,7.136367425405524,8.6191825473573669,10.410101296101397,12.573142336835431,15.18562631869163,18.340939799539527,22.15187346710082,26.754653985329863,32.313813589528898,39.028071500060129,47.137437393257308,56.931790852126241,68.76124348019566,83.048654085438088,100.30474430540565,121.14635500079621,146.31849601542717,176.72097749928898,213.44057476514394,257.78987645232041,311.35420467465497,376.04828437286119,454.18468758929629,548.55649929265905,662.53715974749798,800.20105242084753,966.46914799385354,1167.2849107085606,1409.8267550456328,1702.7646472667818,2056.5700243699239,2483.8901089037254,3000.0000000000014],"dw_full":[1.9231863524720595e-07,2.3227915907932814e-07,2.8054279645468557e-07,3.3883479238761947e-07,4.0923886830544972e-07,4.9427170731727921e-07,5.9697291624800889e-07,7.2101368024467577e-07,8.7082799395207329e-07,1.0517711602826308e-06,1.2703112225204291e-06,1.5342601727430118e-06,1.8530532013996719e-06,2.2380859701770726e-06,2.7031219643990496e-06,3.2647844862896335e-06,3.9431508760231264e-06,4.7624702017475154e-06,5.7520300733225098e-06,6.947203565130174e-06,8.3907136715436479e-06,1.0134160494620582e-05,1.223986575528497e-05,1.4783100562392104e-05,1.7854776074111451e-05,2.1564693232735324e-05,2.6045467738811915e-05,3.1457270567787549e-05,3.7993553484946264e-05,4.5887964224449785e-05,5.5422698524335182e-05,6.6938587571568821e-05,8.0847281445690586e-05,9.7645964073716046e-05,0.00011793512570104692,0.00014244002817793508,0.00017203663036542496,0.00020778290039733771,0.00025095663409486775,0.00030310113140105281,0.00036608036359727785,0.00044214560332403224,0.00053401589918063055,0.00064497527157067437,0.00077899010418218905,0.00094085092740998878,0.0011363436619487614,0.0013724564438766071,0.0016576294244543047,0.0020020564740513905,0.0024180495749890536,0.0029204789289848294,0.0035273045113986064,0.0042602180733616246,0.0051454185409698615,0.0062145485291708151,0.0075058254472219373,0.0090654076285218536,0.010949044318860278,0.013224068504012053,0.015971803812828766,0.019290471533635587,0.023298701658926672,0.0281397734651107,0.03398673721221545,0.041048600045211714,0.049577797219856092,0.059879215721508811,0.072321092837641793,0.087348179267352152,0.10549763729994921,0.12741824236319904,0.15389357432495532,0.18587002755070783,0.22449064097212704,0.27113595746537306,0.32747337310953717,0.39551674037713641,0.4776983558483987,0.5769559057416187,0.69683747723798539,0.84162838936405693,1.0165043771628608,1.2277166049163497,1.4828151219518413,1.7909187487440272,2.1630410407340328,2.6124839818562262,3.1553134808478931,3.8109336675612884,4.6027805182290376,5.5591596041990297,6.714257910531221,8.1093658931971682,9.7943534588689261,11.82945262806941,14.287410605242583,17.256090219967536,20.841610695390528,25.172141014630952,30.402481483861759,36.719597265854922,44.349301687176414,53.564328222334488,64.694079698206139,78.136403216435937,94.371811703362695,113.98066045483883,137.66389267334941,166.26809557300578,200.81576271470672,242.54184433707209,292.93789222114856,353.80537710314161,427.32008453380627,516.10989109627508,623.34870119201344],"w_top":[56,80],"interaction":[[0.050000000000000003,0.94999999999999996],[1,0.050000000000000003]],"interaction_resource":[1,1],"alpha":[0.59999999999999998,0.59999999999999998],"erepro":[0.068456469487513605,2.6329130616886042e-05],"w_min":[0.001,0.001],"w_mat":[4,250],"w_inf":[20,2000],"R_max":[701.07074738508288,1.5195766442509722],"search_vol":[[0.00047952083608071149,0.00054899220461652586,0.00062852835174608337,0.00071958742879526161,0.00082383883915766851,0.00094319384378484304,0.0010798406006971102,0.0012362842809011067,0.0014153929961667326,0.001620450380666202,0.0018552157904643994,0.0021239932245092487,0.0024317102306637395,0.0027840082433789061,0.0031873460091855358,0.003649117996123794,0.0041777899579334343,0.0047830541383286455,0.0054760069607470881,0.0062693524611931077,0.0071776351937481355,0.0082175068786493905,0.0094080316814468042,0.010771035719979132,0.012331507206747109,0.014118054562570006,0.016163430900210413,0.018505134493425463,0.02118609623995776,0.024255466721856075,0.027769517292452372,0.031792671709794343,0.036398687229665355,0.041672006811395282,0.047709307226708478,0.054621271453383212,0.062534617847353147,0.071594423294448581,0.081966782932561502,0.093841855205426386,0.10743734807356818,0.12300251029578524,0.14082270095409169,0.16122462099608922,0.18458230270563025,0.21132396690787927,0.24193987362321639,0.27699131009751754,0.31712088098808,0.36306428935713131,0.41566382445611799,0.47588380357489035,0.54482825105414789,0.62376113857383664,0.71412955778657017,0.8175902501243657,0.93603998015469603,1.0716503093263734,1.2269074076189719,1.40465763297033,1.6081597140984594,1.841144493395473,2.1078833251713531,2.4132663832056216,2.7628923132341359,3.1631708739871254,3.6214404485161582,4.1461025801675655,4.7467759996759318,5.4344729671856751,6.2218011621125999,7.1231948221305972,8.1551793687986507,9.3366743712600684,10.689340402305122,12.237976145775333,14.010973035555036,16.040835761133387,18.364778182264356,21.025405577741758],[0.0011373952826603038,0.0013021772919227562,0.0014908323653613335,0.0017068191523498845,0.0019540973797696555,0.0022372004464359754,0.0025613185347617183,0.0029323937633594856,0.0033572291250332825,0.0038436132073406048,0.0044004629822507789,0.0050379872826895131,0.0057678739630162871,0.0066035041746832206,0.007560197685431919,0.0086554937395117212,0.0099094726079833346,0.011345123724150672,0.01298876715321789,0.014870536123055104,0.017024929462401084,0.01949144407445776,0.022315299041135262,0.025548264633088551,0.029249611423944302,0.033487196909010024,0.038338709549652891,0.043893093050650915,0.050252176982063884,0.057532543640125673,0.065867665372673773,0.075410351553110197,0.086335550063732669,0.0988435546485643,0.11316367693669052,0.12955845045600714,0.14832844371036361,0.16981777055915989,0.194420398922237,0.22258737346874724,0.25483508470493538,0.29175473605958935,0.33402318252904251,0.38241533958866797,0.43781838986580157,0.50124804802773482,0.57386718207206067,0.65700713240703856,0.75219211956873389,0.86116718804625758,0.98593019851457153,1.1287684549945569,1.2923006384330462,1.4795248154791072,1.6938734026106401,1.9392760932790616,2.2202319017274097,2.5418916442748958,2.9101523702129981,3.3317654735326871,3.814460467515659,4.3670866913727435,4.9997755468641882,5.7241262392167753,6.5534184275612679,7.5028556834511777,8.5898442208342214,9.8343120074860764,11.259074108237115,12.890250957899021,14.757747232168546,16.895800095739652,19.3436068787613,22.146043688952695,25.354488133828749,29.027761236158913,33.233205810974837,38.047921074217747,43.560176117340895,49.871028161366382]],"intake_max":[[0.21151808073101622,0.23988701932417869,0.27206081788071262,0.30854978662224725,0.34993267889967494,0.39686587082887925,0.4500937721050064,0.51046063312172207,0.57892393566876288,0.65656957959829754,0.74462910633657764,0.84449923242384684,0.95776400290496388,1.0862199159467656,1.2319044171849867,1.3971282157509772,1.5845119345443477,1.7970276760633195,2.0380461630705065,2.3113902017945653,2.6213953156502154,2.972978511191096,3.371716266995648,3.8239329824716428,4.3368012894702286,4.9184558177570299,5.5781222187800736,6.3262634941869971,7.1747459500153674,8.1370274087638741,9.228370664585368,10.46608556722525,11.869803574410527,13.461789127378792,15.267292788289755,17.314951740649523,19.637244005104762,22.271003574945997,25.258004641910095,28.645624178716364,32.487593387590948,36.844849933541887,41.786504479699389,47.390936854986492,53.747039240490032,60.955626092773116,69.131033166992481,78.402931002006767,88.918381631252828,100.84417114098385,114.36945507269189,129.70875862857389,147.10537926645094,166.83524565286561,189.21129418140777,214.58843247244207,243.369168580554,276.00999519485464,313.02863009226229,355.01222768495251,402.62669190573757,456.62723814351892,517.87037175218791,587.32747312471247,666.10020480593857,755.43798501709216,856.75780474042676,971.66670268377788,1101.9872546015633,1249.7864812596126,1417.4086335545087,1607.512374793826,1823.1129498872992,2067.6300102965379,2344.9418532972068,2659.4469358453116,3016.1336387220867,3420.6593874900577,3879.4403852017076,4399.7533801157342],[0.55900873430536602,0.63398333884859359,0.71901358471091115,0.81544814085768647,0.92481656058781103,1.048853541854766,1.1895264413972761,1.3490664790825457,1.5300041273957217,1.7352092473900316,1.9679366076959119,2.2318775085683886,2.5312183297843061,2.8707069310205031,3.2557279578926734,3.6923882480876933,4.1876136922203973,4.7492590857296184,5.3862327141799318,6.1086376480227669,6.9279319879000978,7.8571106021495227,8.9109112390582901,10.106048283023046,11.461477862233366,12.998698512765255,14.742092167932787,16.719310881347013,18.961715417515705,21.504872666491469,24.389119772086598,27.660203921320523,31.370007942831904,35.577373223008266,40.34903299214659,45.760670783543382,51.898120853786509,58.858729604174542,66.752899596837167,75.705840655272723,85.859555823596111,97.375093683895145,110.43510275581365,125.24672849382019,142.04489883158004,161.0960503856144,182.70235441974683,207.20650959857159,234.99717754804414,266.51514743689148,302.2603273555751,342.79967338341572,388.77618210721221,440.91908922213281,500.05543597540407,567.1231869087319,643.18610696062149,729.4506338950581,827.28501367097988,938.24100225959103,1064.0784781231198,1206.7933557347815,1368.6492428776546,1552.2133438404949,1760.3971779728424,1996.5027594384599,2264.274970626474,2567.9609599174973,2912.3775059156637,3302.9874166140116,3745.9861752642032,4248.4002072449812,4818.1983265451363,5464.418129519142,6197.3093406531361,7028.4963839555785,7971.1627585255246,9040.2601426885558,10252.745543311499,11627.850251733116]],"metab":[[0.019251300663484686,0.021971124773978775,0.025075205684640983,0.028617831203240081,0.032660958920021237,0.037275299794714702,0.042541554832737111,0.0485518264790291,0.05541122941364026,0.063239728920543609,0.072174238981230127,0.082371016787004592,0.094008395548022608,0.10728990339363814,0.12244782291105002,0.13974725357563247,0.15949074812149847,0.1820236039385803,0.20773990203838683,0.23708939920495445,0.27058539386900893,0.30881370327297503,0.35244290893002111,0.40223604956174774,0.45906396601432414,0.52392053154462392,0.59794003384146277,0.68241701277911793,0.77882890084902412,0.88886186223207886,1.0144402824155527,1.1577604241036223,1.3213288380355521,1.5080062004849795,1.7210573441219008,1.9642083572357509,2.2417117499377781,2.5584208270456643,2.9198745683706657,3.3323945008932672,3.8031952570415961,4.3405107526454199,4.9537381913138141,5.6536024137539345,6.452343466364562,7.3639306695239961,8.4043069294495343,9.591667566441,10.946778535983579,12.493339608133912,14.258398856896521,16.272825708666879,18.571850822967331,21.195682247543029,24.190208623861338,27.607801741496999,31.508232477415518,35.95971613917532,41.040105494236634,46.838252350473049,53.455561500802546,61.007764209144923,69.626942254506957,79.463837932053821,90.690490411173826,103.50324455825883,118.12618484602233,134.81505440558888,153.86172776233451,175.59931547992832,200.40798998857926,228.72163448640151,261.03543119768972,297.91452170046023,340.00389078522716,388.03964670552716,442.86189510244481,505.42943175743073,576.83651113750727,658.33198400085087],[0.044327016974636022,0.050589538745051975,0.057736829705945479,0.0658938900647595,0.075203380060535147,0.085828114973499209,0.097953912629652348,0.11179284320085742,0.12758693813674418,0.14561242309458086,0.1661845488975561,0.18966310501093517,0.21645871196222882,0.24704000275459834,0.28194181887047948,0.32177456420674605,0.36723488053400771,0.41911783118499069,0.47833080605463701,0.54590939109887393,0.6230354798764568,0.71105794388977994,0.81151622323181072,0.92616725012006162,1.0570161761879269,1.2063514409283098,1.3767847946076024,1.5712969756176927,1.793289841125091,2.0466458627391275,2.3357960277292382,2.6657973333274829,3.0424212294275255,3.4722545564697627,3.9628147438327073,4.5226812834552117,5.161645778054468,5.8908831881589663,6.723147272925428,7.6729936428379295,8.757034325296468,9.9942282952364927,11.406213051919741,13.017683040900122,14.856821539451893,16.955793558779078,19.351308383457948,22.08526158646238,25.205467748083692,28.766496693392888,32.830627873346955,37.468939580875201,42.762552051434582,48.804046188833695,55.699082728667669,63.568250157192658,72.549173704212706,82.798922294520395,94.49675555348108,107.84725890961649,123.08392162453848,140.47322032701837,160.31927946882266,182.96919020983623,208.81908075537265,238.32104431085068,271.99104581803465,310.41794575511602,354.273798819435,404.32560760828625,461.44873685996629,526.64222285903634,601.04624575464754,685.96207036831504,782.874804239382,893.47937092756285,1019.7101528241459,1163.7748219001055,1328.1929500629269,1515.8400743853585]],"psi":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.5789454270659504e-08,1.1106709079464176e-07,7.8127337946108708e-07,5.4956161058006967e-06,3.8654632589205851e-05,0.00027176937383841351,0.0019053392294640812,0.013114590429010153,0.08078306007384628,0.31202920133296719,0.55172204221390075,0.65282015620894007,0.70711247417303258,0.75499515287188312,0.8043489890683968,0.85664325473156733,0.9122913128215917,0.97154687124785255,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.6281893094614333e-08,1.1453102635368969e-07,8.0563927776791682e-07,5.6669971223639434e-06,3.9859472587741028e-05,0.0002802121123680721,0.0019632331132762863,0.013455849747421129,0.080944936863542247,0.29101811219246992,0.48403240776532414,0.5633888881429473,0.60854602206328268,0.64947527093696544,0.69188619954304786,0.73686148995929734,0.78472728002749026,0.83569705252094717,0.8899765648459963,0.94778145712189366,1,1,1]],"mu_b":[[5.3000000000000007,4.9950516987675382,4.7087020908199877,4.4398168481728764,4.1873308251201067,3.9502438388303136,3.7276167072831998,3.5185675288507965,3.322268188785793,3.1379410787779651,2.9648560165837323,2.8023273535264686,2.649711258409384,2.506403167081638,2.3718353875545435,2.2454748511809322,2.1268210009893109,2.0154038088078154,1.9107819133230879,1.8125408716983173,1.7202915178245035,1.6336684207014116,1.5523284368413564,1.4759493509613808,1.4042285995791628,1.3368820724563693,1.2736429871415764,1.2142608321544315,1.1585003746246572,1.1061407284548126,1.0569744793154938,1.0108068630067761,0.96745499393111767,0.92674714062143404,0.888522045454472,0.85262828585463302,0.81892367445775727,0.78727469585871712,0.75755597771158101,0.72964979408719999,0.70344559912084614,0.67883958910252318,0.6557342912752393,0.63403817771233562,0.61366530274430287,0.59453496249881455,0.57657137520529855,0.55970338099762207,0.5438641600257117,0.52899096775944721,0.51502488643628297,0.50191059166799357,0.48959613328199436,0.47803272952907677,0.46717457384234262,0.45697865338184596,0.44740457864613525,0.43841442347573006,0.42997257481473117,0.42204559163541883,0.41460207246699254,0.40761253100368677,0.40104927929950673,0.39488631808687691,0.38909923378471761,0.38366510178796487,0.37856239565542871,0.37377090183625356,0.36927163959718312,0.36504678583343342,0.361079604465326,0.35735438014099558,0.35385635598254805,0.35057167512905829,0.34748732584484104,0.34459108997554971,0.34187149454792015,0.33931776632142963,0.33691978911183468,0.33466806371753172],[12.200000000000001,11.468124077042091,10.78088501796797,10.135560435614902,9.5295939802882561,8.9605852131927524,8.4262800974796797,7.9245620692419116,7.4534436530859036,7.0110585890671171,6.595654439800958,6.2055856484635248,5.8393070201825221,5.495367600995932,5.172404930130905,4.8691396428342371,4.584370402374347,4.3169691411387578,4.0658765919754103,3.8300980920759615,3.6086996427788085,3.4008042096833879,3.205588248419255,3.0222784423073139,2.8501486389899906,2.6885169738952861,2.5367431691397835,2.3942259971706354,2.2604008990991771,2.1347377482915504,2.016738750357185,1.9059364712162625,1.8018919854346822,1.7041931374914414,1.6124529090907327,1.5263078860511192,1.4454168186986176,1.3694592700609212,1.2981343465077944,1.2311595058092801,1.1682694378900309,1.1092150138460555,1.0537622990605744,1.0016916265096056,0.95279672658632708,0.90688390999715507,0.86377130049271633,0.82328811439429295,0.78527398406170801,0.74957832262267332,0.71605972744707924,0.68458542000318456,0.6550307198767864,0.62727855086978423,0.60121897722162232,0.57674876811643039,0.55377098875072461,0.53219461634175214,0.5119341795553547,0.49290941992500525,0.47504497392078215,0.4582700744088482,0.44251827031881619,0.42772716340850453,0.41383816108332233,0.40079624429111571,0.3885497495730289,0.37705016440700856,0.3662519350332395,0.35611228600024031,0.34659105071678237,0.33765051233838944,0.32925525435811542,0.32137202030973999,0.31396958202761854,0.3070186159413193,0.30049158691500838,0.29436263917143113,0.28860749386840323,0.28320335292207616]],"ft_mask":[[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0]],"sel":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1]],"rr_pp":[1026.11525747065,963.53283654377276,904.76729620662866,849.58584620884926,797.76989409834198,749.1141793024043,703.42596002092,660.5242497106816,620.23910013625778,582.41092814735703,546.88988351580531,513.53525532793242,482.21491458088627,452.80479077480629,425.18838042746694,399.25628556443928,374.90578035658751,352.04040418819307,330.56957954371717,310.40825319951995,291.47655929917397,273.69950297770072,257.00666328145684,241.33191420683625,226.61316275272557,212.79210294905369,199.81398488705423,187.62739783629499,176.18406658932585,165.43866022719743,155.34861254830579,145.87395344922058,136.97715058953995,128.62296071355127,120.77829003973383,113.41206316505811,106.49509996476746,100.00000000000001,93.901033975350771,88.17404181639975,82.796336963457534,77.746616502402134,73.004876776606281,68.552334145664005,64.371350577015932,60.445363775715862,56.75882157555931,53.297120331674648,50.046547070529371,46.994225168187683,44.128063341632767,41.436707751090871,38.909497023618641,36.53642001978622,34.308076176156312,32.21563826646176,30.250817433966347,28.405830356490071,26.673368414028232,25.046568736827126,23.518987019227616,22.084571991583253,20.737641449127384,19.472859742831528,18.285216643088628,17.170007492493141,16.122814569096253,15.139489586309875,14.216137260135522,13.349099878622352,12.53494281242868,11.770440909089439,11.052565717092662,10.378473489155146,9.7454939171743433,9.1511195542316202,8.5929958817440006,8.0689119824169246,7.5767917820504627,7.1146858255047878,6.6807635542467132,6.2733060548860582,5.8906992499762918,5.5314275041059702,5.1940676199524418,4.8772832005142339,4.5798193551889446,4.3004977287256603,4.0382118333598713,3.7919226656398868,3.5606545905815357,3.3434914768468533,3.13957306763692,2.9480915729227055,2.7682884695146015,2.5994514962946229,2.4409118327083772,2.2920414493398509,2.152250620073735,2.0209855859901351,1.8977263617375377,1.7819846756943527,1.6733020357592978,1.5712479131085737,1.4754180367250713,1.385432791943662,1.3009357166686693,1.2215920893065197,1.147087602819912,1.077127119650962,1.0114335025811665,0.9497465168968211,0.89182179951099427,0.83742989095840303,0.78635532642859263,0.73839578223669355,0.69336127435063444],"cc_pp":[233806616464381.75,158774155472528.06,107820887336140.89,73219387332708.141,49722093596264.18,33765476718659.625,22929604918435.785,15571143980180.34,10574133786668.154,7180744925294.0664,4876348397790.7803,3311468430795.7749,2248781969653.8374,1527126945981.5129,1037060911745.1697,704263328698.38403,478264349060.46497,324790724469.95911,220568044240.9826,149791024379.78537,101726541049.22284,69085891249.134567,46919422470.377586,31865894172.536407,21642731598.762463,14699865496.391197,9984660273.548357,6782280457.0866528,4607286051.3919849,3130016603.6474032,2126599716.269331,1445002545.1011341,981977839.27343833,667408299.49680495,453675026.68576002,308437760.57448399,209732020.07782337,142639622.72148448,97027667.759926826,66013099.052272379,44920001.916505143,30571508.065982945,20808927.80487055,14165187.862758689,9643054.5640643369,6564513.8307850277,4468471.6544135995,3041267.6197393439,2069471.1251043789,1407809.8013556746,957374.79444199277,650806.10080979695,442219.40872158768,300354.43878052861,203912.62286500249,138383.1604902723,93881.334615098356,63675.607291141998,43183.640894157325,29287.749847210958,19868.071039580082,13484.204499085925,9158.1429207970396,6226.3194505650636,4238.8228837841152,2890.7941801319444,1975.7694992158665,1353.9793795727094,930.83084811338529,642.31513658793767,445.1201959827489,309.93567703229479,216.92190530496549,152.64442704288064,108.00048072840201,76.816566359954038,54.89999183899063,39.397538851752216,28.361929608028646,20.458910181216098,14.769479461420783,10.656469592439889,7.6746143608806321,5.5099363432450144,3.9388893455196512,2.8007830126803599,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"states":{"State_0":{"n":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],"n_pp":[233806616464381.75,158774155472528.06,107820887336140.89,73219387332708.141,49722093596264.18,33765476718659.625,22929604918435.785,15571143980180.34,10574133786668.154,7180744925294.0664,4876348397790.7803,3311468430795.7749,2248781969653.8374,1527126945981.5129,1037060911745.1697,704263328698.38403,478264349060.46497,324790724469.95911,220568044240.9826,149791024379.78537,101726541049.22284,69085891249.134567,46919422470.377586,31865894172.536407,21642731598.762463,14699865496.391197,9984660273.548357,6782280457.0866528,4607286051.3919849,3130016603.6474032,2126599716.269331,1445002545.1011341,981977839.27343833,667408299.49680495,453675026.68576002,308437760.57448399,209732020.07782337,142639622.72148448,97027667.759926826,66013099.052272379,44920001.916505143,30571508.065982945,20808927.80487055,14165187.862758689,9643054.5640643369,6564513.8307850277,4468471.6544135995,3041267.6197393439,2069471.1251043789,1407809.8013556746,957374.79444199277,650806.10080979695,442219.40872158768,300354.43878052861,203912.62286500249,138383.1604902723,93881.334615098356,63675.607291141998,43183.640894157325,29287.749847210958,19868.071039580082,13484.204499085925,9158.1429207970396,6226.3194505650636,4238.8228837841152,2890.7941801319444,1975.7694992158665,1353.9793795727094,930.83084811338529,642.31513658793767,445.1201959827489,309.93567703229479,216.92190530496549,152.64442704288064,108.00048072840201,76.816566359954038,54.89999183899063,39.397538851752216,28.361929608028646,20.458910181216098,14.769479461420783,10.656469592439889,7.6746143608806321,5.5099363432450144,3.9388893455196512,2.8007830126803599,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"State_A":{"n":[[7939.8677757728619,6876.8880139682778,5954.4909601789113,5154.6793706498684,4461.574821749783,3861.1968628549603,3341.2791449468214,2891.101178668901,2501.3272069197933,2163.8509635920113,1871.6482891439648,1618.6402459470009,1399.5687770610059,1209.8859205947767,1045.6565999601589,903.47426558294296,780.38821077478508,673.84118458944067,581.61590773663681,501.78919370371449,432.69252959286575,372.87814083580298,321.08972763792633,276.23720711202787,237.37491933351987,203.68285759525571,174.45056395374917,149.06339152042133,126.99087448735712,107.77696365519759,91.031876039130083,76.42526889469049,63.680381543132476,52.568701939506568,42.904634357091233,34.539617230200491,27.35522904801207,21.255097868141483,16.155906877740904,11.978443387163491,8.6404222246411599,6.0541773968355779,4.1365766329605647,2.8454335299879143,2.1323396414133593,1.4511796372920265,0.6830179334713955,0.25068085049154576,0.077771237289733883,0.02035367862035397,0.0043338677982041789,0.00069796574141982618,7.2157088735147113e-05,2.4690679238228493e-06,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[7.6450562477718194,6.5873097873522797,5.683042705659898,4.9076512465183866,4.2410814326688895,3.666866064271423,3.171385978258968,2.7432990754798907,2.3730962179211286,2.0527539602651412,1.7754617362055001,1.5354065985661025,1.3276026040275086,1.1477548985416997,0.99215080261469391,0.85757191738612193,0.74122260716020172,0.64067125449788032,0.55380149711215498,0.47877129198551188,0.41397815019438688,0.35802927597080275,0.30971564864092954,0.26798932374277434,0.23194341304213434,0.20079434245730277,0.17386609012024137,0.15057618068004461,0.1304232623905815,0.11297612582004564,0.097864041954378977,0.084768307263601766,0.073414887555988906,0.063568054054081377,0.055024906241766224,0.047610678077848571,0.041174727917244497,0.035587118161828662,0.030735698133640865,0.026523612547084519,0.022867167751941832,0.019693998012451926,0.016941483494719134,0.014555377639474983,0.012488596739861359,0.010700160264559994,0.0091545786021328731,0.007821063716993381,0.0066724652395519285,0.0056849183462088825,0.0048387577118273704,0.0041143412260357315,0.0034954881297275175,0.0029679447902010809,0.0025191606057876998,0.0021381023494969845,0.001815096699491808,0.0015416928427904079,0.001310539254646403,0.0011152710521867906,0.00095040684345897724,0.00081126259959955847,0.00069393427008293236,0.00059566202969535301,0.0005173878661530898,0.00047671020882040382,0.00052513972662455717,0.00060178550783429434,0.00058550957343233602,0.00053204424319985323,0.00047750695445497403,0.00042771125088458367,0.00038173477928686681,0.0003370115641972169,0.00028967062744892133,0.00023392469412483705,0.00016206127025950371,6.5876465679735527e-05,0,0]],"n_pp":[233806343826408.09,158773892615618.88,107820637117017.17,73219151984572.859,49721874703799.148,33765275235673.934,22929421220272.324,15570977941020.072,10573984871360.189,7180612286070.7305,4876230967849.6826,3311365008842.9741,2248691291725.6543,1527047742897.9395,1036991952200.6674,704203449178.27271,478212472484.22278,324745869769.92865,220529329082.57782,149757663021.64264,101697839023.24347,69061238185.451172,46898284052.20491,31847803910.355083,21627282874.858124,14686704150.006493,9973477867.3295746,6772808277.4887514,4599289839.1331196,3123291976.1466007,2120968225.0100358,1440308301.6896529,978084640.93940091,664197185.56948221,451042200.76910692,306292817.92420304,207996425.57436448,141245391.61876878,95916207.838878617,65134181.728106469,44230835.059919506,30035891.16281721,20396475.648941468,13850613.903204476,9405508.8572081383,6386973.2592217932,4337181.744698775,2945236.0580048664,2000013.1261525278,1358145.0388474239,922274.8496246431,626290.51275959972,425297.55295426684,288809.72603141802,196124.95945537614,133185.27494421956,90444.452991890139,61420.032259758183,41710.0235642427,28325.19833948102,19235.673565120302,13063.017639192609,8871.1736222438321,6024.4849514925518,4091.2872176727201,2778.4415521568685,1886.8788638012381,1281.4114721361884,870.23303873441307,590.99739754009681,401.3648697950016,272.58231628007172,185.12333820242327,125.72750191550895,85.389638267852689,57.994344867199018,39.388656301352484,26.752284693385359,18.16994852963586,12.340944779294789,8.3819250216360359,5.6929661810885657,3.8666230830299098,2.6261682893195055,1.7836513827009166,1.211416452305067,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"State_B":{"n":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[7.0818260275585594,6.1102619614628857,5.2799203681988569,4.5680447526027157,3.9560906963108775,3.4288337444443751,2.9736863452611266,2.5801708488880215,2.2395101994580386,1.9443081453159092,1.6882979858557179,1.4661440373029984,1.2732837788257558,1.1058014618642773,0.96032610927506545,0.83394847959853846,0.72415284677963021,0.6287604307400001,0.54588207067553551,0.47387830860399721,0.411325484322836,0.35698676660265644,0.30978728544857453,0.26879270779167924,0.23319073063356174,0.20227506411336552,0.17543155157925563,0.15212613130681638,0.13189438981950799,0.11433249318326072,0.099089312490023868,0.085859584622659385,0.074377970432755208,0.064413890468020485,0.055767033945846728,0.048263450227774028,0.041752143948457755,0.036102105461571853,0.0311997175965971,0.026946488039348866,0.02325706407554997,0.020057493047475675,0.017283697704601666,0.014880140682853973,0.012798656606632174,0.010997433755681256,0.0094401298773153283,0.008095108607008043,0.0069347841664034408,0.0059350626867719688,0.0050763187355217848,0.0043387658882985047,0.0037062621292238739,0.0031646605499577544,0.0027015691272629563,0.0023061456882651019,0.0019689208931762095,0.0016816434179527302,0.0014371427746259074,0.0012292068198649705,0.0010524730576634775,0.00090234188821378613,0.00077496898202054996,0.00066768650025412547,0.00058188665119045084,0.00053758879416117679,0.00059262974857250054,0.00067725658951466971,0.00065513384454062929,0.00059006469396272123,0.00052280330170985725,0.00045958384714515709,0.00039893525836768191,0.00033756991219930309,0.0002712751278341175,0.00019588636990946633,0.00011155806030751684,3.248320550294825e-05,0,0]],"n_pp":[233806616055090.84,158774155079779.34,107820886962986.77,73219386981507.875,49722093268675.383,33765476415663.625,22929604640390.934,15571143726896.107,10574133557492.371,7180744719206.0791,4876348213494.167,3311468266805.5273,2248781824374.3154,1527126817772.9158,1037060798977.5356,704263229793.18542,478264262520.65961,324790648899.87366,220567978357.67645,149790967017.61725,101726491159.26562,69085847894.9086,46919384821.146286,31865861495.163956,21642703248.899025,14699840909.542273,9984638956.409483,6782261979.3852425,4607270038.3722515,3130002729.2580147,2126587697.0611989,1444992134.809233,981968824.03691769,667400493.66176736,453668269.13177156,308431911.50670087,209726958.22988632,142635242.92772874,97023878.810327113,66009821.86370147,44917167.924187027,30569057.82452032,20806809.771703891,14163357.340732178,9641472.783061048,6563147.1512000524,4467290.8775973516,3040247.3924970645,2068589.4269161513,1407047.5042240387,956715.286232371,650234.96368513443,441724.14486023475,299924.23608412821,203538.15388627574,138056.40840049039,93595.440725132677,63424.735445265062,42962.854947948224,29092.901370404539,19695.695288047595,13331.423514170525,9022.5752888859024,6105.9967622774511,4132.1132647069489,2796.3334365581741,1892.4004564340794,1280.6999126018447,866.75093685496813,586.62303438629738,397.05749431358498,268.78069493657205,181.98045832539071,123.24668348080071,83.502355136340455,56.603992834212761,38.394498820504616,26.061802248654203,17.704353125700461,12.036684809890566,8.1899286555658861,5.5767450491016142,3.7999597889376302,2.5908192736892146,1.7673083095439299,1.2060342412129292,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"State_C":{"n":[[12650.005561971668,10798.373757391289,9245.2691156658348,7933.9281147583652,6820.3934024075324,5870.2072055618682,5056.0515687890866,4356.0395776465493,3752.4624566860357,3230.8611056545633,2779.3314460671472,2387.9995909352683,2048.6207420328651,1754.2682308326039,1499.0882904108212,1278.103142961626,1087.0504194755706,922.25107214667742,780.50091207665935,658.98278410791136,555.19730363070482,466.91023956941399,392.11432302026469,329.00280881214098,275.95179176412927,231.50825233953364,194.38112076326456,163.4332343030006,137.67278260309456,116.2435434798502,98.413793033053892,83.564170960061261,71.174989788116292,60.813528101786638,52.121792626645949,44.805122922669561,38.621882615596526,33.374373100163574,28.901038347729525,25.070185381953603,21.776734972294953,18.951595626000135,16.640661816217232,15.433876307172259,17.421194716821805,21.518270190086987,21.352373114191082,18.608465267779497,15.459247932680499,12.40481351952516,9.5336187808459254,6.8602425853231876,4.3509306964608738,1.1200067504676765,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]],"n_pp":[233806192816253.28,158773748665938.88,107820501767971.36,73219026378428.328,49721759580874.164,33765170955436.324,22929327801994.77,15570895117478.08,10573912149052.23,7180549006166.3818,4876176363282.043,3311318254390.8643,2248651545344.8125,1527014177785.6489,1036963780015.0731,704179935450.70654,478192945582.75732,324729724851.57928,220516028380.9892,149746733626.59412,101688869076.47838,69053872186.814453,46892217767.112511,31842779206.473557,21623082694.495823,14683147740.593513,9970416337.7987518,6770120514.9070425,4596878799.8928308,3121081353.3154111,2118899483.8303981,1438338066.2864561,976182406.1433115,662343318.63237357,449226189.56376237,304511716.14865071,206253442.55747235,139548575.31386238,94277174.41017966,63566855.817864887,42750178.885168105,28656622.84193828,19131805.808845315,12711064.563744226,8397913.7980375551,5513782.3845995776,3596186.9815754178,2329790.353018974,1499729.4231837811,959962.30134747631,611700.84477615333,388607.90794995992,246557.78182307107,156517.19787111616,99598.490820736813,63646.336459415019,40911.973191100689,26493.300112060082,17306.07248951614,11416.099816288157,7611.7524247041283,5133.3597121609573,3503.352003046477,2420.2381704617633,1692.6326073326625,1198.2379370657561,858.31581340149512,621.75440097164267,455.08452608408919,336.19085166337436,250.32598328568804,187.56609033559957,141.17329374689294,106.53156260235301,80.447768436485944,60.687533667636252,45.664410938759637,34.231325236043922,25.54156850456642,18.957358544603377,13.990352284545914,10.262810519508859,7.4813028439262519,5.4179096816150576,3.8965973450923763,2.782182284975006,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}},"regime":{"F_Forage":[0,0.025000000000000001,0.050000000000000003,0.075000000000000011,0.10000000000000001,0.125,0.15000000000000002,0.17500000000000002,0.20000000000000001,0.22500000000000001,0.25,0.27500000000000002,0.30000000000000004,0.32500000000000001,0.35000000000000003,0.375,0.40000000000000002,0.42500000000000004,0.45000000000000001,0.47500000000000003,0.5],"F_Pred_inv":[0,0,0,0,0,0,0.026589269945048139,0.057825871068893996,0.089760590508340593,0.12237913235568482,0.15552611146871087,0.18914661686721682,0.22317138236950868,0.25753421611092686,0.29217513718882965,0.32700884088527626,0.36207811218125774,0.39721476598406624,0.43248276600032054,0.46776331531890042,0.50309648585209121],"F_Pred_crit":[0.188,0.1915,0.19500000000000001,0.20000000000000001,0.20499999999999999,0.21149999999999999,0.218,0.22500000000000001,0.23200000000000001,0.23999999999999999,0.248,0.25800000000000001,0.26800000000000002,0.28000000000000003,0.29217513718882965,0.32700884088527626,0.36207811218125774,0.39721476598406624,0.43248276600032054,0.46776331531890042,0.50309648585209121],"R0_Pred_C":[0.46370349214499956,0.55069234923133759,0.64638894097729072,0.75067278363761847,0.86333614333549602,0.98409246623262359,1.1125856583313418,1.2483998423905593,1.3910692677553498,1.5400881000681412,1.6949198689324825,1.8550064004563718,2.0197761066826865,2.188651544250555,2.3610561897104518,2.5364204085883761,2.7141866196798361,2.893813675468361,3.0747804944445303,3.2565889919644109,3.4387663636739809],"B_Forage_C":[2260.1745478315788,2180.2854554404416,2104.9390514644724,2033.7449955945438,1966.3613457168176,1902.4866584772408,1841.8536525832408,1784.2240776847736,1729.384523512608,1677.142969699062,1627.3259244338753,1579.7760352000225,1534.3500809420493,1490.917274656161,1449.3578203112704,1409.5616794533728,1371.4275116996471,1334.8617602353308,1299.7778588553574,1266.0955413905322,1233.740237783107]},"ke_circ":[[1.518253708889103e-16,0.00044206424246640865,0.00077408816269750828,0.0013272008752558254,0.0022280456594942228,0.0036622898041572065,0.0058941681761383122,0.0092882422248770514,0.014331304914941652,0.021651058517699183,0.032026813109565358,0.046386276376721221,0.065781911799725493,0.091340769294426305,0.12418353921529016,0.16531208182013926,0.21546977158485886,0.27498518813186601,0.34361605372024462,0.42041556283035264,0.50364591608602527,0.59076266816458534,0.67848767659132236,0.76297811096078116,0.84008530405810589,0.90568232104813684,0.95602574438237298,0.98810814316586693,0.99995524688772353,0.99082702318860028,0.96129418683230239,0.91317914250347909,0.84936985792188269,0.77353309682830362,0.68976658247136713,0.60223583476416642,0.51483994055704541,0.43094223860748337,0.35318893509185945,0.28342379528342598,0.22269308076847683,0.17132404971375015,0.12905390012478216,0.095184258314969891,0.068738542704092506,0.048604525210243839,0.033650714014650911,0.022811458638525583,0.015140946437677993,0.009839979279746381,0.0062614733839042565,0.0039012168184119184,0.0023799335476733926,0.0014215782429548868,0.000831415083630278,0.00047610881741378964,0.00026695357667534875,0.00014655696320336578,7.8780433271120155e-05,4.1464025852828045e-05,2.1368092859100918e-05,1.0782047781821656e-05,5.3269416052059567e-06,2.5768896071788289e-06,1.2205480635832169e-06,5.6605046601955679e-07,2.5703757349171201e-07,1.1428237760371189e-07,4.9751149171138776e-08,2.1206459130394765e-08,8.8506344483750792e-09,3.6167778653943959e-09,1.4471397561206228e-09,5.6694415821345328e-10,2.1747605723033271e-10,8.1681569681854508e-11,3.0038466396089827e-11,1.0816200505693677e-11,3.8134889358392935e-12,1.3165688862002746e-12,4.4515198744628497e-13,1.4726301849369853e-13,4.7756670413106731e-14,1.5182537088891029e-14,4.6572432520173234e-15,1.4195672178113114e-15,4.4598702698617399e-16,1.7365026795419115e-16,6.2627965491675497e-17,8.3978408272928505e-17,8.160613685278929e-17,-5.8357876935424897e-17,3.214427774288648e-17,6.6482906549401733e-17,2.2002817421791296e-17,9.5572884838858967e-17,1.5588788569589872e-16,1.6577729217860411e-16,1.5750770227496253e-16,1.7040322144787558e-16,2.1476099033038511e-16,1.5390759506119656e-16,1.9763708268477856e-16,2.6585529187798431e-16,3.774514338236723e-16,2.9016409496209377e-16,2.3654835732046454e-16,2.4747125259278777e-16,2.4256619157930625e-16,2.8385222896173807e-16,1.6836668615131874e-16,1.6364708180258017e-16,-4.4525425355741963e-17,6.1554502909089324e-17,1.762056374572802e-16,1.0438360078075884e-18,5.1471951536740063e-17],[1.518253708889103e-16,0.013110768741793172,0.018841667610010354,0.026652087976312723,0.037107684667249355,0.050853072264647983,0.068594809323115596,0.091072242352082597,0.11901495190530456,0.15308679831264374,0.19381825274294728,0.24153069282211551,0.29625841788443608,0.35767599210640127,0.42503980219063359,0.49715307529807534,0.57236277257849744,0.64859462670964152,0.72342919809796602,0.79421747601827297,0.85822974814583208,0.91282685457175805,0.95563923369431625,0.98473699433755146,0.99877406163642324,0.99709141194029716,0.97976837074929446,0.94761641259845208,0.90211613779239341,0.845304242917163,0.77962250097132058,0.70774433226812461,0.63239605847863056,0.55618929773711767,0.4814784129998364,0.41025296832378072,0.34407043992826408,0.2840296722093964,0.23078138828154462,0.18456891942819265,0.14529045264651408,0.11257353479106651,0.085853152803054805,0.064446140381260911,0.047616590640805638,0.034629035796709992,0.024788098952118556,0.017464926492548941,0.012111865018089554,0.008267534222574759,0.0055547139563886959,0.0036733991144016478,0.0023910863127955297,0.00153194477261924,0.00096607686884546352,0.00059965433493869747,0.00036636248024654854,0.00022031381076705069,0.00013040467877545092,7.5974061490791139e-05,4.3567057944918427e-05,2.4590753803216566e-05,1.3661744827154677e-05,7.4706986102436094e-06,4.0210269313936786e-06,2.1302641898192331e-06,1.110837854178488e-06,5.7014929806990706e-07,2.8803630868224272e-07,1.4322756141269516e-07,7.0101397860383468e-08,3.3771276691088703e-08,1.6013600753915474e-08,7.473967981484688e-09,3.433477469795287e-09,1.5525223456516433e-09,6.9097483676678414e-10,3.0269658111204085e-10,1.3051895746521508e-10,5.5393759854486524e-11,2.314047908657035e-11,9.5146075254033194e-12,3.8507392905868876e-12,1.5340587299986386e-12,6.0132335957689036e-13,2.3210303574642161e-13,8.8231416474954109e-14,3.2858805894632409e-14,1.2147927488248935e-14,4.460819178429796e-15,1.5381807888182725e-15,6.3956437486953462e-16,4.1372413567228057e-16,-2.1053908853735607e-17,1.9096784932120749e-16,1.3711728808404712e-16,3.3360066845707827e-17,2.4799873693099198e-16,3.0598594645702013e-16,1.66018225994712e-16,2.195574266079791e-16,2.1608890632454896e-16,1.3099293581228926e-16,2.9047652704646737e-16,4.7433798712814645e-16,1.608747523550703e-16,1.7273466153619846e-16,3.1748393366294202e-16,1.8168627947313006e-16,1.9355013423508089e-16,1.6842724199368702e-16,1.1497231663392307e-16,3.8491461668828725e-17,9.3247460177628661e-17,1.9526166498066565e-17,7.5265955201620132e-18,5.9670039706087803e-17]],"kp_circ":[[1.2146029671112825e-16,9.1095222533346175e-17,1.518253708889103e-16,9.1095222533346175e-17,3.0365074177782062e-17,1.2146029671112825e-16,6.0730148355564125e-17,1.2146029671112825e-16,1.2146029671112825e-16,1.2146029671112825e-16,1.8219044506669235e-16,1.8219044506669235e-16,1.8219044506669235e-16,2.429205934222565e-16,2.429205934222565e-16,1.2146029671112825e-16,2.1255551924447442e-16,1.8219044506669235e-16,1.8219044506669235e-16,1.2146029671112825e-16,1.2146029671112825e-16,7.591268544445515e-17,-7.591268544445515e-17,6.0730148355564125e-17,1.5182537088891031e-17,-6.0730148355564125e-17,4.5547611266673087e-17,0,-6.8321416900009637e-17,5.883233121945274e-17,1.1386902816668271e-16,3.7576779295005298e-16,1.3360632638224106e-15,4.6989952290117735e-15,1.5144580746168802e-14,4.7787035487284513e-14,1.4731615737350966e-13,4.4496979700121831e-13,1.3164322433664745e-12,3.813549665987649e-12,1.0816343072867747e-11,3.0038710360519257e-11,8.1681502966898537e-11,2.1747617951498399e-10,5.6694429587847306e-10,1.4471397375772594e-09,3.616777973030934e-09,8.8506343678464195e-09,2.1206459251500661e-08,4.975114929714973e-08,1.1428237771879995e-07,2.5703757347822534e-07,5.6605046615408764e-07,1.2205480637276119e-06,2.5768896071942754e-06,5.3269416054205949e-06,1.0782047782036416e-05,2.1368092859210592e-05,4.1464025852894452e-05,7.87804332713163e-05,0.00014655696320343056,0.00026695357667532284,0.0004761088174139179,0.00083141508363032929,0.001421578242954843,0.0023799335476734863,0.0039012168184119848,0.0062614733839042183,0.0098399792797465163,0.015140946437678025,0.022811458638525583,0.033650714014651008,0.048604525210243804,0.068738542704092409,0.095184258314969919,0.1290539001247821,0.17132404971374976,0.22269308076847646,0.28342379528342593,0.35318893509185972,0.43094223860748376,0.51483994055704552,0.60223583476416642,0.68976658247136691,0.77353309682830385,0.84936985792188291,0.91317914250347898,0.96129418683230239,0.99082702318860039,0.99995524688772375,0.98810814316586693,0.95602574438237298,0.90568232104813651,0.84008530405810589,0.76297811096078116,0.67848767659132214,0.59076266816458523,0.50364591608602516,0.42041556283035264,0.34361605372024462,0.27498518813186601,0.21546977158485886,0.16531208182013926,0.12418353921528993,0.091340769294426194,0.065781911799725507,0.046386276376721096,0.032026813109565413,0.021651058517699211,0.014331304914941627,0.0092882422248771329,0.0058941681761383122,0.0036622898041571571,0.0022280456594942757,0.0013272008752558406,0.00077408816269743997,0.00044206424246645418],[1.2905156525557376e-16,1.8219044506669235e-16,1.9737298215558337e-16,1.5182537088891031e-17,1.3664283380001927e-16,6.0730148355564125e-17,6.0730148355564125e-17,1.2146029671112825e-16,1.2146029671112825e-16,1.8219044506669235e-16,6.0730148355564125e-17,3.643808901333847e-16,6.0730148355564125e-17,6.0730148355564125e-17,1.2146029671112825e-16,0,1.8219044506669235e-16,2.429205934222565e-16,2.429205934222565e-16,1.2146029671112825e-16,1.2146029671112825e-16,1.518253708889103e-16,0,0,1.2146029671112825e-16,3.036507417778206e-16,5.1620626102229505e-16,1.6245314685113401e-15,4.3573881445117258e-15,1.2199168550923942e-14,3.2953696751437979e-14,8.8164992875190205e-14,2.3218653970041051e-13,6.0145620677641814e-13,1.533982817313194e-12,3.8506975386098929e-12,9.5147289857000304e-12,2.3140319669930919e-11,5.5393608029115631e-11,1.305190637429747e-10,3.0269673187730306e-10,6.9097499611875057e-10,1.5525224259079582e-09,3.433477563042747e-09,7.4739680503412238e-09,1.601360092961794e-08,3.3771276738055654e-08,7.0101397993203449e-08,1.4322756147292114e-07,2.8803630851388544e-07,5.7014929830337189e-07,1.1108378542179023e-06,2.1302641896862697e-06,4.0210269316234244e-06,7.4706986103746022e-06,1.3661744827431496e-05,2.4590753803618314e-05,4.3567057945023716e-05,7.597406149097567e-05,0.00013040467877563819,0.00022031381076696258,0.00036636248024656421,0.00059965433493876696,0.00096607686884559417,0.0015319447726192285,0.0023910863127957443,0.0036733991144017285,0.0055547139563887236,0.0082675342225748214,0.012111865018089543,0.017464926492548934,0.024788098952118792,0.034629035796709978,0.047616590640805562,0.06444614038126098,0.085853152803054736,0.11257353479106612,0.1452904526465138,0.18456891942819259,0.23078138828154496,0.28402967220939679,0.34407043992826408,0.41025296832378072,0.48147841299983635,0.55618929773711745,0.63239605847863078,0.70774433226812461,0.77962250097132058,0.84530424291716322,0.9021161377923933,0.94761641259845208,0.97976837074929501,0.99709141194029671,0.99877406163642291,0.98473699433755169,0.95563923369431603,0.91282685457175783,0.85822974814583231,0.79421747601827308,0.72342919809796591,0.64859462670964152,0.57236277257849766,0.49715307529807518,0.42503980219063348,0.357675992106401,0.29625841788443585,0.24153069282211551,0.19381825274294717,0.15308679831264363,0.11901495190530444,0.091072242352082625,0.068594809323115472,0.050853072264648032,0.037107684667249362,0.026652087976312685,0.018841667610010202,0.013110768741793051]]};
+  </script>
+  <script>
+    (function() {
+  "use strict";
+
+  // =========================================================================
+  // 1. EXACT MIZER 80-BIN PDE & DISCRETE R0 ENGINE
+  // =========================================================================
+  class MizerEngine {
+    constructor(data) {
+      this.d = data;
+      this.no_sp = data.no_sp;
+      this.no_w = data.no_w;
+      this.no_w_full = data.no_w_full;
+      this.offset = data.idx_sp_offset;
+
+      this.w = Float64Array.from(data.w);
+      this.dw = Float64Array.from(data.dw);
+      this.w_full = Float64Array.from(data.w_full);
+      this.dw_full = Float64Array.from(data.dw_full);
+      this.w_dw = new Float64Array(this.no_w);
+      for (let j = 0; j < this.no_w; j++) this.w_dw[j] = this.w[j] * this.dw[j];
+      this.w_dw_full = new Float64Array(this.no_w_full);
+      for (let k = 0; k < this.no_w_full; k++) this.w_dw_full[k] = this.w_full[k] * this.dw_full[k];
+
+      // Reconstruct exact circulant FFT convolution matrices K_enc (2 x 80 x 117) and K_pred (2 x 117 x 80)
+      this.K_enc = [
+        new Float64Array(this.no_w * this.no_w_full),
+        new Float64Array(this.no_w * this.no_w_full)
+      ];
+      this.K_pred = [
+        new Float64Array(this.no_w_full * this.no_w),
+        new Float64Array(this.no_w_full * this.no_w)
+      ];
+
+      for (let sp = 0; sp < 2; sp++) {
+        const ke = data.ke_circ[sp];
+        const kp = data.kp_circ[sp];
+        for (let r = 0; r < this.no_w; r++) {
+          const idx_r = this.offset + r;
+          const rowOff = r * this.no_w_full;
+          for (let c = 0; c < this.no_w_full; c++) {
+            let diff = (idx_r - c) % this.no_w_full;
+            if (diff < 0) diff += this.no_w_full;
+            this.K_enc[sp][rowOff + c] = ke[diff];
+          }
+        }
+        for (let r = 0; r < this.no_w_full; r++) {
+          const rowOff = r * this.no_w;
+          for (let c = 0; c < this.no_w; c++) {
+            const idx_c = this.offset + c;
+            let diff = (r - idx_c) % this.no_w_full;
+            if (diff < 0) diff += this.no_w_full;
+            this.K_pred[sp][rowOff + c] = kp[diff];
+          }
+        }
+      }
+
+      // Pre-allocate state & rate buffers
+      this.n = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.n_pp = new Float64Array(this.no_w_full);
+      this.effort = [0.0, 0.0]; // [F_Forage, F_Pred]
+      this.year = 0.0;
+
+      this.prey = [new Float64Array(this.no_w_full), new Float64Array(this.no_w_full)];
+      this.encounter = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.feeding_level = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.e_repro = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.e_growth = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.pred_rate = [new Float64Array(this.no_w_full), new Float64Array(this.no_w_full)];
+      this.pred_mort = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.f_mort = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.mort = [new Float64Array(this.no_w), new Float64Array(this.no_w)];
+      this.resource_mort = new Float64Array(this.no_w_full);
+      this.rdi = [0.0, 0.0];
+      this.rdd = [0.0, 0.0];
+      this.R0 = [0.0, 0.0];
+
+      // Store reference mortality curves for State A and State C
+      this.loadState("State_C");
+      this.computeRates();
+      this.refPredMort_C = Float64Array.from(this.pred_mort[1]);
+
+      this.loadState("State_A");
+      this.computeRates();
+      this.refPredMort_A = Float64Array.from(this.pred_mort[1]);
+      this.refN_A = [Float64Array.from(this.n[0]), Float64Array.from(this.n[1])];
+      this.refNPP_A = Float64Array.from(this.n_pp);
+
+      // Find index closest to w = 0.05 g for larval gauntlet indicator
+      this.larvalIdx = 0;
+      let minDist = Infinity;
+      for (let j = 0; j < this.no_w; j++) {
+        const dist = Math.abs(Math.log(this.w[j] / 0.05));
+        if (dist < minDist) {
+          minDist = dist;
+          this.larvalIdx = j;
+        }
+      }
+    }
+
+    loadState(stateName) {
+      const st = this.d.states[stateName];
+      this.n[0].set(st.n[0]);
+      this.n[1].set(st.n[1]);
+      this.n_pp.set(st.n_pp);
+      this.computeRates();
+      this.computeR0();
+    }
+
+    computeRates() {
+      const d = this.d;
+      const no_w = this.no_w;
+      const no_w_full = this.no_w_full;
+      const off = this.offset;
+      const inter = d.interaction;
+      const inter_res = d.interaction_resource;
+
+      // 1. Prey array (2 x 117)
+      for (let sp = 0; sp < 2; sp++) {
+        const ir = inter_res[sp];
+        const th0 = inter[sp][0];
+        const th1 = inter[sp][1];
+        const prey_sp = this.prey[sp];
+        for (let k = 0; k < off; k++) {
+          prey_sp[k] = ir * this.n_pp[k] * this.w_dw_full[k];
+        }
+        for (let j = 0; j < no_w; j++) {
+          const k = off + j;
+          const fish_prey = th0 * this.n[0][j] + th1 * this.n[1][j];
+          prey_sp[k] = (ir * this.n_pp[k] + fish_prey) * this.w_dw_full[k];
+        }
+      }
+
+      // 2. Encounter, feeding level, EReproAndGrowth
+      for (let sp = 0; sp < 2; sp++) {
+        const K = this.K_enc[sp];
+        const prey_sp = this.prey[sp];
+        const sv = d.search_vol[sp];
+        const imax = d.intake_max[sp];
+        const metab = d.metab[sp];
+        const psi = d.psi[sp];
+        const alpha = d.alpha[sp];
+
+        for (let r = 0; r < no_w; r++) {
+          let ae = 0.0;
+          const rowOff = r * no_w_full;
+          for (let c = 0; c < no_w_full; c++) {
+            ae += K[rowOff + c] * prey_sp[c];
+          }
+          if (ae < 1e-18) ae = 0.0;
+          const enc = sv[r] * ae;
+          this.encounter[sp][r] = enc;
+          const fl = enc / (enc + imax[r]);
+          this.feeding_level[sp][r] = fl;
+          let e = alpha * (1.0 - fl) * enc - metab[r];
+          if (e < 0.0) e = 0.0;
+          const er = psi[r] * e;
+          this.e_repro[sp][r] = er;
+          let eg = e - er;
+          if (eg < 0.0) eg = 0.0;
+          this.e_growth[sp][r] = eg;
+        }
+      }
+
+      // 3. PredRate (2 x 117)
+      const q_buf = new Float64Array(no_w);
+      for (let sp = 0; sp < 2; sp++) {
+        const sv = d.search_vol[sp];
+        const fl = this.feeding_level[sp];
+        const n_sp = this.n[sp];
+        for (let j = 0; j < no_w; j++) {
+          q_buf[j] = (1.0 - fl[j]) * sv[j] * n_sp[j] * this.dw[j];
+        }
+        const K = this.K_pred[sp];
+        const mask = d.ft_mask[sp];
+        const pr_sp = this.pred_rate[sp];
+        for (let k = 0; k < no_w_full; k++) {
+          let s = 0.0;
+          const rowOff = k * no_w;
+          for (let j = 0; j < no_w; j++) {
+            s += K[rowOff + j] * q_buf[j];
+          }
+          if (s < 1e-18) s = 0.0;
+          pr_sp[k] = s * mask[k];
+        }
+      }
+
+      // 4. PredMort, FMort, Total Mort, ResourceMort
+      for (let k = 0; k < no_w_full; k++) {
+        this.resource_mort[k] = inter_res[0] * this.pred_rate[0][k] + inter_res[1] * this.pred_rate[1][k];
+      }
+
+      for (let sp = 0; sp < 2; sp++) {
+        const th0_sp = inter[0][sp];
+        const th1_sp = inter[1][sp];
+        const mub = d.mu_b[sp];
+        const sel = d.sel[sp];
+        const eff = this.effort[sp];
+        for (let j = 0; j < no_w; j++) {
+          const k = off + j;
+          const pm = th0_sp * this.pred_rate[0][k] + th1_sp * this.pred_rate[1][k];
+          const fm = eff * sel[j];
+          this.pred_mort[sp][j] = pm;
+          this.f_mort[sp][j] = fm;
+          this.mort[sp][j] = pm + mub[j] + fm;
+        }
+      }
+
+      // 5. RDI & Beverton-Holt RDD
+      for (let sp = 0; sp < 2; sp++) {
+        let er_pop = 0.0;
+        const er = this.e_repro[sp];
+        const n_sp = this.n[sp];
+        for (let j = 0; j < no_w; j++) {
+          er_pop += er[j] * n_sp[j] * this.dw[j];
+        }
+        const rdi = 0.5 * (er_pop * d.erepro[sp]) / this.w[0];
+        this.rdi[sp] = rdi;
+        this.rdd[sp] = rdi / (1.0 + rdi / d.R_max[sp]);
+      }
+    }
+
+    computeR0() {
+      const d = this.d;
+      const no_w = this.no_w;
+      for (let sp = 0; sp < 2; sp++) {
+        const g = this.e_growth[sp];
+        const mu = this.mort[sp];
+        const er = this.e_repro[sp];
+        const top = d.w_top[sp]; // 1-based inclusive index from R
+
+        let n_curr = 1.0;
+        let er_sum = n_curr * er[0] * this.dw[0];
+        for (let j = 1; j < top; j++) {
+          const aj = -g[j - 1] / this.dw[j];
+          const bj = mu[j] + g[j] / this.dw[j];
+          n_curr = (-aj * n_curr) / bj;
+          er_sum += n_curr * er[j] * this.dw[j];
+        }
+        const rdd_req = g[0] + mu[0] * this.dw[0];
+        const rdi_prod = 0.5 * d.erepro[sp] * er_sum / d.w_min[sp];
+        this.R0[sp] = rdi_prod / rdd_req;
+      }
+      return this.R0;
+    }
+
+    step(dt = 0.2) {
+      this.computeRates();
+      const d = this.d;
+      const no_w = this.no_w;
+      const no_w_full = this.no_w_full;
+
+      // 1. Semichemostat resource update
+      for (let k = 0; k < no_w_full; k++) {
+        const rr = d.rr_pp[k];
+        const cc = d.cc_pp[k];
+        const mur = rr + this.resource_mort[k];
+        if (mur > 0) {
+          const n_steady = (rr * cc) / mur;
+          const next_pp = n_steady + (this.n_pp[k] - n_steady) * Math.exp(-mur * dt);
+          if (Number.isFinite(next_pp)) {
+            this.n_pp[k] = next_pp;
+          }
+        }
+      }
+
+      // 2. Semi-implicit upwind fish PDE step
+      for (let sp = 0; sp < 2; sp++) {
+        const g = this.e_growth[sp];
+        const mu = this.mort[sp];
+        const n_sp = this.n[sp];
+
+        const b0 = 1.0 + (g[0] / this.dw[0] + mu[0]) * dt;
+        n_sp[0] = (n_sp[0] + (this.rdd[sp] * dt) / this.dw[0]) / b0;
+
+        for (let j = 1; j < no_w; j++) {
+          const aj = (-g[j - 1] * dt) / this.dw[j];
+          const bj = 1.0 + (g[j] / this.dw[j] + mu[j]) * dt;
+          n_sp[j] = (n_sp[j] - aj * n_sp[j - 1]) / bj;
+        }
+      }
+
+      this.year += dt;
+      this.computeRates();
+      this.computeR0();
+    }
+
+    getBiomass() {
+      let b0 = 0.0, b1 = 0.0;
+      for (let j = 0; j < this.no_w; j++) {
+        b0 += this.n[0][j] * this.w_dw[j];
+        b1 += this.n[1][j] * this.w_dw[j];
+      }
+      return [b0, b1];
+    }
+
+    getYield() {
+      let y0 = 0.0, y1 = 0.0;
+      for (let j = 0; j < this.no_w; j++) {
+        y0 += this.n[0][j] * this.f_mort[0][j] * this.w_dw[j];
+        y1 += this.n[1][j] * this.f_mort[1][j] * this.w_dw[j];
+      }
+      return [y0, y1];
+    }
+
+    seedSpecies(sp, fractionOfStateA) {
+      const stA = this.d.states.State_A.n[sp];
+      for (let j = 0; j < this.no_w; j++) {
+        this.n[sp][j] += stA[j] * fractionOfStateA;
+      }
+      this.computeRates();
+      this.computeR0();
+    }
+  }
+
+  // If running in Node.js for verification test, export MizerEngine and exit
+  if (typeof window === "undefined") {
+    module.exports = { MizerEngine };
+    return;
+  }
+
+  // =========================================================================
+  // 2. INITIALIZE ENGINE & APPLICATION STATE
+  // =========================================================================
+  const engine = new MizerEngine(MODEL_DATA);
+
+  let isRunning = true;
+  let stepsPerFrame = 2; // 4x speed default (2 steps of 0.2 yr = 0.4 yr/frame -> ~24 yr/sec)
+  let spectraTab = "spectra"; // "spectra" | "mortality"
+  let useLogHistory = true;
+  let autoStoryActive = false;
+  let autoStoryPhase = 0;
+
+  // Time series history & policy event flags
+  const history = [];
+  const events = [];
+  const MAX_HISTORY = 1600;
+
+  function recordHistoryPoint() {
+    const [bFor, bPred] = engine.getBiomass();
+    history.push({
+      year: engine.year,
+      bFor: Math.max(1e-4, bFor),
+      bPred: Math.max(1e-4, bPred),
+      r0Pred: engine.R0[1]
+    });
+    if (history.length > MAX_HISTORY) {
+      history.shift();
+    }
+  }
+
+  function addEventMarker(label, color = "#fbbf24") {
+    events.push({ year: engine.year, label, color });
+    if (events.length > 18) events.shift();
+  }
+
+  recordHistoryPoint();
+
+  // =========================================================================
+  // 3. SWIMMING FISH & SEEDED COHORT PARTICLES (GAUNTLET VISUALIZER)
+  // =========================================================================
+  const LOG_W_MIN = -3.0; // 1e-3 g
+  const LOG_W_MAX = Math.log10(2200); // ~3.34
+
+  function logWToX(logW, width, padL = 42, padR = 24) {
+    const u = (logW - LOG_W_MIN) / (LOG_W_MAX - LOG_W_MIN);
+    return padL + Math.max(0, Math.min(1, u)) * (width - padL - padR);
+  }
+
+  // Background ambient plankton particles
+  const planktonDots = Array.from({ length: 70 }, () => ({
+    logW: -3.0 + Math.random() * 4.0,
+    yFrac: 0.18 + Math.random() * 0.72,
+    phase: Math.random() * Math.PI * 2,
+    r: 1.3 + Math.random() * 1.5
+  }));
+
+  // Forage fish school particles (concentrated in 0.5g - 20g, darting into larval gauntlet)
+  const foragePool = Array.from({ length: 65 }, () => ({
+    logW: -0.5 + Math.random() * 1.8, // ~0.3g to 20g
+    yFrac: 0.16 + Math.random() * 0.72,
+    vx: (Math.random() - 0.5) * 0.015,
+    phase: Math.random() * Math.PI * 2
+  }));
+
+  // Adult & juvenile predator particles across spectrum
+  const predatorPool = Array.from({ length: 34 }, (_, idx) => ({
+    logW: idx < 18 ? (2.1 + Math.random() * 1.15) : (-1.5 + Math.random() * 3.5),
+    yFrac: 0.18 + Math.random() * 0.68,
+    phase: Math.random() * Math.PI * 2
+  }));
+
+  // Tracked larval cohorts (spawned naturally or when user clicks "Release Hatchery Cohort")
+  const trackedLarvae = [];
+  const popups = [];
+
+  function spawnVisualCohort(species, count = 18, isUserSeeded = false) {
+    for (let i = 0; i < count; i++) {
+      trackedLarvae.push({
+        species, // 0 = Forage, 1 = Predator
+        logW: -3.0 + Math.random() * 0.25,
+        yFrac: 0.20 + Math.random() * 0.62,
+        vy: (Math.random() - 0.5) * 0.003,
+        alive: true,
+        isUserSeeded,
+        age: 0
+      });
+    }
+  }
+
+  // =========================================================================
+  // 4. DOM ELEMENTS & CONTROLS WIRING
+  // =========================================================================
+  const sliderFPred = document.getElementById("sliderFPred");
+  const sliderFForage = document.getElementById("sliderFForage");
+  const lblFPred = document.getElementById("lblFPred");
+  const lblFForage = document.getElementById("lblFForage");
+  const narrativeTitle = document.getElementById("narrativeTitle");
+  const narrativeText = document.getElementById("narrativeText");
+  const simClockBadge = document.getElementById("simClockBadge");
+  const stateBadge = document.getElementById("stateBadge");
+
+  function setEfforts(fForage, fPred, announce = null) {
+    fForage = Math.max(0, Math.min(0.50, Math.round(fForage * 200) / 200));
+    fPred = Math.max(0, Math.min(0.50, Math.round(fPred * 200) / 200));
+    engine.effort[0] = fForage;
+    engine.effort[1] = fPred;
+    sliderFForage.value = fForage;
+    sliderFPred.value = fPred;
+    lblFForage.textContent = fForage.toFixed(3) + " /yr";
+    lblFPred.textContent = fPred.toFixed(3) + " /yr";
+    engine.computeRates();
+    engine.computeR0();
+    if (announce) addEventMarker(announce, "#38bdf8");
+  }
+
+  sliderFPred.addEventListener("input", () => {
+    autoStoryActive = false;
+    setEfforts(parseFloat(sliderFForage.value), parseFloat(sliderFPred.value));
+  });
+
+  sliderFForage.addEventListener("input", () => {
+    autoStoryActive = false;
+    setEfforts(parseFloat(sliderFForage.value), parseFloat(sliderFPred.value));
+  });
+
+  // Play / Pause & Speed
+  const btnPlayPause = document.getElementById("btnPlayPause");
+  btnPlayPause.addEventListener("click", () => {
+    isRunning = !isRunning;
+    btnPlayPause.textContent = isRunning ? "⏸ Pause" : "▶ Play";
+  });
+
+  document.querySelectorAll(".speed-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".speed-btn").forEach(b => {
+        b.className = "speed-btn px-2 py-1 rounded-md font-medium";
+      });
+      btn.className = "speed-btn px-2 py-1 rounded-md font-medium bg-amber-500/20 text-amber-400";
+      const mult = parseInt(btn.getAttribute("data-speed"), 10);
+      stepsPerFrame = mult === 1 ? 1 : mult === 4 ? 2 : mult === 12 ? 6 : 15;
+    });
+  });
+
+  document.getElementById("btnResetA").addEventListener("click", () => {
+    activateScenario("stateA");
+  });
+
+  // Jump to fixed point buttons
+  document.querySelectorAll(".jump-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      autoStoryActive = false;
+      const st = btn.getAttribute("data-jump");
+      engine.loadState(st);
+      setEfforts(0, 0);
+      addEventMarker("Jump → " + st.replace("_", " "), "#a78bfa");
+      recordHistoryPoint();
+    });
+  });
+
+  // Seed & Shock buttons
+  document.getElementById("btnSeedPred").addEventListener("click", () => {
+    engine.seedSpecies(1, 0.005); // 0.5% of State A just like paper.Rmd Phase 3 & 4
+    spawnVisualCohort(1, 26, true);
+    addEventMarker("Hatchery Seed (+Pred)", "#fb923c");
+    recordHistoryPoint();
+  });
+
+  document.getElementById("btnSeedForage").addEventListener("click", () => {
+    engine.seedSpecies(0, 0.001); // 0.1% of State A just like paper.Rmd Fig 2A
+    spawnVisualCohort(0, 22, true);
+    addEventMarker("Forage Seed (+For)", "#38bdf8");
+    recordHistoryPoint();
+  });
+
+  document.getElementById("btnShockPred").addEventListener("click", () => {
+    for (let j = 0; j < engine.no_w; j++) engine.n[1][j] *= 0.20;
+    engine.computeRates();
+    engine.computeR0();
+    addEventMarker("⚡ -80% Pred Shock", "#f43f5e");
+    recordHistoryPoint();
+  });
+
+  // Tabs & History controls
+  const tabSpectra = document.getElementById("tabSpectra");
+  const tabMortality = document.getElementById("tabMortality");
+  tabSpectra.addEventListener("click", () => {
+    spectraTab = "spectra";
+    tabSpectra.className = "px-2 py-0.5 rounded font-semibold bg-amber-500/20 text-amber-400";
+    tabMortality.className = "px-2 py-0.5 rounded font-medium text-[var(--muted-foreground)]";
+  });
+  tabMortality.addEventListener("click", () => {
+    spectraTab = "mortality";
+    tabMortality.className = "px-2 py-0.5 rounded font-semibold bg-rose-500/20 text-rose-400";
+    tabSpectra.className = "px-2 py-0.5 rounded font-medium text-[var(--muted-foreground)]";
+  });
+
+  const btnToggleLogY = document.getElementById("btnToggleLogY");
+  btnToggleLogY.addEventListener("click", () => {
+    useLogHistory = !useLogHistory;
+    btnToggleLogY.textContent = useLogHistory ? "Log10 Scale" : "Linear Scale";
+    btnToggleLogY.className = useLogHistory
+      ? "px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] bg-amber-500/20 text-amber-400"
+      : "px-2 py-0.5 rounded text-xs font-medium border border-[var(--border)] hover:bg-white/5";
+  });
+
+  document.getElementById("btnClearHistory").addEventListener("click", () => {
+    history.length = 0;
+    events.length = 0;
+    engine.year = 0.0;
+    recordHistoryPoint();
+  });
+
+  // =========================================================================
+  // 5. GUIDED POLICY CHAPTERS & 570-YEAR AUTO-DIRECTOR
+  // =========================================================================
+  function setNarrative(title, text) {
+    narrativeTitle.textContent = title;
+    narrativeText.textContent = text;
+  }
+
+  function highlightScenarioBtn(name) {
+    document.querySelectorAll(".scenario-btn").forEach(b => {
+      b.classList.toggle("active", b.getAttribute("data-scenario") === name);
+    });
+  }
+
+  function activateScenario(name) {
+    autoStoryActive = false;
+    highlightScenarioBtn(name);
+    isRunning = true;
+    btnPlayPause.textContent = "⏸ Pause";
+
+    if (name === "stateA") {
+      engine.loadState("State_A");
+      setEfforts(0.0, 0.0, "State A (Unfished)");
+      setNarrative(
+        "Chapter 1 — Cultivated Coexistence (State A):",
+        "Adult predators (599.9 g) suppress forage fish (94.3 g). Because forage fish are kept scarce, larval predation mortality on baby predators is only 1.5 /yr, giving R0,Pred = 4.55 > 1."
+      );
+    } else if (name === "collapse") {
+      engine.loadState("State_A");
+      setEfforts(0.0, 0.25, "Overfish Pred (F_Pred=0.25)");
+      setNarrative(
+        "Chapter 2 — Selective Overfishing Cliff (F_Pred = 0.25 > F_crit = 0.188):",
+        "Targeting only the large predator erodes top-down cultivation. Watch forage fish explode 24-fold to 2260 g (State C), driving larval mortality to 37.3 /yr and collapsing the predator!"
+      );
+    } else if (name === "moratorium") {
+      engine.loadState("State_C");
+      setEfforts(0.0, 0.0, "Moratorium + Pred Seed");
+      engine.seedSpecies(1, 0.005);
+      spawnVisualCohort(1, 30, true);
+      setNarrative(
+        "Chapter 3 — The Moratorium Trap (F_Pred = 0, F_Forage = 0 + Hatchery Seed):",
+        "Predator fishing is completely banned and hatchery cohorts are released. Yet every baby predator is eaten in the 2260 g forage-fish gauntlet (R0,Pred = 0.46 < 1). Try clicking 'Release Predator Hatchery Cohort'—they cannot break through!"
+      );
+    } else if (name === "rescue") {
+      engine.loadState("State_C");
+      setEfforts(0.30, 0.0, "Forage Harvest (F_For=0.30) + Seed");
+      engine.seedSpecies(1, 0.005);
+      spawnVisualCohort(1, 30, true);
+      setNarrative(
+        "Chapter 4 — Trophic Rescue via Forage Harvesting (F_Forage = 0.30 > 0.128):",
+        "Harvesting the forage fish thins the larval gauntlet and raises R0,Pred to 2.02 > 1! Watch the seeded predators survive through the gauntlet, grow into adults, and reclaim top-down control."
+      );
+    } else if (name === "assembly") {
+      engine.loadState("State_0");
+      setEfforts(0.0, 0.0, "State 0 (Plankton Only)");
+      setNarrative(
+        "Chapter 5 — Sequential Community Assembly Puzzle (State 0):",
+        "Starting from Plankton only: if you click 'Introduce Forage Seed' first, they lock the ecosystem into State C so Predators can never invade! Reset to State 0 and release Predators FIRST (State B), then Forage fish—both coexist in State A!"
+      );
+    } else if (name === "autodirector") {
+      history.length = 0;
+      events.length = 0;
+      engine.year = 0.0;
+      engine.loadState("State_A");
+      setEfforts(0.0, 0.0, "Phase 1: Unfished State A");
+      autoStoryActive = true;
+      autoStoryPhase = 1;
+      stepsPerFrame = 5;
+      recordHistoryPoint();
+      setNarrative(
+        "Auto-Director [Phase 1 / 5, Years 0–50] — Unfished Coexistence (State A):",
+        "Running exact 570-year management trajectory from Figure 3 of paper.Rmd. Currently in cultivated coexistence (B_Pred = 600 g, B_Forage = 94 g)."
+      );
+    }
+  }
+
+  document.querySelectorAll(".scenario-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activateScenario(btn.getAttribute("data-scenario"));
+    });
+  });
+
+  function updateAutoStory() {
+    if (!autoStoryActive) return;
+    const y = engine.year;
+    if (autoStoryPhase === 1 && y >= 50) {
+      autoStoryPhase = 2;
+      setEfforts(0.0, 0.25, "Phase 2: Overfish Pred (F=0.25)");
+      setNarrative(
+        "Auto-Director [Phase 2 / 5, Years 50–200] — Selective Predator Overfishing:",
+        "F_Pred = 0.25 /yr exceeds the fold threshold (F_crit = 0.188). Adult predators decline, releasing a 24-fold explosion of forage fish that collapses the predator into State C."
+      );
+    } else if (autoStoryPhase === 2 && y >= 200) {
+      autoStoryPhase = 3;
+      setEfforts(0.0, 0.0, "Phase 3: Moratorium + Seed");
+      engine.seedSpecies(1, 0.005);
+      spawnVisualCohort(1, 30, true);
+      setNarrative(
+        "Auto-Director [Phase 3 / 5, Years 200–320] — Predator Moratorium Fails:",
+        "Complete predator moratorium (F_Pred = 0) + 0.5% predator seed enacted. Because uncultivated forage fish inflict 37 /yr larval mortality (R0,Pred = 0.46 < 1), the seeded cohort decays back toward extinction!"
+      );
+    } else if (autoStoryPhase === 3 && y >= 320) {
+      autoStoryPhase = 4;
+      setEfforts(0.30, 0.0, "Phase 4: Harvest Forage (F=0.30) + Seed");
+      engine.seedSpecies(1, 0.005);
+      spawnVisualCohort(1, 30, true);
+      setNarrative(
+        "Auto-Director [Phase 4 / 5, Years 320–470] — Forage Fishery Enables Recovery:",
+        "Harvesting forage fish (F_Forage = 0.30 /yr) suppresses the larval gauntlet, lifting R0,Pred to 2.02 > 1. The predator cohort breaks through, grows to adulthood, and suppresses the forage fish!"
+      );
+    } else if (autoStoryPhase === 4 && y >= 470) {
+      autoStoryPhase = 5;
+      setEfforts(0.0, 0.0, "Phase 5: All Fishing Halted");
+      setNarrative(
+        "Auto-Director [Phase 5 / 5, Years 470–570] — Self-Sustaining Restoration:",
+        "All fishing is halted (F_Forage = 0, F_Pred = 0). Because adult predators have reclaimed top-down cultivation, Coexistence State A is permanently self-sustaining!"
+      );
+    } else if (autoStoryPhase === 5 && y >= 570) {
+      autoStoryActive = false;
+      isRunning = false;
+      btnPlayPause.textContent = "▶ Play";
+      setNarrative(
+        "570-Year Trajectory Complete!",
+        "You just witnessed the full cultivation–depensation hysteresis loop in the exact mizer PDE model. Click any scenario or drag the crosshair on Panel A to explore further."
+      );
+    }
+  }
+
+  // =========================================================================
+  // 6. INTERACTIVE 2D REGIME MAP CROSSHAIR DRAGGING (PANEL A)
+  // =========================================================================
+  const regimeCanvas = document.getElementById("regimeCanvas");
+  let isDraggingMap = false;
+
+  function handleRegimePointer(e) {
+    const rect = regimeCanvas.getBoundingClientRect();
+    const padL = 48, padR = 18, padT = 18, padB = 36;
+    const plotW = rect.width - padL - padR;
+    const plotH = rect.height - padT - padB;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = clientX - rect.left - padL;
+    const y = clientY - rect.top - padT;
+    const fFor = Math.max(0, Math.min(0.50, (x / plotW) * 0.50));
+    const fPred = Math.max(0, Math.min(0.50, (1.0 - y / plotH) * 0.50));
+    autoStoryActive = false;
+    setEfforts(fFor, fPred);
+  }
+
+  regimeCanvas.addEventListener("mousedown", e => {
+    isDraggingMap = true;
+    handleRegimePointer(e);
+  });
+  window.addEventListener("mousemove", e => {
+    if (isDraggingMap) handleRegimePointer(e);
+  });
+  window.addEventListener("mouseup", () => {
+    if (isDraggingMap) {
+      isDraggingMap = false;
+      addEventMarker(`Fleet (${engine.effort[0].toFixed(2)}, ${engine.effort[1].toFixed(2)})`, "#38bdf8");
+    }
+  });
+
+  // Helper for bilinear interpolation on 1D regime arrays
+  function interpRegime(fFor) {
+    const grid = MODEL_DATA.regime.F_Forage;
+    const inv = MODEL_DATA.regime.F_Pred_inv;
+    const crit = MODEL_DATA.regime.F_Pred_crit;
+    const r0C = MODEL_DATA.regime.R0_Pred_C;
+    if (fFor <= grid[0]) return { fInv: inv[0], fCrit: crit[0], r0C: r0C[0] };
+    const n = grid.length;
+    if (fFor >= grid[n - 1]) return { fInv: inv[n - 1], fCrit: crit[n - 1], r0C: r0C[n - 1] };
+    for (let i = 0; i < n - 1; i++) {
+      if (fFor >= grid[i] && fFor <= grid[i + 1]) {
+        const t = (fFor - grid[i]) / (grid[i + 1] - grid[i]);
+        return {
+          fInv: inv[i] + t * (inv[i + 1] - inv[i]),
+          fCrit: crit[i] + t * (crit[i + 1] - crit[i]),
+          r0C: r0C[i] + t * (r0C[i + 1] - r0C[i])
+        };
+      }
+    }
+    return { fInv: 0, fCrit: 0.188, r0C: 0.46 };
+  }
+
+  // =========================================================================
+  // 7. CANVAS RESIZE HELPER
+  // =========================================================================
+  function prepCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.round(rect.width * dpr);
+    const h = Math.round(rect.height * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, width: rect.width, height: rect.height };
+  }
+
+  // =========================================================================
+  // 8. RENDER HERO PANEL: THE ONTOGENETIC NURSERY GAUNTLET
+  // =========================================================================
+  const gauntletCanvas = document.getElementById("gauntletCanvas");
+
+  function drawFishIcon(ctx, x, y, size, color, facingRight = true, alpha = 1.0) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (!facingRight) ctx.scale(-1, 1);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+
+    // Body
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size, size * 0.46, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Tail fin
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.85, 0);
+    ctx.lineTo(-size * 1.45, -size * 0.52);
+    ctx.lineTo(-size * 1.45, size * 0.52);
+    ctx.closePath();
+    ctx.fill();
+
+    // Eye
+    if (size >= 4.5) {
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.arc(size * 0.52, -size * 0.1, Math.max(1.1, size * 0.13), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function renderGauntlet(bFor, bPred, larvalMort, r0Pred) {
+    const { ctx, width, height } = prepCanvas(gauntletCanvas);
+    const padL = 42, padR = 24, padT = 28, padB = 28;
+
+    // Deep water gradient background
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+    bgGrad.addColorStop(0, "#081426");
+    bgGrad.addColorStop(1, "#030914");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // Zone coordinates along log10(w)
+    const xGauntletL = logWToX(-2.0, width, padL, padR); // 0.01 g
+    const xGauntletR = logWToX(-0.7, width, padL, padR); // 0.20 g
+    const xForageAdultL = logWToX(0.6, width, padL, padR); // 4 g
+    const xForageAdultR = logWToX(1.3, width, padL, padR); // 20 g
+    const xPredAdultL = logWToX(2.3, width, padL, padR); // 200 g
+    const xPredAdultR = logWToX(3.3, width, padL, padR); // 2000 g
+
+    // 1. Highlight Zone 2: Larval Predation Gauntlet (intensity scales with larvalMort / 37)
+    const dangerFrac = Math.max(0.08, Math.min(1.0, larvalMort / 35.0));
+    const gauntGrad = ctx.createLinearGradient(0, padT, 0, height - padB);
+    gauntGrad.addColorStop(0, `rgba(244, 63, 94, ${0.08 + 0.38 * dangerFrac})`);
+    gauntGrad.addColorStop(1, `rgba(244, 63, 94, ${0.02 + 0.16 * dangerFrac})`);
+    ctx.fillStyle = gauntGrad;
+    ctx.fillRect(xGauntletL, padT, xGauntletR - xGauntletL, height - padT - padB);
+
+    ctx.strokeStyle = `rgba(251, 113, 133, ${0.35 + 0.55 * dangerFrac})`;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(xGauntletL, padT, xGauntletR - xGauntletL, height - padT - padB);
+    ctx.setLineDash([]);
+
+    // 2. Highlight Zone 3: Adult Predator Cultivation Zone (intensity scales with bPred / 600)
+    const cultFrac = Math.max(0.05, Math.min(1.0, bPred / 600.0));
+    const cultGrad = ctx.createLinearGradient(0, padT, 0, height - padB);
+    cultGrad.addColorStop(0, `rgba(16, 185, 129, ${0.05 + 0.25 * cultFrac})`);
+    cultGrad.addColorStop(1, `rgba(245, 158, 11, ${0.03 + 0.15 * cultFrac})`);
+    ctx.fillStyle = cultGrad;
+    ctx.fillRect(xPredAdultL, padT, xPredAdultR - xPredAdultL, height - padT - padB);
+
+    ctx.strokeStyle = `rgba(52, 211, 153, ${0.25 + 0.5 * cultFrac})`;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(xPredAdultL, padT, xPredAdultR - xPredAdultL, height - padT - padB);
+    ctx.setLineDash([]);
+
+    // 3. Draw top trophic feedback arcs (Cultivation vs Larval Predation)
+    // Arc from Adult Forage (4-20g) back to Larval Gauntlet (0.01-0.2g)
+    const xForMid = 0.5 * (xForageAdultL + xForageAdultR);
+    const xGauntMid = 0.5 * (xGauntletL + xGauntletR);
+    const xPredMid = 0.5 * (xPredAdultL + xPredAdultR);
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(251, 113, 133, ${0.35 + 0.6 * dangerFrac})`;
+    ctx.lineWidth = 1.2 + 3.0 * dangerFrac;
+    ctx.beginPath();
+    ctx.moveTo(xForMid, padT + 14);
+    ctx.quadraticCurveTo(0.5 * (xForMid + xGauntMid), padT - 12, xGauntMid, padT + 14);
+    ctx.stroke();
+
+    // Arc from Adult Predator (200-2000g) back to Adult Forage (4-20g)
+    if (bPred > 5) {
+      ctx.strokeStyle = `rgba(52, 211, 153, ${0.25 + 0.65 * cultFrac})`;
+      ctx.lineWidth = 1.0 + 3.2 * cultFrac;
+      ctx.beginPath();
+      ctx.moveTo(xPredMid, padT + 14);
+      ctx.quadraticCurveTo(0.5 * (xPredMid + xForMid), padT - 12, xForMid, padT + 14);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 4. Draw Plankton Dots (dimmed in 0.02-0.5g when Forage fish overgraze them in State C!)
+    const planktonDepletion = Math.max(0.15, 1.0 - 0.75 * Math.min(1, bFor / 2000));
+    for (const p of planktonDots) {
+      p.phase += 0.03;
+      const px = logWToX(p.logW, width, padL, padR) + Math.sin(p.phase) * 3;
+      const py = padT + p.yFrac * (height - padT - padB);
+      const inGrazedBand = p.logW >= -1.8 && p.logW <= -0.2;
+      ctx.fillStyle = inGrazedBand
+        ? `rgba(74, 222, 128, ${0.45 * planktonDepletion})`
+        : "rgba(74, 222, 128, 0.42)";
+      ctx.beginPath();
+      ctx.arc(px, py, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 5. Draw Forage Fish School (active count scales with bFor: ~10 in State A up to 65 in State C)
+    const activeForageCount = bFor < 0.1 ? 0 : Math.min(foragePool.length, Math.max(4, Math.round(8 + (bFor / 2260) * 57)));
+    for (let i = 0; i < activeForageCount; i++) {
+      const f = foragePool[i];
+      f.phase += 0.06;
+      // When uncultivated (high bFor), forage fish patrol into the larval gauntlet to feed
+      const targetMin = dangerFrac > 0.4 ? -1.8 : -0.2;
+      f.logW += f.vx;
+      if (f.logW < targetMin) { f.logW = targetMin; f.vx = Math.abs(f.vx); }
+      if (f.logW > 1.30) { f.logW = 1.30; f.vx = -Math.abs(f.vx); }
+
+      const fx = logWToX(f.logW, width, padL, padR);
+      const fy = padT + (f.yFrac + 0.02 * Math.sin(f.phase)) * (height - padT - padB);
+      const sz = 4.0 + Math.max(0, (f.logW + 1.5) * 2.2);
+      drawFishIcon(ctx, fx, fy, sz, "#38bdf8", f.vx >= 0, 0.88);
+    }
+
+    // 6. Draw Adult & Juvenile Predator Pool (count scales with bPred)
+    const activePredCount = bPred < 0.05 ? 0 : Math.min(predatorPool.length, Math.max(1, Math.round((bPred / 600) * 28)));
+    for (let i = 0; i < activePredCount; i++) {
+      const pr = predatorPool[i];
+      pr.phase += 0.04;
+      const px = logWToX(pr.logW, width, padL, padR) + Math.sin(pr.phase) * 5;
+      const py = padT + (pr.yFrac + 0.015 * Math.cos(pr.phase)) * (height - padT - padB);
+      const sz = 4.5 + Math.max(0, (pr.logW + 2.5) * 2.5);
+      drawFishIcon(ctx, px, py, sz, "#fb923c", true, 0.92);
+    }
+
+    // 7. Periodically spawn natural larval cohorts if adults exist
+    if (isRunning && Math.random() < 0.14) {
+      if (bPred > 8.0) spawnVisualCohort(1, 1, false);
+      if (bFor > 8.0 && Math.random() < 0.5) spawnVisualCohort(0, 1, false);
+    }
+
+    // 8. Update & Draw Tracked Larval Cohorts Swimming Rightward
+    for (let i = trackedLarvae.length - 1; i >= 0; i--) {
+      const lv = trackedLarvae[i];
+      lv.age++;
+      if ( isRunning ) {
+        const growthSpeed = lv.species === 1 ? 0.024 : 0.032;
+        lv.logW += growthSpeed;
+        lv.yFrac = Math.max(0.14, Math.min(0.86, lv.yFrac + lv.vy));
+
+        // Check predation interception inside the Larval Gauntlet (-2.0 <= logW <= -0.7)
+        if (lv.species === 1 && lv.logW >= -2.0 && lv.logW <= -0.65) {
+          // Per-step survival probability calibrated to R0_Pred
+          const killProb = r0Pred < 1.0
+            ? Math.min(0.16, 0.035 + (larvalMort / 37.0) * 0.11)
+            : Math.max(0.004, (larvalMort / 37.0) * 0.04);
+          if (Math.random() < killProb) {
+            const lx = logWToX(lv.logW, width, padL, padR);
+            const ly = padT + lv.yFrac * (height - padT - padB);
+            if (lv.isUserSeeded || popups.length < 14) {
+              popups.push({ x: lx, y: ly, text: "✖ eaten", color: "#fb7185", life: 28 });
+            }
+            trackedLarvae.splice(i, 1);
+            continue;
+          }
+        }
+
+        // Reached adult size!
+        const maxLogW = lv.species === 1 ? 3.2 : 1.25;
+        if (lv.logW >= maxLogW) {
+          if (lv.isUserSeeded && lv.species === 1 && popups.length < 18) {
+            const lx = logWToX(lv.logW, width, padL, padR);
+            const ly = padT + lv.yFrac * (height - padT - padB);
+            popups.push({ x: lx - 24, y: ly, text: "✓ adult!", color: "#34d399", life: 36 });
+          }
+          trackedLarvae.splice(i, 1);
+          continue;
+        }
+      }
+
+      const lx = logWToX(lv.logW, width, padL, padR);
+      const ly = padT + lv.yFrac * (height - padT - padB);
+      const sz = 3.2 + Math.max(0, (lv.logW + 3.0) * 2.1);
+      const col = lv.species === 1 ? (lv.isUserSeeded ? "#fde047" : "#fb923c") : "#7dd3fc";
+
+      if (lv.isUserSeeded) {
+        ctx.save();
+        ctx.strokeStyle = lv.species === 1 ? "rgba(253, 224, 71, 0.65)" : "rgba(125, 211, 252, 0.65)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(lx, ly, sz + 3.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      drawFishIcon(ctx, lx, ly, sz, col, true, 1.0);
+    }
+
+    // 9. Draw popups ("✖ eaten", "✓ adult!")
+    ctx.font = "bold 12px sans-serif";
+    for (let i = popups.length - 1; i >= 0; i--) {
+      const p = popups[i];
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life / 32;
+      ctx.fillText(p.text, p.x - 16, p.y);
+      ctx.globalAlpha = 1.0;
+      if (isRunning) {
+        p.y -= 0.45;
+        p.life--;
+        if (p.life <= 0) popups.splice(i, 1);
+      }
+    }
+
+    // 10. Zone headers & bottom logarithmic body-mass axis
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#f43f5e";
+    ctx.textAlign = "center";
+    ctx.fillText(
+      `LARVAL GAUNTLET (μ_p = ${larvalMort.toFixed(1)} /yr)`,
+      0.5 * (xGauntletL + xGauntletR),
+      padT - 8
+    );
+
+    ctx.fillStyle = "#38bdf8";
+    ctx.fillText("ADULT FORAGE (20g)", 0.5 * (xForageAdultL + xForageAdultR), padT - 8);
+
+    ctx.fillStyle = "#34d399";
+    ctx.fillText(
+      `CULTIVATION SHIELD (B_Pred = ${bPred.toFixed(0)}g)`,
+      0.5 * (xPredAdultL + xPredAdultR),
+      padT - 8
+    );
+
+    // Bottom axis ticks
+    ctx.strokeStyle = "#334155";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, height - padB);
+    ctx.lineTo(width - padR, height - padB);
+    ctx.stroke();
+
+    const ticks = [
+      { logW: -3, label: "1 mg (Egg)" },
+      { logW: -2, label: "10 mg" },
+      { logW: -1, label: "0.1 g (Larva)" },
+      { logW: 0, label: "1 g" },
+      { logW: 1.3, label: "20 g (Forage w∞)" },
+      { logW: 2.4, label: "250 g (Mat)" },
+      { logW: 3.3, label: "2000 g (Pred w∞)" }
+    ];
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "12px sans-serif";
+    for (const t of ticks) {
+      const tx = logWToX(t.logW, width, padL, padR);
+      ctx.beginPath();
+      ctx.moveTo(tx, height - padB);
+      ctx.lineTo(tx, height - padB + 4);
+      ctx.stroke();
+      ctx.fillText(t.label, tx, height - 8);
+    }
+    ctx.textAlign = "left";
+  }
+
+  // =========================================================================
+  // 9. RENDER PANEL A: 2D EXPLOITATION REGIME DIAGRAM (CUSP & BIFURCATION MAP)
+  // =========================================================================
+  function renderRegimeMap() {
+    const { ctx, width, height } = prepCanvas(regimeCanvas);
+    const padL = 48, padR = 18, padT = 18, padB = 36;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+
+    ctx.fillStyle = "#060d1a";
+    ctx.fillRect(0, 0, width, height);
+
+    const toX = fFor => padL + (fFor / 0.50) * plotW;
+    const toY = fPred => padT + (1.0 - fPred / 0.50) * plotH;
+
+    const reg = MODEL_DATA.regime;
+    const n = reg.F_Forage.length;
+
+    // 1. Fill Monostable Coexistence Region (Green: 0 <= F_Pred <= F_Pred_inv)
+    ctx.fillStyle = "rgba(16, 185, 129, 0.24)";
+    ctx.beginPath();
+    ctx.moveTo(toX(reg.F_Forage[0]), toY(0));
+    for (let i = 0; i < n; i++) ctx.lineTo(toX(reg.F_Forage[i]), toY(reg.F_Pred_inv[i]));
+    ctx.lineTo(toX(reg.F_Forage[n - 1]), toY(0));
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Fill Bistable Cultivation-Depensation Wedge (Amber: F_Pred_inv <= F_Pred <= F_Pred_crit)
+    ctx.fillStyle = "rgba(245, 158, 11, 0.30)";
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = toX(reg.F_Forage[i]);
+      const y = toY(reg.F_Pred_inv[i]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    for (let i = n - 1; i >= 0; i--) {
+      ctx.lineTo(toX(reg.F_Forage[i]), toY(reg.F_Pred_crit[i]));
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // 3. Fill Forage-Dominated Region (Blue: above F_Pred_crit)
+    ctx.fillStyle = "rgba(56, 189, 248, 0.18)";
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = toX(reg.F_Forage[i]);
+      const y = toY(Math.min(0.50, reg.F_Pred_crit[i]));
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.lineTo(toX(0.50), toY(0.50));
+    ctx.lineTo(toX(0.0), toY(0.50));
+    ctx.closePath();
+    ctx.fill();
+
+    // 4. Draw Transcritical Invasion Curve (R0_Pred = 1, dashed emerald)
+    ctx.strokeStyle = "#10b981";
+    ctx.lineWidth = 2.2;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < n; i++) {
+      if (reg.F_Forage[i] >= 0.125) {
+        const x = toX(reg.F_Forage[i]);
+        const y = toY(Math.min(0.50, reg.F_Pred_inv[i]));
+        if (!started) { ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 5. Draw Fold / Collapse Boundary (F_crit, solid orange)
+    ctx.strokeStyle = "#f97316";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      if (reg.F_Forage[i] <= 0.351) {
+        const x = toX(reg.F_Forage[i]);
+        const y = toY(reg.F_Pred_crit[i]);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+
+    // 6. Cusp Point marker at (0.35, 0.292)
+    const cxCusp = toX(0.35);
+    const cyCusp = toY(0.292);
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(cxCusp, cyCusp, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "italic bold 12px sans-serif";
+    ctx.fillText("Cusp (0.35, 0.29)", cxCusp - 55, cyCusp - 10);
+
+    // Region labels
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillText("Bistable Hysteresis", toX(0.025), toY(0.11));
+    ctx.font = "12px sans-serif";
+    ctx.fillText("(Moratorium fails)", toX(0.025), toY(0.065));
+
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#34d399";
+    ctx.fillText("Monostable Coexistence", toX(0.24), toY(0.09));
+    ctx.font = "12px sans-serif";
+    ctx.fillText("(Predator invades C)", toX(0.24), toY(0.045));
+
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#7dd3fc";
+    ctx.fillText("Forage-Dominated (State C only)", toX(0.05), toY(0.41));
+
+    // 7. Draw Current Policy Crosshair (F_Forage, F_Pred)
+    const curX = toX(engine.effort[0]);
+    const curY = toY(engine.effort[1]);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(curX, padT);
+    ctx.lineTo(curX, padT + plotH);
+    ctx.moveTo(padL, curY);
+    ctx.lineTo(padL + plotW, curY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.arc(curX, curY, 6.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Axes & Ticks
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(padL, padT, plotW, plotH);
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    for (let v = 0; v <= 0.501; v += 0.10) {
+      const tx = toX(v);
+      ctx.fillText(v.toFixed(1), tx, height - 18);
+    }
+    ctx.fillText("Forage Fishing Mortality F_Forage [1/yr]", padL + plotW * 0.5, height - 4);
+
+    ctx.textAlign = "right";
+    for (let v = 0; v <= 0.501; v += 0.10) {
+      const ty = toY(v);
+      ctx.fillText(v.toFixed(1), padL - 6, ty + 4);
+    }
+    ctx.save();
+    ctx.translate(13, padT + plotH * 0.5);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.fillText("Predator F_Pred [1/yr]", 0, 0);
+    ctx.restore();
+    ctx.textAlign = "left";
+  }
+
+  // =========================================================================
+  // 10. RENDER PANEL B: STABILITY LANDSCAPE & MARBLE ("THE CULTIVATION BOWL")
+  // =========================================================================
+  const landscapeCanvas = document.getElementById("landscapeCanvas");
+
+  function renderLandscape(bFor, bPred) {
+    const { ctx, width, height } = prepCanvas(landscapeCanvas);
+    const padL = 32, padR = 32, padT = 28, padB = 38;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+
+    ctx.fillStyle = "#060d1a";
+    ctx.fillRect(0, 0, width, height);
+
+    const fFor = engine.effort[0];
+    const fPred = engine.effort[1];
+    const { fInv, fCrit } = interpRegime(fFor);
+
+    // Construct double-well potential V(q) for q in [0, 1]
+    // q = 0 is State C (Forage Trap, B_Pred = 0)
+    // q = 1 is State A (Cultivated Coexistence, B_Pred > 0)
+    // In Bistable zone (fInv < fPred < fCrit): both q=0 and q=1 are local minima separated by an Allee hill at q_barrier.
+    // In Monostable Coexistence (fPred < fInv): q=0 slopes downward toward q=1 (no barrier!).
+    // In Forage-Dominated (fPred > fCrit): q=1 disappears and slopes downward toward q=0!
+    const evalV = q => {
+      // Base quartic with minima near q=0.12 (State C) and q=0.82 (State A)
+      const u = (q - 0.47) * 2.3; // [-1.08, 1.22]
+      const cuspFactor = Math.max(0.0, 1.0 - fFor / 0.38); // Barrier height vanishes past cusp
+      const tilt = (fPred - 0.5 * (fInv + fCrit)) * 3.8;
+      // Add local stability slope at q=0 controlled by (fPred - fInv)
+      const invSlope = (fInv - fPred) * 1.65;
+      return 0.42 * (u * u * u * u) - (0.72 * cuspFactor + 0.18) * (u * u) - (tilt - invSlope * 0.4) * u;
+    };
+
+    const N_PTS = 100;
+    const vVals = new Float64Array(N_PTS + 1);
+    let vMin = Infinity, vMax = -Infinity;
+    for (let i = 0; i <= N_PTS; i++) {
+      const q = i / N_PTS;
+      const v = evalV(q);
+      vVals[i] = v;
+      if (v < vMin) vMin = v;
+      if (v > vMax) vMax = v;
+    }
+    const vSpan = Math.max(0.35, vMax - vMin);
+
+    const qToX = q => padL + q * plotW;
+    const vToY = v => padT + 22 + (1.0 - (v - vMin) / vSpan) * (plotH - 36);
+
+    // Fill under landscape
+    ctx.fillStyle = "rgba(30, 41, 59, 0.75)";
+    ctx.beginPath();
+    ctx.moveTo(qToX(0), padT + plotH);
+    for (let i = 0; i <= N_PTS; i++) {
+      const q = i / N_PTS;
+      ctx.lineTo(qToX(q), vToY(vVals[i]));
+    }
+    ctx.lineTo(qToX(1), padT + plotH);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw potential curve with gradient
+    const lineGrad = ctx.createLinearGradient(padL, 0, padL + plotW, 0);
+    lineGrad.addColorStop(0, "#38bdf8");
+    lineGrad.addColorStop(0.5, "#f59e0b");
+    lineGrad.addColorStop(1, "#10b981");
+    ctx.strokeStyle = lineGrad;
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    for (let i = 0; i <= N_PTS; i++) {
+      const q = i / N_PTS;
+      const x = qToX(q);
+      const y = vToY(vVals[i]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Compute current marble position q_curr in [0.08, 0.86] from live B_Pred
+    const predFrac = Math.max(0, Math.min(1, bPred / 550.0));
+    const qMarble = 0.10 + 0.75 * Math.pow(predFrac, 0.45);
+    const vMarble = evalV(qMarble);
+    const mx = qToX(qMarble);
+    const my = vToY(vMarble) - 9;
+
+    // Glow & Marble
+    const glow = ctx.createRadialGradient(mx, my, 2, mx, my, 18);
+    glow.addColorStop(0, "rgba(251, 191, 36, 0.95)");
+    glow.addColorStop(1, "rgba(251, 191, 36, 0.0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(mx, my, 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#fde047";
+    ctx.beginPath();
+    ctx.arc(mx, my, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Labels for State C (left basin) and State A (right basin)
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#38bdf8";
+    ctx.textAlign = "left";
+    ctx.fillText("State C Basin (Uncultivated)", padL + 4, padT + 14);
+
+    ctx.fillStyle = "#34d399";
+    ctx.textAlign = "right";
+    ctx.fillText("State A Basin (Cultivated)", width - padR - 4, padT + 14);
+
+    ctx.textAlign = "center";
+    if (fPred > fInv && fPred < fCrit && fFor < 0.35) {
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillText("▲ Depensatory Allee Barrier (R0,Pred < 1 in C)", padL + plotW * 0.48, height - 12);
+    } else if (fPred <= fInv) {
+      ctx.fillStyle = "#34d399";
+      ctx.fillText("✓ Barrier Eliminated (R0,Pred > 1 in C → Predator Invades!)", padL + plotW * 0.5, height - 12);
+    } else {
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillText("State A Collapsed (F_Pred > F_crit → Rolls into State C)", padL + plotW * 0.5, height - 12);
+    }
+    ctx.textAlign = "left";
+  }
+
+  // =========================================================================
+  // 11. RENDER PANEL C: LIVE SIZE SPECTRA OR PREDATION MORTALITY WALL
+  // =========================================================================
+  const spectraCanvas = document.getElementById("spectraCanvas");
+
+  function renderSpectraOrMortality() {
+    const { ctx, width, height } = prepCanvas(spectraCanvas);
+    const padL = 50, padR = 18, padT = 20, padB = 36;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+
+    ctx.fillStyle = "#060d1a";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = "#334155";
+    ctx.strokeRect(padL, padT, plotW, plotH);
+
+    if (spectraTab === "spectra") {
+      // Plot log10(B(w)) = log10(N(w) * w^2) for w in [1e-4, 3000]
+      const lMin = -4.0, lMax = 3.5;
+      const yMin = -3.0, yMax = 3.5;
+      const toX = lw => padL + ((lw - lMin) / (lMax - lMin)) * plotW;
+      const toY = lb => padT + (1.0 - (lb - yMin) / (yMax - yMin)) * plotH;
+
+      // Helper to plot spectrum curve
+      const drawSpec = (wArr, nArr, color, dashed = false, lineWidth = 2.2) => {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        if (dashed) ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        let started = false;
+        for (let i = 0; i < wArr.length; i++) {
+          const w = wArr[i];
+          const lw = Math.log10(w);
+          if (lw < lMin || lw > lMax) continue;
+          const b = nArr[i] * w * w;
+          if (b <= 1e-12) {
+            started = false;
+            continue;
+          }
+          const lb = Math.max(yMin, Math.min(yMax, Math.log10(b)));
+          const x = toX(lw);
+          const y = toY(lb);
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      // Reference State A dashed ghost curves
+      drawSpec(engine.w_full, engine.refNPP_A, "rgba(52, 211, 153, 0.32)", true, 1.4);
+      drawSpec(engine.w, engine.refN_A[0], "rgba(56, 189, 248, 0.35)", true, 1.4);
+      drawSpec(engine.w, engine.refN_A[1], "rgba(251, 146, 60, 0.35)", true, 1.4);
+
+      // Live curves
+      drawSpec(engine.w_full, engine.n_pp, "#10b981", false, 2.2);
+      drawSpec(engine.w, engine.n[0], "#38bdf8", false, 2.6);
+      drawSpec(engine.w, engine.n[1], "#fb923c", false, 2.6);
+
+      // Legend
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillStyle = "#10b981";
+      ctx.fillText("● Plankton", padL + 10, padT + 16);
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillText("● Forage Fish", padL + 95, padT + 16);
+      ctx.fillStyle = "#fb923c";
+      ctx.fillText("● Predator", padL + 195, padT + 16);
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "12px sans-serif";
+      ctx.fillText("(Dashed = Unfished State A)", padL + 275, padT + 16);
+
+      // Axes labels
+      ctx.fillStyle = "#94a3b8";
+      ctx.textAlign = "center";
+      for (const lw of [-4, -2, 0, 2, 3.3]) {
+        const x = toX(lw);
+        ctx.fillText(`10^${lw}`, x, height - 18);
+      }
+      ctx.fillText("Body Mass w [g] (log10)", padL + plotW * 0.5, height - 4);
+
+      ctx.textAlign = "right";
+      for (const lb of [-2, 0, 2]) {
+        ctx.fillText(`10^${lb}`, padL - 6, toY(lb) + 4);
+      }
+    } else {
+      // Mortality Wall View: Predation mortality mu_p,Pred(w) for w in [1e-3, 10 g]
+      const lMin = -3.0, lMax = 1.0;
+      const yMax = 42.0;
+      const toX = lw => padL + ((lw - lMin) / (lMax - lMin)) * plotW;
+      const toY = mu => padT + (1.0 - Math.min(1.0, mu / yMax)) * plotH;
+
+      const drawMort = (muArr, color, dashed = false, widthLine = 2.2) => {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = widthLine;
+        if (dashed) ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        let started = false;
+        for (let j = 0; j < engine.no_w; j++) {
+          const lw = Math.log10(engine.w[j]);
+          if (lw > lMax) break;
+          const x = toX(lw);
+          const y = toY(muArr[j]);
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      // State A & State C reference curves
+      drawMort(engine.refPredMort_A, "rgba(16, 185, 129, 0.55)", true, 1.8);
+      drawMort(engine.refPredMort_C, "rgba(244, 63, 94, 0.50)", true, 1.8);
+      // Live curve
+      drawMort(engine.pred_mort[1], "#fbbf24", false, 3.0);
+
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillStyle = "#fbbf24";
+      ctx.fillText("━ Live μ_p,Pred(w)", padL + 12, padT + 18);
+      ctx.fillStyle = "#f43f5e";
+      ctx.fillText("╌ State C (37.3 /yr)", padL + 145, padT + 18);
+      ctx.fillStyle = "#10b981";
+      ctx.fillText("╌ State A (1.5 /yr)", padL + 280, padT + 18);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      for (const [lw, lbl] of [[-3, "1 mg"], [-2, "10 mg"], [-1, "0.1 g"], [0, "1 g"], [1, "10 g"]]) {
+        ctx.fillText(lbl, toX(lw), height - 18);
+      }
+      ctx.fillText("Predator Early Life Stage Mass w [g]", padL + plotW * 0.5, height - 4);
+
+      ctx.textAlign = "right";
+      for (const m of [0, 10, 20, 30, 40]) {
+        ctx.fillText(`${m}`, padL - 6, toY(m) + 4);
+      }
+    }
+    ctx.textAlign = "left";
+  }
+
+  // =========================================================================
+  // 12. RENDER PANEL D: LIVE MULTI-CENTURY BIOMASS TIME SERIES
+  // =========================================================================
+  const historyCanvas = document.getElementById("historyCanvas");
+
+  function renderHistory() {
+    const { ctx, width, height } = prepCanvas(historyCanvas);
+    const padL = 50, padR = 18, padT = 20, padB = 36;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+
+    ctx.fillStyle = "#060d1a";
+    ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = "#334155";
+    ctx.strokeRect(padL, padT, plotW, plotH);
+
+    if (history.length < 2) return;
+
+    const tMin = history[0].year;
+    const tMax = Math.max(tMin + 50, history[history.length - 1].year);
+    const toX = t => padL + ((t - tMin) / (tMax - tMin)) * plotW;
+
+    const toY = b => {
+      if (useLogHistory) {
+        const lb = Math.log10(Math.max(0.1, Math.min(4000, b)));
+        // Range [-1, 3.6]
+        return padT + (1.0 - (lb - (-1.0)) / 4.6) * plotH;
+      } else {
+        return padT + (1.0 - Math.min(1.0, b / 2500.0)) * plotH;
+      }
+    };
+
+    // Draw vertical policy event lines
+    ctx.font = "12px sans-serif";
+    for (const ev of events) {
+      if (ev.year < tMin || ev.year > tMax) continue;
+      const ex = toX(ev.year);
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.35)";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(ex, padT);
+      ctx.lineTo(ex, padT + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = ev.color;
+      ctx.fillText(ev.label, Math.min(width - padR - 95, ex + 3), padT + 14);
+    }
+
+    // Draw Forage Biomass curve
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 2.3;
+    ctx.beginPath();
+    for (let i = 0; i < history.length; i++) {
+      const x = toX(history[i].year);
+      const y = toY(history[i].bFor);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Draw Predator Biomass curve
+    ctx.strokeStyle = "#fb923c";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < history.length; i++) {
+      const x = toX(history[i].year);
+      const y = toY(history[i].bPred);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+
+    // Legend
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillStyle = "#fb923c";
+    ctx.fillText("━ Predator B_Pred [g]", padL + 10, padT + plotH - 10);
+    ctx.fillStyle = "#38bdf8";
+    ctx.fillText("━ Forage B_Forage [g]", padL + 155, padT + plotH - 10);
+
+    // Axes ticks
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    const nTicks = 5;
+    for (let i = 0; i <= nTicks; i++) {
+      const tv = tMin + (i / nTicks) * (tMax - tMin);
+      ctx.fillText(tv.toFixed(0) + " yr", toX(tv), height - 18);
+    }
+    ctx.fillText("Simulation Time [years]", padL + plotW * 0.5, height - 4);
+
+    ctx.textAlign = "right";
+    if (useLogHistory) {
+      for (const [bVal, lbl] of [[0.1, "0.1"], [1, "1"], [10, "10"], [100, "100"], [1000, "1000"]]) {
+        ctx.fillText(lbl, padL - 6, toY(bVal) + 4);
+      }
+    } else {
+      for (const bVal of [0, 500, 1000, 1500, 2000, 2500]) {
+        ctx.fillText(String(bVal), padL - 6, toY(bVal) + 4);
+      }
+    }
+    ctx.textAlign = "left";
+  }
+
+  // =========================================================================
+  // 13. UPDATE DOM KPI CARDS & STATUS BADGES
+  // =========================================================================
+  const kpiPredBio = document.getElementById("kpiPredBio");
+  const kpiPredPct = document.getElementById("kpiPredPct");
+  const kpiPredYield = document.getElementById("kpiPredYield");
+  const kpiForageBio = document.getElementById("kpiForageBio");
+  const kpiForageMult = document.getElementById("kpiForageMult");
+  const kpiForageYield = document.getElementById("kpiForageYield");
+  const kpiR0Pred = document.getElementById("kpiR0Pred");
+  const kpiR0Forage = document.getElementById("kpiR0Forage");
+  const badgeR0Pred = document.getElementById("badgeR0Pred");
+  const kpiLarvalMort = document.getElementById("kpiLarvalMort");
+  const kpiGauntletStatus = document.getElementById("kpiGauntletStatus");
+  const regimeMapBadge = document.getElementById("regimeMapBadge");
+  const bowlStatusBadge = document.getElementById("bowlStatusBadge");
+
+  function updateKPIs(bFor, bPred, yFor, yPred, r0For, r0Pred, larvalMort) {
+    simClockBadge.textContent = `Year: ${engine.year.toFixed(1)}`;
+
+    kpiPredBio.textContent = bPred < 1.0 ? bPred.toFixed(2) + " g" : bPred.toFixed(1) + " g";
+    kpiPredPct.textContent = `${((bPred / 599.93) * 100).toFixed(1)}% of unfished State A`;
+    kpiPredYield.textContent = `${yPred.toFixed(1)} g/yr`;
+
+    kpiForageBio.textContent = bFor < 1.0 ? bFor.toFixed(2) + " g" : bFor.toFixed(1) + " g";
+    kpiForageMult.textContent = `${(bFor / 94.31).toFixed(1)}× cultivated baseline`;
+    kpiForageYield.textContent = `${yFor.toFixed(1)} g/yr`;
+
+    kpiR0Pred.textContent = r0Pred.toFixed(2);
+    kpiR0Forage.textContent = r0For > 99 ? r0For.toFixed(0) : r0For.toFixed(2);
+
+    if (r0Pred >= 1.0) {
+      kpiR0Pred.className = "text-xl font-bold font-mono mt-1 text-emerald-400";
+      badgeR0Pred.textContent = "R0 > 1 (Grows)";
+      badgeR0Pred.className = "px-1.5 py-0.5 rounded text-xs bg-emerald-500/20 text-emerald-400";
+    } else {
+      kpiR0Pred.className = "text-xl font-bold font-mono mt-1 text-rose-400";
+      badgeR0Pred.textContent = "R0 < 1 (Decays)";
+      badgeR0Pred.className = "px-1.5 py-0.5 rounded text-xs bg-rose-500/20 text-rose-400";
+    }
+
+    kpiLarvalMort.textContent = `${larvalMort.toFixed(1)} /yr`;
+    if (larvalMort < 5.0) {
+      kpiLarvalMort.className = "text-xl font-bold font-mono mt-1 text-emerald-400";
+      kpiGauntletStatus.textContent = "Cultivated (Safe)";
+      kpiGauntletStatus.className = "font-semibold text-emerald-400";
+    } else if (larvalMort < 18.0) {
+      kpiLarvalMort.className = "text-xl font-bold font-mono mt-1 text-amber-400";
+      kpiGauntletStatus.textContent = "Moderate Bottleneck";
+      kpiGauntletStatus.className = "font-semibold text-amber-400";
+    } else {
+      kpiLarvalMort.className = "text-xl font-bold font-mono mt-1 text-rose-400";
+      kpiGauntletStatus.textContent = "Lethal Wall (Depensation)";
+      kpiGauntletStatus.className = "font-semibold text-rose-400";
+    }
+
+    // Current ecosystem state badge
+    if (bPred > 50 && bFor > 10) {
+      stateBadge.textContent = "State A: Cultivated Coexistence";
+      stateBadge.className = "px-2 py-0.5 text-xs rounded-md font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+      bowlStatusBadge.textContent = "In State A Basin";
+      bowlStatusBadge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 shrink-0";
+    } else if (bPred > 50 && bFor <= 10) {
+      stateBadge.textContent = "State B: Plankton + Predator";
+      stateBadge.className = "px-2 py-0.5 text-xs rounded-md font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30";
+      bowlStatusBadge.textContent = "In State B (Forage Absent)";
+      bowlStatusBadge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-orange-500/20 text-orange-300 shrink-0";
+    } else if (bPred <= 50 && bFor > 10) {
+      stateBadge.textContent = "State C: Uncultivated Forage Trap";
+      stateBadge.className = "px-2 py-0.5 text-xs rounded-md font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30";
+      bowlStatusBadge.textContent = "Trapped in State C Basin";
+      bowlStatusBadge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/20 text-rose-300 shrink-0";
+    } else {
+      stateBadge.textContent = "State 0: Plankton Only";
+      stateBadge.className = "px-2 py-0.5 text-xs rounded-md font-semibold bg-slate-500/20 text-slate-300 border border-slate-500/30";
+      bowlStatusBadge.textContent = "State 0 (Uncolonized)";
+      bowlStatusBadge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-slate-500/20 text-slate-300 shrink-0";
+    }
+
+    // Regime map badge
+    const { fInv, fCrit } = interpRegime(engine.effort[0]);
+    const fp = engine.effort[1];
+    if (fp > fCrit) {
+      regimeMapBadge.textContent = "Forage-Dominated Regime";
+      regimeMapBadge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-sky-500/20 text-sky-300 shrink-0";
+    } else if (fp <= fInv) {
+      regimeMapBadge.textContent = "Monostable Coexistence";
+      regimeMapBadge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 shrink-0";
+    } else {
+      regimeMapBadge.textContent = "Bistable Hysteresis Regime";
+      regimeMapBadge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/20 text-amber-300 shrink-0";
+    }
+  }
+
+  // =========================================================================
+  // 14. MAIN 60 FPS SIMULATION & RENDER LOOP
+  // =========================================================================
+  let frameCounter = 0;
+  function animate() {
+    if (isRunning) {
+      for (let s = 0; s < stepsPerFrame; s++) {
+        engine.step(0.2);
+        updateAutoStory();
+      }
+      frameCounter++;
+      if (frameCounter % 2 === 0) {
+        recordHistoryPoint();
+      }
+    }
+
+    const [bFor, bPred] = engine.getBiomass();
+    const [yFor, yPred] = engine.getYield();
+    const [r0For, r0Pred] = engine.R0;
+    const larvalMort = engine.pred_mort[1][engine.larvalIdx];
+
+    updateKPIs(bFor, bPred, yFor, yPred, r0For, r0Pred, larvalMort);
+    renderGauntlet(bFor, bPred, larvalMort, r0Pred);
+    renderRegimeMap();
+    renderLandscape(bFor, bPred);
+    renderSpectraOrMortality();
+    renderHistory();
+
+    requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+})();
+
+  </script>
+</body>
+</html>
