@@ -12,8 +12,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: a ship's bridge. The sea window and the control deck sit side by side;
-   the chart table (logbook, policy chart, nursery chart) runs beneath. */
+/* Layout: a ship's bridge. The viewer (sea, logbook, policy chart and nursery
+   chart as tabs on one stage) sits beside the control deck, so whatever view is
+   open can be watched while the levers move. On narrow screens the viewer
+   sticks to the top of the screen while the deck scrolls beneath it. */
 :root {
   --bg: #e7eff0;
   --panel: #f8fbfb;
@@ -89,14 +91,14 @@ button, input { font: inherit; color: inherit; }
 .masthead-top { display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: end; justify-content: space-between; }
 .title-block { display: grid; gap: 6px; max-width: 760px; }
 h1 {
-  font-size: clamp(34px, 5vw, 56px);
+  font-size: clamp(32px, 4.4vw, 50px);
   font-weight: 800;
   line-height: 0.98;
   letter-spacing: -0.025em;
   font-variation-settings: "opsz" 96;
 }
 h1 .hook { color: var(--predator); }
-.lede { font-size: 17px; color: var(--ink-2); max-width: 66ch; }
+.lede { font-size: 16.5px; color: var(--ink-2); max-width: 74ch; }
 .missions { display: flex; flex-wrap: wrap; gap: 6px; }
 .mission-tab {
   display: inline-flex; align-items: center; gap: 8px;
@@ -119,64 +121,94 @@ h1 .hook { color: var(--predator); }
 .mission-tab.done .badge { background: var(--good); color: var(--panel); }
 .mission-tab:hover { border-color: var(--ink-3); }
 
-/* ---- Console: sea + deck ---- */
+/* ---- Console: viewer + deck ---- */
 .console { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); align-items: start; }
 .console .left { display: grid; gap: 14px; min-width: 0; }
-@media (max-width: 980px) {
-  .console { grid-template-columns: minmax(0, 1fr); }
-  .console .left { display: contents; }
-  .sea-frame { order: 1; }
-  .deck { order: 2; }
-  .status-strip { order: 3; }
-}
-.status-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.7fr); gap: 12px 18px; align-items: start; }
-@media (max-width: 1180px) { .status-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); } .status-strip .gauge { grid-column: 1 / -1; } }
+.status-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 18px; align-items: start; }
 @media (max-width: 620px) { .status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.sea-frame {
-  position: relative;
+.viewer {
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow: hidden;
-  background: #0b3446;
-  aspect-ratio: 16 / 10;
-  max-width: 100%;
-  min-height: 300px;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 12px 30px -18px rgba(5, 30, 40, 0.6);
+  min-width: 0;
+  box-shadow: 0 12px 30px -22px rgba(5, 30, 40, 0.55);
 }
-#sea { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.sea-hud {
-  position: absolute; inset: 0 0 auto 0;
-  display: flex; justify-content: space-between; align-items: start; gap: 10px;
-  padding: 10px;
-  pointer-events: none;
+.viewer-bar {
+  display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between;
+  gap: 0 14px;
+  padding: 2px 10px 0;
+  border-bottom: 1px solid var(--line);
 }
-.sea-hud > * { pointer-events: auto; }
-.transport {
-  display: flex; gap: 4px; align-items: center; flex-wrap: wrap;
-  background: rgba(4, 24, 32, 0.62);
-  backdrop-filter: blur(6px);
-  border-radius: 8px;
-  padding: 4px;
-  color: #e8f4f6;
+.view-tabs { display: flex; gap: 2px; min-width: 0; }
+.view-tab {
+  border: 0; background: none; cursor: pointer;
+  padding: 11px 12px 8px;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  font-size: 14px; font-weight: 700; line-height: 1.2;
+  color: var(--ink-3);
+  white-space: nowrap;
 }
+.view-tab:hover { color: var(--ink); }
+.view-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.bar-right { display: flex; align-items: center; gap: 12px; padding: 6px 0; margin-left: auto; }
+.transport { display: flex; gap: 2px; align-items: center; background: var(--panel-2); border-radius: 8px; padding: 3px; }
 .transport button {
-  border: 0; background: transparent; color: inherit; cursor: pointer;
-  padding: 5px 9px; border-radius: 6px; font-size: 13px; line-height: 1.2;
+  border: 0; background: transparent; cursor: pointer;
+  padding: 5px 8px; border-radius: 6px; font-size: 13px; line-height: 1.2;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
-.transport button:hover { background: rgba(255,255,255,0.12); }
-.transport button[aria-pressed="true"] { background: #e8f4f6; color: #0b3446; }
-.transport .play { font-weight: 700; min-width: 74px; }
-.transport .sep { width: 1px; align-self: stretch; background: rgba(255,255,255,0.2); margin: 2px 3px; }
-.clock {
-  background: rgba(4, 24, 32, 0.62);
-  backdrop-filter: blur(6px);
-  border-radius: 8px;
-  padding: 6px 12px;
-  color: #e8f4f6;
-  text-align: right;
+.transport button:hover { color: var(--ink); }
+.transport button[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(5, 30, 40, 0.2); }
+.transport .play { background: var(--accent); color: var(--accent-ink); font-weight: 700; min-width: 78px; }
+.transport .play:hover { color: var(--accent-ink); filter: brightness(1.1); }
+.transport .sep { width: 1px; align-self: stretch; background: var(--line); margin: 3px 2px; }
+.clock { display: flex; align-items: baseline; gap: 6px; }
+.clock .year { font: 500 20px/1 var(--font-data); min-width: 3ch; text-align: right; }
+
+/* The stage holds one view at a time; its height follows the window so the
+   viewer, readouts and deck fit on one laptop screen. */
+.stage { position: relative; height: clamp(340px, calc(100vh - 290px), 640px); }
+.view { position: absolute; inset: 0; }
+.view-sea { background: #0b3446; overflow: hidden; border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px); }
+#sea { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.view-chart { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; overflow: hidden auto; }
+.view-head { display: grid; gap: 2px; }
+.view-head h2 { font-size: 18px; line-height: 1.2; }
+.view-head p { font-size: 13.5px; color: var(--ink-2); max-width: 82ch; }
+.chart.fill { flex: 1 1 0; min-height: 0; }
+.view-link {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font: inherit; color: var(--accent);
+  text-decoration: underline; text-underline-offset: 2px;
 }
-.clock .label { font: 600 10px/1 var(--font-data); letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7; }
-.clock .year { font: 500 22px/1.1 var(--font-data); }
+
+@media (max-width: 980px) {
+  /* One column: mission, then the viewer, then the levers right beneath it */
+  .console { display: flex; flex-direction: column; align-items: stretch; }
+  .console .left, .console .deck { display: contents; }
+  .mission-card { order: 1; }
+  .viewer { order: 2; }
+  .controls { order: 3; }
+  .status-strip { order: 4; }
+  .deck .gauge { order: 5; }
+  .stage { height: clamp(230px, 42vh, 460px); }
+}
+@media (max-width: 980px) and (min-height: 600px) {
+  .viewer { position: sticky; top: 0; z-index: 5; box-shadow: 0 16px 22px -18px rgba(5, 30, 40, 0.75); }
+}
+@media (max-width: 620px) {
+  .viewer-bar { padding: 0 6px; }
+  .view-tab { padding: 10px 8px 7px; font-size: 13.5px; }
+  .tab-more { display: none; }
+  .view-chart { padding: 10px 12px; }
+  .view-head p { display: none; }
+  #logbook { min-height: 300px; }
+  #regime-chart { min-height: 220px; }
+  #nursery-chart { min-height: 160px; }
+}
 .sea-legend {
   position: absolute; left: 10px; bottom: 10px;
   display: flex; flex-wrap: wrap; gap: 4px 12px;
@@ -191,7 +223,7 @@ h1 .hook { color: var(--predator); }
 .sea-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sea-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .toast-stack {
-  position: absolute; right: 10px; bottom: 10px;
+  position: absolute; right: 10px; top: 10px;   /* clear of chart axes and data */
   display: grid; gap: 6px; justify-items: end;
   max-width: min(360px, calc(100% - 20px));
   pointer-events: none;
@@ -210,7 +242,7 @@ h1 .hook { color: var(--predator); }
 .toast.bad { border-left-color: #c4402a; }
 .toast.good { border-left-color: #2f8f63; }
 .toast b { font-family: var(--font-data); font-weight: 500; margin-right: 4px; }
-@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes toast-in { from { transform: translateY(-8px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .debrief {
   position: absolute; inset: 0;
@@ -218,6 +250,8 @@ h1 .hook { color: var(--predator); }
   padding: 16px;
   background: rgba(4, 20, 27, 0.55);
   backdrop-filter: blur(2px);
+  border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
+  z-index: 4;
 }
 .debrief-card {
   width: min(560px, 100%);
@@ -320,14 +354,7 @@ input[type="range"]:disabled { cursor: not-allowed; opacity: 0.45; }
 .state-pill.good { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
 .state-pill.bad { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
 
-/* ---- Chart table ---- */
-.charts { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
-@media (max-width: 1180px) { .charts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .charts .wide { grid-column: 1 / -1; } }
-@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
-figure.panel { margin: 0; }
-.fig-head { display: grid; gap: 4px; }
-.fig-head h2 { font-size: 19px; line-height: 1.2; }
-.fig-head p { font-size: 14px; color: var(--ink-2); max-width: 62ch; }
+/* ---- Charts ---- */
 .chart { position: relative; width: 100%; min-width: 0; }
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .chart text { font-family: var(--font-data); font-size: 11px; fill: var(--ink-3); }
@@ -406,7 +433,6 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
 
 @media (max-width: 560px) {
   .readout .value { font-size: 19px; }
-  .sea-frame { aspect-ratio: 4 / 5; }
   .sea-legend { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -429,33 +455,92 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
 
   <section class="console">
     <div class="left">
-    <div class="sea-frame" id="sea-frame">
-      <canvas id="sea" aria-label="Animated view of the sea: plankton, forage fish, predators and fishing boats" role="img"></canvas>
-      <div class="sea-hud">
-        <div class="transport" role="group" aria-label="Simulation controls">
-          <button class="play" id="play-btn" aria-label="Pause simulation">❚❚ Pause</button>
-          <span class="sep" aria-hidden="true"></span>
-          <span class="visually-hidden" id="speed-label">Speed in model years per second</span>
-          <div id="speed-group" role="group" aria-labelledby="speed-label" style="display:flex;gap:2px"></div>
+    <div class="viewer" id="viewer">
+      <div class="viewer-bar">
+        <div class="view-tabs" role="tablist" aria-label="View">
+          <button class="view-tab" role="tab" id="tab-sea" aria-controls="view-sea" aria-selected="true">Sea</button>
+          <button class="view-tab" role="tab" id="tab-log" aria-controls="view-log" aria-selected="false" tabindex="-1">Logbook</button>
+          <button class="view-tab" role="tab" id="tab-policy" aria-controls="view-policy" aria-selected="false" tabindex="-1">Policy<span class="tab-more"> chart</span></button>
+          <button class="view-tab" role="tab" id="tab-nursery" aria-controls="view-nursery" aria-selected="false" tabindex="-1">Nursery</button>
         </div>
-        <div class="clock" aria-live="off">
-          <div class="label">Year</div>
-          <div class="year num" id="year">0</div>
+        <div class="bar-right">
+          <div class="transport" role="group" aria-label="Simulation controls">
+            <button class="play" id="play-btn" aria-label="Pause simulation">❚❚ Pause</button>
+            <span class="sep" aria-hidden="true"></span>
+            <span class="visually-hidden" id="speed-label">Speed in model years per second</span>
+            <div id="speed-group" role="group" aria-labelledby="speed-label" style="display:flex;gap:2px"></div>
+          </div>
+          <div class="clock" aria-live="off">
+            <span class="eyebrow">Year</span>
+            <span class="year num" id="year">0</span>
+          </div>
         </div>
       </div>
-      <div class="sea-legend" aria-hidden="true">
-        <span><i style="background:#ef8a4c"></i>Predators</span>
-        <span><i style="background:#ffc39a;width:6px;height:6px"></i>Predator young</span>
-        <span><i style="background:#b9dbef"></i>Forage fish</span>
-        <span><i style="background:#8fd69a;width:6px;height:6px"></i>Plankton</span>
-      </div>
-      <div class="toast-stack" id="toasts" aria-live="polite"></div>
-      <div class="debrief" id="debrief" hidden>
-        <div class="debrief-card" role="dialog" aria-modal="false" aria-labelledby="debrief-title">
-          <div class="verdict" id="debrief-verdict"></div>
-          <h2 id="debrief-title"></h2>
-          <div id="debrief-body" style="display:grid;gap:10px"></div>
-          <div class="actions" id="debrief-actions"></div>
+      <div class="stage" id="stage">
+        <div class="view view-sea" id="view-sea" role="tabpanel" aria-labelledby="tab-sea" tabindex="0">
+          <canvas id="sea" aria-label="Animated view of the sea: plankton, forage fish, predators and fishing boats" role="img"></canvas>
+          <div class="sea-legend" aria-hidden="true">
+            <span><i style="background:#ef8a4c"></i>Predators</span>
+            <span><i style="background:#ffc39a;width:6px;height:6px"></i>Predator young</span>
+            <span><i style="background:#b9dbef"></i>Forage fish</span>
+            <span><i style="background:#8fd69a;width:6px;height:6px"></i>Plankton</span>
+          </div>
+        </div>
+
+        <div class="view view-chart" id="view-log" role="tabpanel" aria-labelledby="tab-log" hidden>
+          <div class="view-head">
+            <h2>Stocks, catches and fishing over time</h2>
+            <p>Hover to read any year. The dashed lines mark the healthy, unfished sea.</p>
+          </div>
+          <div class="legend">
+            <span><i style="border-color:var(--predator)"></i>Predator</span>
+            <span><i style="border-color:var(--forage)"></i>Forage fish</span>
+            <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy unfished level</span>
+          </div>
+          <div class="chart fill" id="logbook"></div>
+          <details class="table-view">
+            <summary>Show the logbook as a table</summary>
+            <div class="scroll" id="log-table"></div>
+          </details>
+        </div>
+
+        <div class="view view-chart" id="view-policy" role="tabpanel" aria-labelledby="tab-policy" hidden>
+          <div class="view-head">
+            <h2>Where your fishing policy sits</h2>
+            <p>Each point is one year of your policy, coloured by whether predators were still there. Click the chart to set both fishing pressures at once.</p>
+          </div>
+          <div class="chart fill" id="regime-chart"></div>
+          <div class="legend">
+            <span><i class="box" style="background:color-mix(in srgb, var(--safe) 40%, transparent)"></i>Safe: predators always recover</span>
+            <span><i class="box" style="background:color-mix(in srgb, var(--tip) 45%, transparent)"></i>Tipping zone: two possible seas</span>
+            <span><i class="box" style="background:color-mix(in srgb, var(--lost) 40%, transparent)"></i>Predators lost</span>
+          </div>
+        </div>
+
+        <div class="view view-chart" id="view-nursery" role="tabpanel" aria-labelledby="tab-nursery" hidden>
+          <div class="view-head">
+            <h2>How dangerous is it to be a young predator?</h2>
+          </div>
+          <div class="big-stat">
+            <span class="n" id="nursery-n">–</span>
+            <span class="t" id="nursery-t">of every 1,000 young predators survive to 1 gram</span>
+          </div>
+          <div class="chart fill" id="nursery-chart"></div>
+          <div class="legend">
+            <span><i style="border-color:var(--predator)"></i>Now</span>
+            <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy sea</span>
+            <span><i class="dash" style="border-color:var(--forage)"></i>Forage-dominated sea</span>
+          </div>
+        </div>
+
+        <div class="toast-stack" id="toasts" aria-live="polite"></div>
+        <div class="debrief" id="debrief" hidden>
+          <div class="debrief-card" role="dialog" aria-modal="false" aria-labelledby="debrief-title">
+            <div class="verdict" id="debrief-verdict"></div>
+            <h2 id="debrief-title"></h2>
+            <div id="debrief-body" style="display:grid;gap:10px"></div>
+            <div class="actions" id="debrief-actions"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -480,18 +565,6 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
         <span class="value" id="r-yf">–</span>
         <span class="note" id="r-yf-note"></span>
       </div>
-      <div class="gauge">
-        <div class="gauge-head">
-          <strong>Comeback number</strong>
-          <span><span class="num" id="r0-value">–</span> <span class="state-pill" id="r0-pill"></span></span>
-        </div>
-        <div class="gauge-track" aria-hidden="true">
-          <div class="gauge-fill" id="r0-fill"></div>
-          <div class="gauge-mark" id="r0-mark-1"><span>1</span></div>
-        </div>
-        <div class="gauge-scale" aria-hidden="true"></div>
-        <p class="gauge-text" id="r0-text"></p>
-      </div>
     </div>
     </div>
 
@@ -507,7 +580,7 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
         <p class="hint" id="hint" aria-live="polite"></p>
       </div>
 
-      <div class="panel" role="group" aria-label="Fishing policy">
+      <div class="panel controls" role="group" aria-label="Fishing policy">
         <div class="lever" id="fp-lever">
           <div class="lever-head">
             <label for="fp-slider"><span class="swatch" style="background:var(--predator)"></span>Predator fishing</label>
@@ -539,56 +612,20 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
         </div>
       </div>
 
-    </aside>
-  </section>
+      <div class="panel gauge" aria-label="Comeback number">
+        <div class="gauge-head">
+          <strong>Comeback number</strong>
+          <span><span class="num" id="r0-value">–</span> <span class="state-pill" id="r0-pill"></span></span>
+        </div>
+        <div class="gauge-track" aria-hidden="true">
+          <div class="gauge-fill" id="r0-fill"></div>
+          <div class="gauge-mark" id="r0-mark-1"><span>1</span></div>
+        </div>
+        <div class="gauge-scale" aria-hidden="true"></div>
+        <p class="gauge-text" id="r0-text"></p>
+      </div>
 
-  <section class="charts" aria-label="Instruments">
-    <figure class="panel wide">
-      <div class="fig-head">
-        <p class="eyebrow">Logbook</p>
-        <h2>Stocks, catches and fishing over time</h2>
-        <p>Hover to read any year. The dashed lines mark the healthy, unfished sea.</p>
-      </div>
-      <div class="legend">
-        <span><i style="border-color:var(--predator)"></i>Predator</span>
-        <span><i style="border-color:var(--forage)"></i>Forage fish</span>
-        <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy unfished level</span>
-      </div>
-      <div class="chart" id="logbook"></div>
-      <details class="table-view">
-        <summary>Show the logbook as a table</summary>
-        <div class="scroll" id="log-table"></div>
-      </details>
-    </figure>
-      <figure class="panel">
-        <div class="fig-head">
-          <p class="eyebrow">Policy chart</p>
-          <h2>Where your fishing policy sits</h2>
-          <p>Each point is one year of your policy, coloured by whether predators were still there. Click the chart to set both fishing pressures at once.</p>
-        </div>
-        <div class="chart" id="regime-chart"></div>
-        <div class="legend">
-          <span><i class="box" style="background:color-mix(in srgb, var(--safe) 40%, transparent)"></i>Safe: predators always recover</span>
-          <span><i class="box" style="background:color-mix(in srgb, var(--tip) 45%, transparent)"></i>Tipping zone: two possible seas</span>
-          <span><i class="box" style="background:color-mix(in srgb, var(--lost) 40%, transparent)"></i>Predators lost</span>
-        </div>
-      </figure>
-      <figure class="panel">
-        <div class="fig-head">
-          <p class="eyebrow">Nursery</p>
-          <h2>How dangerous is it to be a young predator?</h2>
-        </div>
-        <div class="big-stat">
-          <span class="n" id="nursery-n">–</span>
-          <span class="t" id="nursery-t">of every 1,000 young predators survive to 1 gram</span>
-        </div>
-        <div class="chart" id="nursery-chart"></div>
-        <div class="legend">
-          <span><i style="border-color:var(--predator)"></i>Now</span>
-          <span><i class="dash" style="border-color:var(--ink-3)"></i>Healthy sea</span>
-          <span><i class="dash" style="border-color:var(--forage)"></i>Forage-dominated sea</span>
-        </div>
-      </figure>
+    </aside>
   </section>
 
   <section class="explainer" aria-labelledby="how-title">
@@ -1292,7 +1329,7 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
     const goals = m.goals();
     $("objective").hidden = goals.length === 0;
     $("objective-list").innerHTML = goals.map((g) => `<li>${g}</li>`).join("");
-    $("hint").textContent = "";
+    setHint("");
     $("preset-row").hidden = !m.presets;
     $("release-pred-btn").hidden = !m.release;
     $("release-forage-btn").hidden = !m.release;
@@ -1323,7 +1360,23 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
     const items = $("objective-list").children;
     (res.met || []).forEach((m, i) => { if (items[i]) items[i].classList.toggle("met", !!m); });
     $("objective-progress").style.width = `${Math.round(100 * clamp(res.progress || 0, 0, 1))}%`;
-    $("hint").textContent = mission.hint(d) || "";
+    setHint(mission.hint(d) || "");
+  }
+
+  // Turn mentions of a chart into buttons that open its tab
+  const VIEW_NAMES = [[/the policy chart/i, "policy"], [/the nursery chart/i, "nursery"], [/the logbook/i, "log"]];
+  function linkViews(text) {
+    let html = text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    for (const [re, v] of VIEW_NAMES) {
+      html = html.replace(re, (m) => `<button type="button" class="view-link" data-view="${v}">${m}</button>`);
+    }
+    return html;
+  }
+  let hintText = "";
+  function setHint(text) {
+    if (text === hintText) return;   // keep the button stable while it is being clicked
+    hintText = text;
+    $("hint").innerHTML = linkViews(text);
   }
 
   function showDebrief(kind) {
@@ -1334,7 +1387,7 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
     $("debrief-verdict").textContent = kind === "win" ? "Mission complete" : kind === "overEdge" ? "Goal reached, but" : "Mission failed";
     $("debrief-verdict").className = "verdict " + (kind === "win" ? "win" : "lose");
     $("debrief-title").textContent = spec.title;
-    $("debrief-body").innerHTML = spec.body().map((p) => `<p>${p}</p>`).join("");
+    $("debrief-body").innerHTML = spec.body().map((p) => `<p>${linkViews(p)}</p>`).join("");
     const actions = $("debrief-actions");
     actions.innerHTML = "";
     const idx = MISSIONS.indexOf(mission);
@@ -1519,6 +1572,15 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
     container.appendChild(tip);
     return tip;
   }
+  // Charts fill their box on the stage. A chart in a hidden tab has no box, so
+  // it skips drawing and is redrawn when its tab opens and the box reappears.
+  function chartBox(el, minW, minH) {
+    if (!el.clientWidth) return null;
+    return { W: Math.max(minW, el.clientWidth), H: Math.max(minH, el.clientHeight) };
+  }
+  function observeSize(el, draw) {
+    new ResizeObserver(() => { if (el.clientWidth) draw(); }).observe(el);
+  }
 
   // ---------------------------------------------------------------------
   // Logbook chart: four rows sharing one time axis
@@ -1526,7 +1588,7 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
   const logbook = (() => {
     const el = $("logbook");
     const tip = makeTooltip(el);
-    let W = 600, layout = null, hoverX = null;
+    let layout = null, hoverX = null;
     const WINDOW = 200;
     const rows = [
       { key: "Bp", title: "Predator stock (kt)", cls: "pred", ref: B_A[PRED], min: 700 },
@@ -1534,14 +1596,17 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
       { key: "Y", title: "Catch (kt per year)", min: 40 },
       { key: "F", title: "Fishing pressure F", min: 0.3 },
     ];
-    const ro = new ResizeObserver(() => { W = Math.max(280, el.clientWidth); draw(); });
-    ro.observe(el);
+    observeSize(el, draw);
 
     function draw() {
       const h = sim.history;
-      if (!h.length) return;
-      const ml = 44, mr = 12, rowH = 66, gap = 36, top = 24;
-      const H = top + rows.length * (rowH + gap) - gap + 26;
+      const box = chartBox(el, 280, 240);
+      if (!h.length || !box) return;
+      const W = box.W;
+      // Rows share the height of the box; the gap leaves room for each row title
+      const ml = 44, mr = 12, gap = 32, top = 24, bottom = 26;
+      const rowH = Math.max(28, (box.H - top - bottom - gap * (rows.length - 1)) / rows.length);
+      const H = top + rows.length * (rowH + gap) - gap + bottom;
       const t1 = Math.max(h[h.length - 1].t, 40);
       const t0 = Math.max(0, t1 - WINDOW);
       const vis = h.filter((r) => r.t >= t0);
@@ -1633,13 +1698,14 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
   const regimeChart = (() => {
     const el = $("regime-chart");
     const tip = makeTooltip(el);
-    let W = 420, fog = false, geom = null;
+    let fog = false, geom = null;
     const XMAX = 0.6, YMAX = 0.5;
-    const ro = new ResizeObserver(() => { W = Math.max(260, el.clientWidth); draw(); });
-    ro.observe(el);
+    observeSize(el, draw);
 
     function draw() {
-      const H = Math.round(Math.min(W * 0.78, 380));
+      const box = chartBox(el, 260, 200);
+      if (!box) return;
+      const { W, H } = box;
       const ml = 46, mr = 12, mt = 10, mb = 40;
       const x = (v) => ml + (W - ml - mr) * v / XMAX;
       const y = (v) => mt + (H - mt - mb) * (1 - v / YMAX);
@@ -1712,10 +1778,12 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
       return { px, py, Ff, Fp, inside: Ff >= 0 && Ff <= XMAX && Fp >= 0 && Fp <= YMAX };
     }
     el.addEventListener("click", (e) => {
+      if (!geom) return;
       const p = toData(e);
       if (p.inside) setPolicy(p.Ff, p.Fp);
     });
     el.addEventListener("pointermove", (e) => {
+      if (!geom) return;
       const p = toData(e);
       if (!p.inside) { tip.hidden = true; return; }
       const reg = regimeAt(p.Ff, p.Fp);
@@ -1736,15 +1804,15 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
   const nurseryChart = (() => {
     const el = $("nursery-chart");
     const tip = makeTooltip(el);
-    let W = 420, geom = null;
-    const ro = new ResizeObserver(() => { W = Math.max(260, el.clientWidth); draw(); });
-    ro.observe(el);
+    let geom = null;
+    observeSize(el, draw);
     const idx = M.w.map((w, j) => j).filter((j) => M.w[j] <= 10);
     const lx0 = -3, lx1 = 1;
 
     function draw() {
-      if (!sim.diag) return;
-      const H = Math.round(Math.min(W * 0.55, 240));
+      const box = chartBox(el, 260, 150);
+      if (!sim.diag || !box) return;
+      const { W, H } = box;
       const ml = 40, mr = 14, mt = 12, mb = 34;
       const ymax = niceMax(Math.max(45, ...idx.map((j) => sim.diag.predMort[j])) * 1.02);
       const x = (w) => ml + (W - ml - mr) * (Math.log10(w) - lx0) / (lx1 - lx0);
@@ -1806,6 +1874,7 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
 
     function resize() {
       const r = canvas.getBoundingClientRect();
+      if (!r.width) return;            // sea tab hidden: keep the last size
       dpr = Math.min(2, window.devicePixelRatio || 1);
       W = Math.max(200, r.width); H = Math.max(200, r.height);
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
@@ -2129,6 +2198,50 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
   })();
 
   // ---------------------------------------------------------------------
+  // Viewer tabs: the sea and the three charts take turns on one stage
+  // ---------------------------------------------------------------------
+  const VIEWS = ["sea", "log", "policy", "nursery"];
+  const viewTabs = VIEWS.map((v) => $(`tab-${v}`));
+  let activeView = "sea";
+
+  function showView(v, focus) {
+    if (!VIEWS.includes(v)) v = "sea";
+    activeView = v;
+    store.set("nursery-trap-view", v);
+    VIEWS.forEach((name, i) => {
+      const on = name === v;
+      viewTabs[i].setAttribute("aria-selected", on ? "true" : "false");
+      viewTabs[i].tabIndex = on ? 0 : -1;
+      $(`view-${name}`).hidden = !on;
+    });
+    if (focus) viewTabs[VIEWS.indexOf(v)].focus();
+    drawView();
+  }
+  function drawView() {
+    if (activeView === "log") logbook.draw();
+    else if (activeView === "policy") regimeChart.draw();
+    else if (activeView === "nursery") nurseryChart.draw();
+  }
+  viewTabs.forEach((tab, i) => {
+    tab.addEventListener("click", () => showView(VIEWS[i]));
+    tab.addEventListener("keydown", (e) => {
+      const j = e.key === "ArrowRight" ? (i + 1) % VIEWS.length
+        : e.key === "ArrowLeft" ? (i - 1 + VIEWS.length) % VIEWS.length
+        : e.key === "Home" ? 0 : e.key === "End" ? VIEWS.length - 1 : null;
+      if (j === null) return;
+      e.preventDefault();
+      showView(VIEWS[j], true);
+    });
+  });
+  // Mentions of a chart in hints and debriefs open that chart's tab
+  document.addEventListener("click", (e) => {
+    const link = e.target.closest(".view-link");
+    if (!link) return;
+    if (!$("debrief").hidden) { hideDebrief(); if (missionStatus !== "active") missionStatus = "done"; }
+    showView(link.dataset.view);
+  });
+
+  // ---------------------------------------------------------------------
   // Main loop
   // ---------------------------------------------------------------------
   let chartsDirty = true, lastChart = 0;
@@ -2144,9 +2257,7 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
 
   function renderAll(force) {
     renderReadouts();
-    logbook.draw();
-    regimeChart.draw();
-    nurseryChart.draw();
+    drawView();
     renderTable();
     if (force) sea.setTargets(sim.diag);
   }
@@ -2167,8 +2278,8 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
         if (!sim.running) { sim.acc = 0; break; }
       }
     }
-    sea.step(dtReal);
-    sea.draw();
+    sea.step(dtReal);                    // keep the fish in step while another tab is open
+    if (activeView === "sea") sea.draw();
     if (chartsDirty && now - lastChart > 120) {
       renderAll(false);
       chartsDirty = false;
@@ -2189,6 +2300,7 @@ details.table-view th { position: sticky; top: 0; background: var(--panel); colo
     fact("Forage fishing that reopens the nursery", `F ${FF_INV.toFixed(3)} (${pctCatch(FF_INV)}% a year)`),
   ].join("");
 
+  showView(store.get("nursery-trap-view", "sea"));
   startMission(MISSIONS[0]);
   requestAnimationFrame(frame);
 })();
