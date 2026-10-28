@@ -9,12 +9,13 @@
 # Run with `Rscript cultivation_depensation.R`. It writes the figures to plots/,
 # every number quoted in paper.Rmd to results/cultivation_results.rds and the
 # calibrated model to cultivation_depensation_params.rds. The full run takes
-# nearly two hours on a laptop with four cores (eight threads), much of it
-# serial. The parameter sweeps use four worker
-# processes; set the environment variable MC_CORES to use another number, e.g.
+# about two and a half hours on a laptop with four cores, much of it serial.
+# The parameter sweeps use four worker processes; set the environment variable MC_CORES to use another number, e.g.
 # `MC_CORES=8 Rscript cultivation_depensation.R`.
 # `Rscript cultivation_depensation.R --figures` only redraws the figures from
-# the saved results, which takes seconds.
+# the saved results, which takes seconds, and
+# `Rscript cultivation_depensation.R --robustness` repeats only the robustness
+# checks (about an hour), keeping the other saved results.
 
 suppressPackageStartupMessages({
   library(mizer)
@@ -224,6 +225,37 @@ build_cultivation_model <- function(no_w = 320, theta_FF = 0.05, theta_PP = 0.05
     )
   )
   params_RFP
+}
+
+#' Continue the calibration of a model until its State RFP biomasses equal `target`
+#'
+#' The fixed recipe in `build_cultivation_model()` (two rounds of
+#' `matchBiomasses()` and `tuneSteadyState()`) brings the reference model to
+#' within 6% of its nominal targets, but stops further from them for variants
+#' that differ more from the starting spectra, which then differ from the
+#' reference in biomass as well as in the parameter being varied. This
+#' alternates `matchBiomasses()` with Newton solves of `tuneSteadyState()`
+#' until the largest relative biomass error is below `tol`, then imposes the
+#' reproduction levels `levels` and solves for the fixed point without
+#' changing any parameter. Stops with an error if the result misses `target`
+#' or `levels` by more than 1e-5.
+recalibrate <- function(params, target, levels, tol = 1e-6, max_rounds = 60) {
+  species_params(params)$biomass_observed <- unname(target[species_params(params)$species])
+  err <- function(p) max(abs(getBiomass(p) / target - 1))
+  k <- 0
+  while (err(params) > tol && k < max_rounds) {
+    params <- matchBiomasses(params, info_level = 0)
+    params <- tuneSteadyState(params, solver = "newton", info_level = 0)
+    k <- k + 1
+  }
+  reproduction_level(params) <- levels
+  params <- findSteadyState(params, solver = "newton", info_level = 0)
+  if (err(params) > 1e-5 || max(abs(reproduction_level(params) - levels)) > 1e-5) {
+    stop("Calibration did not converge: biomass error ", signif(err(params), 3),
+         " after ", k, " rounds.")
+  }
+  attr(params, "calibration_rounds") <- k
+  params
 }
 
 #' Project towards a fixed point and finish with the Newton solver
@@ -528,19 +560,45 @@ find_F_forage_rec <- function(params_RFP, params_RF, lower, upper = 1, tol = 0.0
 }
 
 #' Summary of a variant of the model, optionally with its fishing thresholds
-variant_summary <- function(label, thresholds = FALSE, ...) {
+#'
+#' With `target` the variant is calibrated by `recalibrate()` until its State
+#' RFP biomasses equal `target`, with reproduction levels `levels`. Without it
+#' only the fixed recipe of `build_cultivation_model()` is applied, which for
+#' variants far from the reference model stops short of the targets. With
+#' `save_dir` the calibrated model is saved there.
+variant_summary <- function(label, thresholds = FALSE, target = NULL, levels = NULL,
+                            save_dir = NULL, ...) {
   pRFP <- suppressMessages(build_cultivation_model(...))
+  rounds <- 0
+  if (!is.null(target)) {
+    pRFP <- recalibrate(pRFP, target, levels)
+    rounds <- attr(pRFP, "calibration_rounds")
+  }
+  if (!is.null(save_dir)) {
+    dir.create(save_dir, showWarnings = FALSE, recursive = TRUE)
+    saveParams(pRFP, file.path(save_dir, paste0(gsub("[^A-Za-z0-9.]+", "_", label), ".rds")))
+  }
   st <- get_fixed_points(pRFP)
   diet <- getDiet(pRFP, proportion = FALSE)
   intake <- colSums(sweep(diet["Predator", , ], 1, initialN(pRFP)["Predator", ] * dw(pRFP), "*"))
+  spp <- species_params(pRFP)
+  L <- reproduction_level(pRFP)
   out <- data.frame(
     Variant = label,
+    Calibration = if (is.null(target)) "recipe" else "converged",
     B_For_RFP = unname(getBiomass(st$State_RFP)["Forage"]),
     B_Pred_RFP = unname(getBiomass(st$State_RFP)["Predator"]),
     B_For_RF = unname(getBiomass(st$State_RF)["Forage"]),
     R0_For_RP = unname(get_R0(st$State_RP, species = "Forage")),
     R0_Pred_RF = unname(get_R0(st$State_RF, species = "Predator")),
-    Forage_in_diet = unname(intake["Forage"] / sum(intake))
+    Forage_in_diet = unname(intake["Forage"] / sum(intake)),
+    erepro_For = spp["Forage", "erepro"], erepro_Pred = spp["Predator", "erepro"],
+    R_max_For = spp["Forage", "R_max"], R_max_Pred = spp["Predator", "R_max"],
+    L_For = unname(L["Forage"]), L_Pred = unname(L["Predator"]),
+    calibration_rounds = rounds,
+    biomass_rel_error = if (is.null(target)) NA_real_ else
+      max(abs(getBiomass(pRFP) / target - 1)),
+    drift_RFP = biomass_drift(pRFP, c(Forage = 0, Predator = 0))
   )
   if (thresholds) {
     out$F_crit <- find_F_crit(pRFP)
@@ -828,23 +886,31 @@ make_figures <- function(res, params_RFP, base_size = 11, width = 7.5) {
 
   # Figure 6: predator invasion R0 in State RF versus the strength of cannibalism
   ts <- res$theta_scan
+  if (is.null(ts$Calibration)) ts$Calibration <- "converged"
   ts$Parameter <- factor(ts$Parameter, levels = c("theta_FF", "theta_PP"),
                          labels = c("Forage cannibalism theta_For,For", "Predator cannibalism theta_Pred,Pred"))
+  ts$Calibration <- factor(ts$Calibration, levels = c("converged", "recipe"),
+                           labels = c("Calibrated to the reference State RFP",
+                                      "Fixed calibration recipe only"))
   crit <- data.frame(Parameter = levels(ts$Parameter), theta = c(res$theta_FF_crit, res$theta_PP_crit))
-  fig6 <- ggplot(ts, aes(x = theta, y = R0_Pred_RF)) +
-    geom_line(linewidth = 1, colour = "#D55E00") +
-    geom_point(size = 2, colour = "#D55E00") +
+  fig6 <- ggplot(ts, aes(x = theta, y = R0_Pred_RF, colour = Calibration, linetype = Calibration)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 2) +
     geom_hline(yintercept = 1, linetype = "dashed", colour = "grey30") +
     geom_vline(data = crit[!is.na(crit$theta), ], aes(xintercept = theta),
                linetype = "dotted", colour = "#0072B2") +
     facet_wrap(~Parameter) +
     scale_y_log10() +
+    scale_colour_manual(values = c("#D55E00", "grey55")) +
+    scale_linetype_manual(values = c("solid", "dashed")) +
     labs(
       x = "Interaction strength",
-      y = "Predator invasion R0 in State RF"
+      y = "Predator invasion R0 in State RF",
+      colour = NULL, linetype = NULL
     ) +
-    th
-  save("robustness_cannibalism.png", fig6, height = 3.6)
+    th +
+    theme(legend.position = "bottom")
+  save("robustness_cannibalism.png", fig6, height = 4.2)
 
   # Figure 7: fishing thresholds and predator invasion R0 versus size diffusion
   ds <- res$diffusion_scan
@@ -872,16 +938,149 @@ make_figures <- function(res, params_RFP, base_size = 11, width = 7.5) {
   save("robustness_diffusion.png", p_thr | p_r0d, height = 4.2)
 }
 
+# ---------------------------------------------------------------------------
+# Robustness checks
+# ---------------------------------------------------------------------------
+
+#' Record the mizer build and the R session that produced the results
+session_record <- function() {
+  d <- packageDescription("mizer")
+  list(mizer_version = as.character(packageVersion("mizer")),
+       mizer_built = d$Built,
+       mizer_source = if (!is.null(d$RemoteSha)) d$RemoteSha else NA_character_,
+       session_info = capture.output(sessionInfo()))
+}
+
+#' Robustness of the results to resolution, model structure, size diffusion
+#' and cannibalism
+#'
+#' Every variant is calibrated by `recalibrate()` to the State RFP biomasses
+#' and reproduction levels of the reference model `params_RFP`, so that the
+#' variants differ from it only in the property being varied. The exception is
+#' the variant that recalibrates the reference model to its nominal targets.
+#' The cannibalism scan is repeated with the fixed recipe of
+#' `build_cultivation_model()` alone (the protocol of the first submission)
+#' for comparison. Adds the tables to `res`, writes them as CSV files to
+#' results/ and the calibrated variants to results/models/.
+run_robustness <- function(res, params_RFP, n_cores) {
+  B_ref <- getBiomass(params_RFP)
+  L_ref <- reproduction_level(params_RFP)
+  fill_rbind <- function(d) {
+    cols <- unique(unlist(lapply(d, names)))
+    do.call(rbind, lapply(d, function(x) { x[setdiff(cols, names(x))] <- NA; x[cols] }))
+  }
+  run_jobs <- function(jobs, thresholds, calibrate = TRUE) {
+    fill_rbind(parallel::mclapply(jobs, function(j) {
+      args <- c(j, thresholds = thresholds, save_dir = "results/models")
+      if (calibrate && is.null(j$target)) args <- c(args, list(target = B_ref, levels = L_ref))
+      if (!calibrate) args$save_dir <- "results/models/recipe"
+      tryCatch(do.call(variant_summary, args), error = function(e) {
+        message("Variant ", j[[1]], " failed: ", conditionMessage(e))
+        data.frame(Variant = j[[1]])
+      })
+    }, mc.cores = n_cores))
+  }
+
+  cat("Robustness checks...\n")
+  # Numerical resolution and model structure, with the fishing thresholds
+  variants <- list(
+    list("Reference (320 size classes)"),
+    list("160 size classes", no_w = 160),
+    list("640 size classes", no_w = 640),
+    list("Original model (first-order, 80 classes, no diffusion)",
+         no_w = 80, flux = "upwind", c_diff = 0, min_w_pp = 1e-6,
+         selectivity = "knife_edge", ogive_l25 = NA, taper = NA,
+         w_max_factor = 1, z_sen = 0),
+    list("Resource tapered at 1 g", w_pp_cutoff = 1),
+    list("Calibrated to the nominal targets (100 g, 600 g)",
+         target = c(Forage = 100, Predator = 600), levels = c(Forage = 0.65, Predator = 0.78))
+  )
+  res$robustness <- run_jobs(variants, thresholds = TRUE)
+  print(res$robustness, row.names = FALSE)
+
+  # Strength of the physical size diffusion. The centred flux stays monotone
+  # only while the cell Peclet number dx / c_diff is below about 1; for weaker
+  # diffusion the van Leer limiter keeps the solution non-negative.
+  c_grid <- c(0.02, 0.05, 0.1, 0.2, 0.3)
+  dx_ref <- log(w(params_RFP)[2] / w(params_RFP)[1])
+  diff_jobs <- lapply(c_grid, function(cd) {
+    list(sprintf("c = %.2f", cd), c_diff = cd,
+         flux = if (dx_ref / cd < 1) "centred" else "van_leer")
+  })
+  res$diffusion_scan <- cbind(c_diff = c_grid, run_jobs(diff_jobs, thresholds = TRUE))
+  print(res$diffusion_scan, row.names = FALSE)
+
+  # Strength of cannibalism, with the converged calibration and, for
+  # comparison, with the fixed recipe alone
+  theta_grid <- c(0.05, 0.075, 0.1, 0.125, 0.15, 0.2, 0.3, 0.4, 0.5, 0.95)
+  scan_jobs <- function(param) {
+    lapply(theta_grid, function(th) {
+      j <- list(sprintf("%s = %.3f", param, th))
+      j[[param]] <- th
+      j
+    })
+  }
+  jobs <- c(scan_jobs("theta_FF"), scan_jobs("theta_PP"))
+  scan <- rbind(run_jobs(jobs, thresholds = FALSE),
+                run_jobs(jobs, thresholds = FALSE, calibrate = FALSE))
+  ng <- length(theta_grid)
+  res$theta_scan <- cbind(Parameter = rep(rep(c("theta_FF", "theta_PP"), each = ng), 2),
+                          theta = theta_grid, scan)
+  print(res$theta_scan[, c("Parameter", "theta", "Calibration", "B_Pred_RFP", "R0_Pred_RF")],
+        row.names = FALSE)
+
+  # Interaction strength at which the predator first becomes able to invade
+  # State RF: bracketed on the grid, then located by root finding on
+  # separately calibrated models
+  theta_crit <- function(param, calibration = "converged") {
+    d <- res$theta_scan[res$theta_scan$Parameter == param &
+                          res$theta_scan$Calibration == calibration, ]
+    k <- which(diff(sign(log(d$R0_Pred_RF))) != 0)[1]
+    if (is.na(k)) return(NA_real_)
+    if (calibration != "converged") {
+      return(approx(log(d$R0_Pred_RF[k:(k + 1)]), d$theta[k:(k + 1)], xout = 0)$y)
+    }
+    f <- function(th) {
+      j <- list(sprintf("%s = %.5f", param, th), target = B_ref, levels = L_ref)
+      j[[param]] <- th
+      log(do.call(variant_summary, j)$R0_Pred_RF)
+    }
+    uniroot(f, d$theta[k:(k + 1)], tol = 1e-4)$root
+  }
+  crit <- parallel::mclapply(c("theta_FF", "theta_PP"), theta_crit, mc.cores = n_cores)
+  res$theta_FF_crit <- crit[[1]]
+  res$theta_PP_crit <- crit[[2]]
+  res$theta_crit_recipe <- c(theta_FF = theta_crit("theta_FF", "recipe"),
+                             theta_PP = theta_crit("theta_PP", "recipe"))
+  cat(sprintf("Cannibalism thresholds: theta_FF = %.4f, theta_PP = %.4f\n",
+              res$theta_FF_crit, res$theta_PP_crit))
+
+  res$robustness_session <- session_record()
+  write.csv(res$robustness, "results/robustness.csv", row.names = FALSE)
+  write.csv(res$diffusion_scan, "results/diffusion_scan.csv", row.names = FALSE)
+  write.csv(res$theta_scan, "results/cannibalism_scan.csv", row.names = FALSE)
+  writeLines(res$robustness_session$session_info, "results/session_info.txt")
+  res
+}
+
 if (sys.nframe() == 0 && "--figures" %in% commandArgs(trailingOnly = TRUE)) {
   # Redraw the figures from the saved results without repeating the calculations
   make_figures(readRDS("results/cultivation_results.rds"),
                readParams("cultivation_depensation_params.rds"))
+} else if (sys.nframe() == 0 && "--robustness" %in% commandArgs(trailingOnly = TRUE)) {
+  # Repeat only the robustness checks, keeping the other saved results
+  n_cores <- max(1, as.integer(Sys.getenv("MC_CORES", min(4, parallel::detectCores()))))
+  res <- readRDS("results/cultivation_results.rds")
+  params_RFP <- readParams("cultivation_depensation_params.rds")
+  res <- run_robustness(res, params_RFP, n_cores)
+  saveRDS(res, "results/cultivation_results.rds")
+  make_figures(res, params_RFP)
 } else if (sys.nframe() == 0) {
   dir.create("plots", showWarnings = FALSE)
   dir.create("results", showWarnings = FALSE)
   # MC_CORES overrides the default of at most four worker processes
   n_cores <- max(1, as.integer(Sys.getenv("MC_CORES", min(4, parallel::detectCores()))))
-  res <- list(mizer_version = as.character(packageVersion("mizer")))
+  res <- list(mizer_version = as.character(packageVersion("mizer")), session = session_record())
 
   cat("Building and calibrating cultivation-depensation model...\n")
   params_RFP <- build_cultivation_model()
@@ -1084,70 +1283,7 @@ if (sys.nframe() == 0 && "--figures" %in% commandArgs(trailingOnly = TRUE)) {
 
   res$F_forage_rec <- find_F_forage_rec(params_RFP, params_RF, lower = res$F_forage_inv)
 
-  # -------------------------------------------------------------------------
-  # Robustness: grid resolution, resource cutoff, intraspecific predation
-  # -------------------------------------------------------------------------
-  cat("Robustness checks...\n")
-  run_jobs <- function(jobs, thresholds) {
-    cols <- c("B_For_RFP", "B_Pred_RFP", "B_For_RF", "R0_For_RP", "R0_Pred_RF", "Forage_in_diet",
-              if (thresholds) c("F_crit", "F_forage_inv", "F_forage_rec"))
-    do.call(rbind, parallel::mclapply(jobs, function(j) {
-      tryCatch(do.call(variant_summary, c(j, thresholds = thresholds)), error = function(e) {
-        message("Variant ", j[[1]], " failed: ", conditionMessage(e))
-        cbind(data.frame(Variant = j[[1]]), as.data.frame(as.list(setNames(rep(NA_real_, length(cols)), cols))))
-      })
-    }, mc.cores = n_cores))
-  }
-  # Numerical resolution and model structure, with the fishing thresholds
-  variants <- list(
-    list("Reference (320 size classes)"),
-    list("160 size classes", no_w = 160),
-    list("640 size classes", no_w = 640),
-    list("Original model (first-order, 80 classes, no diffusion)",
-         no_w = 80, flux = "upwind", c_diff = 0, min_w_pp = 1e-6,
-         selectivity = "knife_edge", ogive_l25 = NA, taper = NA,
-         w_max_factor = 1, z_sen = 0),
-    list("Resource tapered at 1 g", w_pp_cutoff = 1)
-  )
-  res$robustness <- run_jobs(variants, thresholds = TRUE)
-  print(res$robustness, row.names = FALSE)
-
-  # Strength of the physical size diffusion. The centred flux stays monotone
-  # only while the cell Peclet number dx / c_diff is below about 1; for weaker
-  # diffusion the van Leer limiter keeps the solution non-negative.
-  c_grid <- c(0.02, 0.05, 0.1, 0.2, 0.3)
-  dx_ref <- log(w(params_RFP)[2] / w(params_RFP)[1])
-  diff_jobs <- lapply(c_grid, function(cd) {
-    list(sprintf("c = %.2f", cd), c_diff = cd,
-         flux = if (dx_ref / cd < 1) "centred" else "van_leer")
-  })
-  res$diffusion_scan <- cbind(c_diff = c_grid, run_jobs(diff_jobs, thresholds = TRUE))
-  print(res$diffusion_scan, row.names = FALSE)
-
-  # Strength of cannibalism
-  theta_grid <- c(0.05, 0.075, 0.1, 0.125, 0.15, 0.2, 0.3, 0.5, 0.95)
-  scan_jobs <- function(param) {
-    lapply(theta_grid, function(th) {
-      j <- list(sprintf("%s = %.3f", param, th))
-      j[[param]] <- th
-      j
-    })
-  }
-  rob <- run_jobs(c(scan_jobs("theta_FF"), scan_jobs("theta_PP")), thresholds = FALSE)
-  ng <- length(theta_grid)
-  res$theta_scan <- rbind(
-    cbind(Parameter = "theta_FF", theta = theta_grid, rob[seq_len(ng), ]),
-    cbind(Parameter = "theta_PP", theta = theta_grid, rob[ng + seq_len(ng), ])
-  )
-  # Interaction strength at which the predator first becomes able to invade State RF
-  theta_crit <- function(param) {
-    d <- res$theta_scan[res$theta_scan$Parameter == param, ]
-    k <- which(diff(sign(log(d$R0_Pred_RF))) != 0)[1]
-    if (is.na(k)) return(NA_real_)
-    approx(log(d$R0_Pred_RF[k:(k + 1)]), d$theta[k:(k + 1)], xout = 0)$y
-  }
-  res$theta_FF_crit <- theta_crit("theta_FF")
-  res$theta_PP_crit <- theta_crit("theta_PP")
+  res <- run_robustness(res, params_RFP, n_cores)
 
   saveRDS(res, "results/cultivation_results.rds")
   make_figures(res, params_RFP)
