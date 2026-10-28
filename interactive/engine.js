@@ -211,9 +211,9 @@
       state.t = 0;
     }
 
-    // Add `factor` times the State A spectrum of species s (a restocking seed)
+    // Add `factor` times the State RFP spectrum of species s (a restocking seed)
     function seed(s, factor) {
-      const ref = M.states.State_A.n[s];
+      const ref = M.states.State_RFP.n[s];
       for (let j = 0; j < NW; j++) state.n[s * NW + j] += factor * ref[j];
     }
 

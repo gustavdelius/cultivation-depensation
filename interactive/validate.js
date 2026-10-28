@@ -22,15 +22,15 @@ function maxRelErr(a, b) {
 
 const eng = createEngine(MODEL);
 
-// 1. Rates at State A
-eng.loadState("State_A");
-const rA = eng.rates(eng.state.n, eng.state.n_pp, [0, 0]);
-for (const [name, want] of Object.entries(ref.rates_A)) {
+// 1. Rates at State RFP
+eng.loadState("State_RFP");
+const rRFP = eng.rates(eng.state.n, eng.state.n_pp, [0, 0]);
+for (const [name, want] of Object.entries(ref.rates_RFP)) {
   const flatWant = [].concat(...(Array.isArray(want[0]) ? want : [want]));
-  const err = maxRelErr(rA[name], flatWant);
+  const err = maxRelErr(rRFP[name], flatWant);
   const ok = err < 1e-9;
   if (!ok) failures++;
-  console.log(`${ok ? "ok  " : "FAIL"} rate ${name} at State A: max err/scale = ${err.toExponential(2)}`);
+  console.log(`${ok ? "ok  " : "FAIL"} rate ${name} at State RFP: max err/scale = ${err.toExponential(2)}`);
 }
 
 // 2. R0 at the four unfished states
@@ -43,7 +43,7 @@ for (const [st, want] of Object.entries(ref.R0)) {
 }
 
 // 3. Trajectories
-for (const key of ["collapse", "balanced", "invade_B", "rescue_C"]) {
+for (const key of ["collapse", "balanced", "invade_RP", "rescue_RF"]) {
   const run = ref[key];
   eng.loadState(run.start);
   for (const sd of [].concat(run.seed || [])) {
@@ -71,7 +71,7 @@ for (const key of ["collapse", "balanced", "invade_B", "rescue_C"]) {
 
 // 4. Timing
 const t0 = Date.now();
-eng.loadState("State_A");
+eng.loadState("State_RFP");
 for (let i = 0; i < 5000; i++) eng.step(0.2);
 console.log(`speed: ${(5000 * 0.2 / ((Date.now() - t0) / 1000)).toFixed(0)} model years per second`);
 
