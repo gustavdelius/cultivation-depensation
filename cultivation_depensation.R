@@ -690,6 +690,12 @@ make_figures <- function(res, params_RFP, base_size = 11, width = 7.5) {
 
   # Figure 3: hysteresis loops along F_Pred at F_Forage = 0 and 0.35
   df_branch <- res$branches
+  # Draw only the branches of steady states, not the jumps between them: each
+  # sweep (rows in sweep order) is split where the predator moves between the
+  # abundant state and the depleted ones
+  sweep_id <- paste(df_branch$F_Forage, df_branch$Sweep)
+  df_branch$Segment <- ave(as.numeric(df_branch$Predator > B_HI), sweep_id,
+                           FUN = function(a) cumsum(c(0, diff(a) != 0)))
   df_branch_long <- rbind(
     transform(df_branch, Species = "Forage", Biomass = Forage),
     transform(df_branch, Species = "Predator", Biomass = Predator)
@@ -697,9 +703,9 @@ make_figures <- function(res, params_RFP, base_size = 11, width = 7.5) {
   df_branch_long$Panel <- sprintf("F_Forage = %.2f", df_branch_long$F_Forage)
   df_branch_long$Sweep <- factor(df_branch_long$Sweep, levels = c(
     "Increasing F_Pred (from State RFP)", "Decreasing F_Pred (from State RF + seed)"))
-  fig3 <- ggplot(df_branch_long, aes(x = F_Pred, y = Biomass, colour = Species, linetype = Sweep)) +
+  fig3 <- ggplot(df_branch_long, aes(x = F_Pred, y = Biomass, colour = Species, linetype = Sweep,
+                                     group = interaction(Species, Sweep, Segment))) +
     geom_line(linewidth = 0.9) +
-    geom_point(size = 1.2) +
     facet_wrap(~Panel) +
     scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 1),
                        breaks = c(0, 1, 10, 100, 1000)) +
