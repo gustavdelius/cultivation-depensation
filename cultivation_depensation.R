@@ -9,15 +9,23 @@
 # Run with `Rscript cultivation_depensation.R`. It writes the figures to plots/,
 # every number quoted in paper.Rmd to results/cultivation_results.rds and the
 # calibrated model to cultivation_depensation_params.rds. The full run takes
-# roughly half an hour on four cores.
+# nearly two hours on a laptop with four cores (eight threads), much of it
+# serial. The parameter sweeps use four worker
+# processes; set the environment variable MC_CORES to use another number, e.g.
+# `MC_CORES=8 Rscript cultivation_depensation.R`.
 
 suppressPackageStartupMessages({
   library(mizer)
   library(ggplot2)
   library(patchwork)
 })
-if (packageVersion("mizer") < "3.4.0") {
-  stop("This script needs mizer >= 3.4.0; the saved model cannot be read by older versions.")
+# 3.4.0 introduced the second-order scheme and the format of the saved model;
+# 3.4.0.9000 made predation mortality second order (sizespectrum/mizer#619);
+# 3.4.0.9001 stopped the predation-kernel convolutions wrapping around the size
+# grid (sizespectrum/mizer#618).
+if (packageVersion("mizer") < "3.4.0.9001") {
+  stop("This script needs mizer >= 3.4.0.9001, which contains the fixes for ",
+       "sizespectrum/mizer#618 and #619 that the results depend on.")
 }
 
 #' Lifetime reproductive output (R0) of a rare individual in a resident environment
@@ -73,8 +81,9 @@ R0_from_rates <- function(p, g, mort, e_repro, D, species) {
 #' d sigma^2 / d ln w = D / (g w) per unit of ln w grown. With juvenile growth
 #' g(w) ~ (alpha f0 h - ks) w^n, D_ext is chosen to make this equal to `c_diff`. The size axis is discretised with mizer's second-order scheme so
 #' that numerical diffusion stays small compared with this physical diffusion.
-#' The resource grid starts far below the larval prey sizes so that the FFT
-#' convolutions do not wrap around (sizespectrum/mizer#618).
+#' The resource grid starts far enough below the larval prey sizes that the
+#' feeding kernels of newly hatched larvae lie on it to more than six standard
+#' deviations below their peak.
 #'
 #' Fishing selectivity is logistic in length, with 50% selection at 1 g
 #' (forage) and 400 g (predator) and 25% selection at 90% of those lengths.
@@ -540,7 +549,8 @@ variant_summary <- function(label, thresholds = FALSE, ...) {
 if (sys.nframe() == 0) {
   dir.create("plots", showWarnings = FALSE)
   dir.create("results", showWarnings = FALSE)
-  n_cores <- max(1, min(4, parallel::detectCores()))
+  # MC_CORES overrides the default of at most four worker processes
+  n_cores <- max(1, as.integer(Sys.getenv("MC_CORES", min(4, parallel::detectCores()))))
   res <- list(mizer_version = as.character(packageVersion("mizer")))
 
   cat("Building and calibrating cultivation-depensation model...\n")
