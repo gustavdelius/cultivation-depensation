@@ -703,9 +703,18 @@ make_figures <- function(res, params_RFP, base_size = 11, width = 7.5) {
   df_branch_long$Panel <- sprintf("F_Forage = %.2f", df_branch_long$F_Forage)
   df_branch_long$Sweep <- factor(df_branch_long$Sweep, levels = c(
     "Increasing F_Pred (from State RFP)", "Decreasing F_Pred (from State RF + seed)"))
-  fig3 <- ggplot(df_branch_long, aes(x = F_Pred, y = Biomass, colour = Species, linetype = Sweep,
-                                     group = interaction(Species, Sweep, Segment))) +
-    geom_line(linewidth = 0.9) +
+  # A vertical arrow at the end of each branch to the state the system jumps to
+  jumps <- do.call(rbind, lapply(
+    split(df_branch_long, paste(df_branch_long$Species, df_branch_long$Panel, df_branch_long$Sweep)),
+    function(d) {
+      k <- which(diff(d$Segment) != 0)
+      data.frame(d[k, c("F_Pred", "Panel", "Species")], y = d$Biomass[k], yend = d$Biomass[k + 1])
+    }))
+  fig3 <- ggplot(df_branch_long, aes(x = F_Pred, y = Biomass, colour = Species)) +
+    geom_line(aes(linetype = Sweep, group = interaction(Species, Sweep, Segment)), linewidth = 0.9) +
+    geom_segment(data = jumps, aes(x = F_Pred, xend = F_Pred, y = y, yend = yend),
+                 linewidth = 0.4, arrow = arrow(length = unit(2, "mm"), type = "closed"),
+                 show.legend = FALSE) +
     facet_wrap(~Panel) +
     scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 1),
                        breaks = c(0, 1, 10, 100, 1000)) +
