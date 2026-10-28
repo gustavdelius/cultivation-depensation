@@ -13,6 +13,8 @@
 # serial. The parameter sweeps use four worker
 # processes; set the environment variable MC_CORES to use another number, e.g.
 # `MC_CORES=8 Rscript cultivation_depensation.R`.
+# `Rscript cultivation_depensation.R --figures` only redraws the figures from
+# the saved results, which takes seconds.
 
 suppressPackageStartupMessages({
   library(mizer)
@@ -546,7 +548,333 @@ variant_summary <- function(label, thresholds = FALSE, ...) {
   out
 }
 
-if (sys.nframe() == 0) {
+# ---------------------------------------------------------------------------
+# Simulations and the data behind the figures
+# ---------------------------------------------------------------------------
+
+#' Data for Figure 1: spectra of States RFP, RP and RF and the predation
+#' mortality on predators in States RFP and RF
+state_plot_data <- function(params_RFP, params_RP, params_RF) {
+  ps <- list(RFP = params_RFP, RP = params_RP, RF = params_RF)
+  list(
+    spectra = lapply(ps, plotSpectra, biomass = TRUE, per_log_size = TRUE,
+                     wlim = c(1e-4, 3000), return_data = TRUE),
+    predmort = data.frame(w = w(params_RFP),
+                          RFP = as.numeric(getPredMort(params_RFP)["Predator", ]),
+                          RF = as.numeric(getPredMort(params_RF)["Predator", ]))
+  )
+}
+
+#' Invasion experiments without fishing: forage fish into State RP and
+#' predators into State RF
+run_invasions <- function(params_RFP, params_RP, params_RF) {
+  p_RP <- params_RP
+  initialN(p_RP)["Forage", ] <- initialN(params_RFP)["Forage", ] * 1e-3
+  p_RF <- params_RF
+  initialN(p_RF)["Predator", ] <- initialN(params_RFP)["Predator", ] * 1e-2
+  lapply(list(RP = p_RP, RF = p_RF), project, t_max = 150, dt = 0.1, t_save = 1,
+         method = "tr_bdf2", progress_bar = FALSE)
+}
+
+#' Five-phase management scenario
+#'   Phase 1 (0-50):    Unfished State RFP (F_Pred = 0, F_Forage = 0)
+#'   Phase 2 (50-200):  Predator overfished (F_Pred = f_over, F_Forage = 0) -> Collapse to State RF
+#'   Phase 3 (200-320): Predator moratorium + re-introduction seed (F_Pred = 0, F_Forage = 0) -> Cannot re-enter
+#'   Phase 4 (320-470): Harvest Forage fish + seed (F_Pred = 0, F_Forage = f_forage_restore,
+#'                      above the recovery threshold F_forage_rec) -> Predator recovers
+#'   Phase 5 (470-570): All fishing stopped (F_Pred = 0, F_Forage = 0) -> Coexistence State RFP self-sustains
+#' Returns the simulation of each phase.
+run_management <- function(params_RFP, f_over, f_forage_restore) {
+  F0 <- c(Forage = 0, Predator = 0)
+  run <- function(p, effort, t_max) {
+    project(p, effort = effort, t_max = t_max, dt = 0.1, t_save = 1,
+            method = "tr_bdf2", progress_bar = FALSE)
+  }
+  seeded <- function(sim) {
+    p <- finalParams(sim)
+    initialN(p)["Predator", ] <- initialN(params_RFP)["Predator", ] * 5e-3
+    p
+  }
+  sim1 <- run(params_RFP, F0, 50)
+  sim2 <- run(finalParams(sim1), c(Forage = 0, Predator = f_over), 150)
+  sim3 <- run(seeded(sim2), F0, 120)
+  sim4 <- run(seeded(sim3), c(Forage = f_forage_restore, Predator = 0), 150)
+  sim5 <- run(finalParams(sim4), F0, 100)
+  list(sim1, sim2, sim3, sim4, sim5)
+}
+
+#' Biomass time series of a simulation as a long data frame, with the time
+#' shifted by `t_offset`
+biomass_ts <- function(sim, t_offset = 0) {
+  b <- getBiomass(sim)
+  t_vec <- as.numeric(rownames(b)) + t_offset
+  do.call(rbind, lapply(colnames(b), function(s)
+    data.frame(Year = t_vec, Species = s, Biomass = as.numeric(b[, s]))))
+}
+
+#' Biomass time series of the management scenario, phases joined end to end
+management_ts <- function(sims, starts = c(0, 50, 200, 320, 470)) {
+  do.call(rbind, lapply(seq_along(sims), function(i) {
+    d <- biomass_ts(sims[[i]], starts[i])
+    # Each phase starts where the previous one ended
+    if (i > 1) d[d$Year > starts[i], ] else d
+  }))
+}
+
+# ---------------------------------------------------------------------------
+# Figures
+# ---------------------------------------------------------------------------
+
+#' Draw all figures from the saved results
+#'
+#' Uses only `res` (as saved to results/cultivation_results.rds) and the
+#' calibrated model (for the colours of the spectra), so the figures can be
+#' redrawn without repeating the calculations:
+#' `Rscript cultivation_depensation.R --figures`.
+#' The figures are drawn at about the width at which they appear in the paper
+#' (6.5 in), so that `base_size` is close to the printed font size.
+make_figures <- function(res, params_RFP, base_size = 11, width = 7.5) {
+  th <- theme_bw(base_size = base_size)
+  # Compact labels for log axes, 10^k every `by` decades
+  log_breaks <- function(lo, hi, by = 1) 10^seq(lo, hi, by = by)
+  pd <- res$plot_data
+  species_cols <- c(Forage = "#0072B2", Predator = "#D55E00")
+  save <- function(file, fig, height) {
+    ggsave(file.path("plots", file), fig, width = width, height = height, dpi = 300)
+  }
+
+  # Figure 1: size spectra and predation mortality across States RFP, RP and RF
+  spec_plot <- function(frame, title) {
+    p <- plotDataFrame(frame, params_RFP, xlab = "Size [g]", ylab = "Biomass density [g]",
+                       xtrans = "log10", ytrans = "log10", xlim = c(1e-4, 3000),
+                       legend_var = "Legend")
+    # Replaces the x scale of plotDataFrame(), whose labels overlap at this width
+    p <- suppressMessages(p + scale_x_log10("Size [g]", limits = c(1e-4, 3000),
+                                            breaks = log_breaks(-4, 2, 2),
+                                            labels = scales::label_log()))
+    p + ggtitle(title) + th + theme(legend.position = "bottom", legend.title = element_blank())
+  }
+  pm <- pd$predmort
+  states_pm <- c("State RFP (coexistence)", "State RF (forage only)")
+  df_pm <- rbind(data.frame(w = pm$w, PredMort = pm$RFP, State = states_pm[1]),
+                 data.frame(w = pm$w, PredMort = pm$RF, State = states_pm[2]))
+  # Fix the level order so State RFP keeps the solid line the caption describes
+  df_pm$State <- factor(df_pm$State, levels = states_pm)
+  p_mort <- ggplot(df_pm[df_pm$w <= 10, ], aes(x = w, y = PredMort, colour = State, linetype = State)) +
+    geom_line(linewidth = 1) +
+    scale_x_log10(breaks = log_breaks(-3, 1), labels = scales::label_log()) +
+    scale_colour_manual(values = setNames(c("#009E73", "#CC79A7"), states_pm)) +
+    guides(colour = guide_legend(ncol = 1), linetype = guide_legend(ncol = 1)) +
+    labs(title = "Predation mortality on predator",
+         x = "Predator weight w [g]", y = "Predation mortality [1/year]",
+         colour = NULL, linetype = NULL) +
+    th + theme(legend.position = "bottom")
+  fig1 <- (spec_plot(pd$spectra$RFP, "State RFP: coexistence") |
+             spec_plot(pd$spectra$RP, "State RP: resource + predator")) /
+    (spec_plot(pd$spectra$RF, "State RF: resource + forage") | p_mort)
+  save("spectra_states.png", fig1, height = 8)
+
+  # Figure 2: community assembly / invasion experiments (F = 0)
+  inv_plot <- function(d, title) {
+    ggplot(d, aes(x = Year, y = Biomass, colour = Species)) +
+      geom_line(linewidth = 1) +
+      scale_y_log10(labels = scales::label_log()) +
+      scale_colour_manual(values = species_cols) +
+      labs(title = title, x = "Year", y = "Biomass [g]", colour = NULL) +
+      th
+  }
+  fig2 <- (inv_plot(pd$invasion_RP, "A. Forage fish invade State RP") |
+             inv_plot(pd$invasion_RF, "B. Predators invade State RF")) +
+    plot_layout(guides = "collect") & theme(legend.position = "bottom")
+  save("assembly_invasions.png", fig2, height = 3.6)
+
+  # Figure 3: hysteresis loops along F_Pred at F_Forage = 0 and 0.35
+  df_branch <- res$branches
+  # Draw only the branches of steady states, not the jumps between them: each
+  # sweep (rows in sweep order) is split where the predator moves between the
+  # abundant state and the depleted ones
+  sweep_id <- paste(df_branch$F_Forage, df_branch$Sweep)
+  df_branch$Segment <- ave(as.numeric(df_branch$Predator > B_HI), sweep_id,
+                           FUN = function(a) cumsum(c(0, diff(a) != 0)))
+  df_branch_long <- rbind(
+    transform(df_branch, Species = "Forage", Biomass = Forage),
+    transform(df_branch, Species = "Predator", Biomass = Predator)
+  )
+  df_branch_long$Panel <- sprintf("F_Forage = %.2f", df_branch_long$F_Forage)
+  df_branch_long$Sweep <- factor(df_branch_long$Sweep, levels = c(
+    "Increasing F_Pred (from State RFP)", "Decreasing F_Pred (from State RF + seed)"))
+  # A vertical arrow at the end of each branch to the state the system jumps to
+  jumps <- do.call(rbind, lapply(
+    split(df_branch_long, paste(df_branch_long$Species, df_branch_long$Panel, df_branch_long$Sweep)),
+    function(d) {
+      k <- which(diff(d$Segment) != 0)
+      data.frame(d[k, c("F_Pred", "Panel", "Species")], y = d$Biomass[k], yend = d$Biomass[k + 1])
+    }))
+  fig3 <- ggplot(df_branch_long, aes(x = F_Pred, y = Biomass, colour = Species)) +
+    geom_line(aes(linetype = Sweep, group = interaction(Species, Sweep, Segment)), linewidth = 0.9) +
+    geom_segment(data = jumps, aes(x = F_Pred, xend = F_Pred, y = y, yend = yend),
+                 linewidth = 0.4, arrow = arrow(length = unit(2, "mm"), type = "closed"),
+                 show.legend = FALSE) +
+    facet_wrap(~Panel) +
+    scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 1),
+                       breaks = c(0, 1, 10, 100, 1000)) +
+    scale_colour_manual(values = species_cols) +
+    labs(
+      x = "Predator fishing mortality F_Pred [1/year]",
+      y = "Equilibrium biomass [g] (pseudo-log scale)",
+      colour = NULL, linetype = NULL
+    ) +
+    th +
+    theme(legend.position = "bottom", legend.box = "vertical")
+  save("predator_exploitation_bifurcation.png", fig3, height = 5)
+
+  # Figure 4: multi-phase time series (collapse, irreversibility and
+  # forage-harvest recovery); see run_management()
+  h <- res$hysteresis
+  ann <- function(x, label) annotate("text", x = x, y = 3000, label = label, size = 0.3 * base_size)
+  fig4 <- ggplot(pd$management, aes(x = Year, y = Biomass, colour = Species)) +
+    geom_line(linewidth = 1) +
+    scale_y_log10(limits = c(1e-1, 1e4)) +
+    scale_colour_manual(values = species_cols) +
+    geom_vline(xintercept = c(50, 200, 320, 470), linetype = "dashed", colour = "grey40") +
+    ann(25, "1. No\nfishing") +
+    ann(125, sprintf("2. F_Pred = %.2f\n-> collapse\nto RF", h$f_over)) +
+    ann(260, "3. Moratorium\n+ seed\n-> no return") +
+    ann(395, sprintf("4. F_Forage = %.2f\n+ seed\n-> recovery", h$f_forage_restore)) +
+    ann(520, "5. Unfished\n(RFP\nrestored)") +
+    labs(x = "Time [years]", y = "Biomass [g] (log scale)", colour = NULL) +
+    th + theme(legend.position = "bottom")
+  save("hysteresis_and_recovery.png", fig4, height = 4.5)
+
+  # Figure 5: predator invasion fitness in State RF and the 2D exploitation
+  # regime diagram. The boundaries vary smoothly with F_Forage, so interpolate
+  # them onto a finer grid for drawing; F_inv starts from zero at F_Forage,inv.
+  bounds <- res$bounds
+  Ff_draw <- seq(0, 0.7, by = 0.0025)
+  has_inv <- !is.na(bounds$F_inv)
+  inv_x <- c(res$F_forage_inv, bounds$F_Forage[has_inv])
+  inv_y <- c(0, bounds$F_inv[has_inv])
+  bounds_draw <- data.frame(
+    F_Forage = Ff_draw,
+    F_up = approx(bounds$F_Forage, bounds$F_up, xout = Ff_draw)$y,
+    F_inv = ifelse(Ff_draw < res$F_forage_inv, NA, approx(inv_x, inv_y, xout = Ff_draw, rule = 2)$y),
+    RFP_low = approx(bounds$F_Forage, as.numeric(bounds$RFP_low), xout = Ff_draw, method = "constant", f = 1)$y > 0.5
+  )
+  low_x <- c(bounds$F_Forage, res$F_forage_inv)
+  low_y <- c(ifelse(bounds$RFP_low | is.na(bounds$F_inv), bounds$F_low, NA), 0)
+  ok <- !is.na(low_y)
+  bounds_draw$F_low <- ifelse(bounds_draw$RFP_low,
+                              approx(low_x[ok], low_y[ok], xout = Ff_draw, rule = 2)$y,
+                              pmax(0, ifelse(is.na(bounds_draw$F_inv), 0, bounds_draw$F_inv)))
+  regimes <- classify_regimes(bounds_draw, seq(0, 0.6, by = 0.0025))
+  # Listed in legend order (passed as breaks below)
+  regime_cols <- c(
+    "Bistable: RFP and RF" = "#E69F00",
+    "Bistable: RFP and low-predator state" = "#F0E442",
+    "Coexistence only" = "#009E73",
+    "Low-predator coexistence only" = "#CC79A7",
+    "State RF only" = "#56B4E9"
+  )
+  p_r0 <- ggplot(res$r0_curve, aes(x = F_Forage, y = R0_Pred_RF)) +
+    geom_line(linewidth = 1.1, colour = "#D55E00") +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey30") +
+    geom_vline(xintercept = res$F_forage_inv, linetype = "dotted", colour = "#0072B2") +
+    annotate("text", x = res$F_forage_inv + 0.015, y = 0.6,
+             label = sprintf("F_Forage,inv\n= %.3f /yr", res$F_forage_inv),
+             hjust = 0, size = 0.3 * base_size, colour = "#0072B2") +
+    labs(
+      title = "A. Predator R0 in State RF",
+      x = "Forage fishing mortality\nF_Forage [1/year]",
+      y = "Predator invasion R0 in State RF"
+    ) +
+    th
+
+  cusp_draw <- ifelse(is.na(res$cusp_F_Forage), Inf, res$cusp_F_Forage)
+  boundary_types <- c("Upper limit of abundant coexistence (fold)" = "solid",
+                      "Lower limit of low-predator state" = "dotted",
+                      "Predator invasion of State RF (R0_Pred = 1)" = "dashed")
+  bound_lines <- rbind(
+    data.frame(F_Forage = bounds_draw$F_Forage,
+               F_Pred = ifelse(bounds_draw$F_Forage <= cusp_draw, bounds_draw$F_up, NA),
+               Boundary = names(boundary_types)[1]),
+    data.frame(F_Forage = bounds_draw$F_Forage,
+               F_Pred = ifelse(bounds_draw$RFP_low & bounds_draw$F_Forage <= cusp_draw, bounds_draw$F_low, NA),
+               Boundary = names(boundary_types)[2]),
+    data.frame(F_Forage = bounds_draw$F_Forage, F_Pred = bounds_draw$F_inv,
+               Boundary = names(boundary_types)[3])
+  )
+  bound_lines <- bound_lines[!is.na(bound_lines$F_Pred) & bound_lines$F_Pred > 0, ]
+  bound_lines$Boundary <- factor(bound_lines$Boundary, levels = names(boundary_types))
+  p_phase <- ggplot() +
+    geom_tile(data = regimes, aes(x = F_Forage, y = F_Pred, fill = Regime),
+              width = 0.0025, height = 0.0025, alpha = 0.55) +
+    geom_line(data = bound_lines, aes(x = F_Forage, y = F_Pred, linetype = Boundary), linewidth = 0.8) +
+    scale_fill_manual(values = regime_cols, breaks = names(regime_cols)) +
+    scale_linetype_manual(values = boundary_types) +
+    coord_cartesian(xlim = c(0, 0.70), ylim = c(0, 0.6), expand = FALSE) +
+    labs(
+      title = "B. Exploitation regimes",
+      x = "Forage fishing mortality F_Forage [1/year]",
+      y = "Predator fishing mortality F_Pred [1/year]",
+      fill = NULL, linetype = NULL
+    ) +
+    guides(fill = guide_legend(ncol = 1, order = 1), linetype = guide_legend(ncol = 1, order = 2)) +
+    th
+  fig5 <- (p_r0 | p_phase) + plot_layout(widths = c(1, 1.7), guides = "collect") &
+    theme(legend.position = "bottom", legend.box = "horizontal")
+  save("regime_diagram_2D.png", fig5, height = 5.5)
+
+  # Figure 6: predator invasion R0 in State RF versus the strength of cannibalism
+  ts <- res$theta_scan
+  ts$Parameter <- factor(ts$Parameter, levels = c("theta_FF", "theta_PP"),
+                         labels = c("Forage cannibalism theta_For,For", "Predator cannibalism theta_Pred,Pred"))
+  crit <- data.frame(Parameter = levels(ts$Parameter), theta = c(res$theta_FF_crit, res$theta_PP_crit))
+  fig6 <- ggplot(ts, aes(x = theta, y = R0_Pred_RF)) +
+    geom_line(linewidth = 1, colour = "#D55E00") +
+    geom_point(size = 2, colour = "#D55E00") +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey30") +
+    geom_vline(data = crit[!is.na(crit$theta), ], aes(xintercept = theta),
+               linetype = "dotted", colour = "#0072B2") +
+    facet_wrap(~Parameter) +
+    scale_y_log10() +
+    labs(
+      x = "Interaction strength",
+      y = "Predator invasion R0 in State RF"
+    ) +
+    th
+  save("robustness_cannibalism.png", fig6, height = 3.6)
+
+  # Figure 7: fishing thresholds and predator invasion R0 versus size diffusion
+  ds <- res$diffusion_scan
+  ds_long <- rbind(
+    data.frame(c_diff = ds$c_diff, Value = ds$F_crit, Quantity = "F_crit (collapse, F_Forage = 0)"),
+    data.frame(c_diff = ds$c_diff, Value = ds$F_forage_inv, Quantity = "F_Forage,inv (predator can invade RF)"),
+    data.frame(c_diff = ds$c_diff, Value = ds$F_forage_rec, Quantity = "F_Forage,rec (predator recovers fully)")
+  )
+  p_thr <- ggplot(ds_long, aes(x = c_diff, y = Value, colour = Quantity)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 2) +
+    scale_x_log10() +
+    labs(title = "A. Fishing thresholds", x = "Size diffusion c",
+         y = "Fishing mortality [1/year]", colour = NULL) +
+    th +
+    theme(legend.position = "bottom", legend.direction = "vertical")
+  p_r0d <- ggplot(ds, aes(x = c_diff, y = R0_Pred_RF)) +
+    geom_line(linewidth = 1, colour = "#D55E00") +
+    geom_point(size = 2, colour = "#D55E00") +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey30") +
+    scale_x_log10() +
+    labs(title = "B. Predator R0 in State RF", x = "Size diffusion c",
+         y = "R0_Pred(State RF)") +
+    th
+  save("robustness_diffusion.png", p_thr | p_r0d, height = 4.2)
+}
+
+if (sys.nframe() == 0 && "--figures" %in% commandArgs(trailingOnly = TRUE)) {
+  # Redraw the figures from the saved results without repeating the calculations
+  make_figures(readRDS("results/cultivation_results.rds"),
+               readParams("cultivation_depensation_params.rds"))
+} else if (sys.nframe() == 0) {
   dir.create("plots", showWarnings = FALSE)
   dir.create("results", showWarnings = FALSE)
   # MC_CORES overrides the default of at most four worker processes
@@ -658,64 +986,24 @@ if (sys.nframe() == 0) {
   res$larval_predmort <- list(max_RFP = max(pm_RFP[larval]), max_RF = max(pm_RF[larval]),
                               w_at_max_RF = wv[which.max(pm_RF)])
 
-  # -------------------------------------------------------------------------
-  # Plot 1: Size Spectra and Predation Mortality across States RFP, RP and RF
-  # -------------------------------------------------------------------------
-  p_spec_RFP <- plotSpectra(params_RFP, biomass = TRUE, per_log_size = TRUE, wlim = c(1e-4, 3000)) +
-    ggtitle("State RFP: Coexistence (Cultivated)") + theme_bw(base_size = 10)
-  p_spec_RP <- plotSpectra(params_RP, biomass = TRUE, per_log_size = TRUE, wlim = c(1e-4, 3000)) +
-    ggtitle("State RP: Resource + Predator") + theme_bw(base_size = 10)
-  p_spec_RF <- plotSpectra(params_RF, biomass = TRUE, per_log_size = TRUE, wlim = c(1e-4, 3000)) +
-    ggtitle("State RF: Resource + Forage (Uncultivated)") + theme_bw(base_size = 10)
-
-  df_pm <- rbind(
-    data.frame(w = wv, PredMort = as.numeric(pm_RFP), State = "State RFP (Coexistence)"),
-    data.frame(w = wv, PredMort = as.numeric(pm_RF), State = "State RF (Forage only)")
-  )
-  # Fix the level order so State RFP keeps the solid line the caption describes
-  df_pm$State <- factor(df_pm$State, levels = c("State RFP (Coexistence)", "State RF (Forage only)"))
-  p_mort_comp <- ggplot(df_pm[df_pm$w <= 10, ], aes(x = w, y = PredMort, colour = State, linetype = State)) +
-    geom_line(linewidth = 1) +
-    scale_x_log10() +
-    scale_colour_manual(values = c("State RFP (Coexistence)" = "#009E73", "State RF (Forage only)" = "#CC79A7")) +
-    labs(
-      title = "Depensatory Bottleneck: Predation Mortality on Predator",
-      x = "Predator weight w [g]",
-      y = "Predation mortality [1/year]"
-    ) +
-    theme_bw(base_size = 10)
-
-  fig1 <- (p_spec_RFP | p_spec_RP) / (p_spec_RF | p_mort_comp)
-  ggsave("plots/spectra_states.png", fig1, width = 11, height = 7.5, dpi = 150)
+  # Everything the figures need beyond the numbers in res, so that
+  # make_figures() can redraw them from the saved results
+  res$plot_data <- state_plot_data(params_RFP, params_RP, params_RF)
 
   # -------------------------------------------------------------------------
-  # Plot 2: Community Assembly / Invasion Experiments (F = 0)
+  # Community assembly / invasion experiments (F = 0)
   # -------------------------------------------------------------------------
   cat("Invasion experiments...\n")
-  p_inv_RP <- params_RP
-  initialN(p_inv_RP)["Forage", ] <- initialN(params_RFP)["Forage", ] * 1e-3
-  sim_inv_RP <- project(p_inv_RP, t_max = 150, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
-
-  p_inv_RF <- params_RF
-  initialN(p_inv_RF)["Predator", ] <- initialN(params_RFP)["Predator", ] * 1e-2
-  sim_inv_RF <- project(p_inv_RF, t_max = 150, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
-  bRF <- getBiomass(sim_inv_RF)[, "Predator"]
+  inv <- run_invasions(params_RFP, params_RP, params_RF)
+  bRF <- getBiomass(inv$RF)[, "Predator"]
   res$invasion_RF_decay_rate <- unname(log(bRF[151] / bRF[51]) / 100)
-  bRP <- getBiomass(sim_inv_RP)
+  bRP <- getBiomass(inv$RP)
   res$invasion_RP_final <- bRP[nrow(bRP), ]
-
-  p_plot_invRP <- plotBiomass(sim_inv_RP) +
-    ggtitle("A. Forage Fish Invading State RP -> Reaches State RFP") +
-    theme_bw(base_size = 10)
-  p_plot_invRF <- plotBiomass(sim_inv_RF) +
-    ggtitle("B. Predator Invading State RF -> Fails (Depensation)") +
-    theme_bw(base_size = 10)
-
-  fig2 <- p_plot_invRP | p_plot_invRF
-  ggsave("plots/assembly_invasions.png", fig2, width = 11, height = 4.5, dpi = 150)
+  res$plot_data$invasion_RP <- biomass_ts(inv$RP)
+  res$plot_data$invasion_RF <- biomass_ts(inv$RF)
 
   # -------------------------------------------------------------------------
-  # Plot 3: Hysteresis loops along F_Pred at F_Forage = 0 and 0.35
+  # Hysteresis loops along F_Pred at F_Forage = 0 and 0.35
   # -------------------------------------------------------------------------
   cat("Tracing equilibrium branches along F_Pred...\n")
   Fp_seq <- seq(0, 0.34, by = 0.01)
@@ -735,101 +1023,27 @@ if (sys.nframe() == 0) {
   df_branch <- do.call(rbind, branches)
   res$branches <- df_branch
 
-  df_branch_long <- rbind(
-    transform(df_branch, Species = "Forage", Biomass = Forage),
-    transform(df_branch, Species = "Predator", Biomass = Predator)
-  )
-  df_branch_long$Panel <- sprintf("F_Forage = %.2f", df_branch_long$F_Forage)
-  df_branch_long$Sweep <- factor(df_branch_long$Sweep, levels = c(
-    "Increasing F_Pred (from State RFP)", "Decreasing F_Pred (from State RF + seed)"))
-  fig3 <- ggplot(df_branch_long, aes(x = F_Pred, y = Biomass, colour = Species, linetype = Sweep)) +
-    geom_line(linewidth = 0.9) +
-    geom_point(size = 1.2) +
-    facet_wrap(~Panel) +
-    scale_y_continuous(trans = scales::pseudo_log_trans(sigma = 1),
-                       breaks = c(0, 1, 10, 100, 1000)) +
-    scale_colour_manual(values = c(Forage = "#0072B2", Predator = "#D55E00")) +
-    labs(
-      title = "Equilibrium biomass along increasing and decreasing predator fishing mortality",
-      x = "Predator fishing mortality F_Pred [1/year]",
-      y = "Equilibrium biomass [g] (pseudo-log scale)",
-      linetype = NULL
-    ) +
-    theme_bw(base_size = 10.5) +
-    theme(legend.position = "bottom", legend.box = "vertical")
-  ggsave("plots/predator_exploitation_bifurcation.png", fig3, width = 10.5, height = 5.8, dpi = 150)
-
   # -------------------------------------------------------------------------
-  # Plot 4: Multi-Phase Time Series (Collapse, Irreversibility, & Forage-Harvest Recovery)
-  #   Phase 1 (0-50):    Unfished State RFP (F_Pred = 0, F_Forage = 0)
-  #   Phase 2 (50-200):  Predator overfished (F_Pred = 0.25, F_Forage = 0) -> Collapse to State RF
-  #   Phase 3 (200-320): Predator moratorium + re-introduction seed (F_Pred = 0, F_Forage = 0) -> Cannot re-enter
-  #   Phase 4 (320-470): Harvest Forage fish + seed (F_Pred = 0, F_Forage = 0.40, above
-  #                      the recovery threshold F_forage_rec) -> Predator recovers
-  #   Phase 5 (470-570): All fishing stopped (F_Pred = 0, F_Forage = 0) -> Coexistence State RFP self-sustains
+  # Multi-phase time series (collapse, irreversibility and forage-harvest
+  # recovery); see run_management()
   # -------------------------------------------------------------------------
   cat("Management time series...\n")
   f_over <- 0.25
   f_forage_restore <- 0.40
-  sim1 <- project(params_RFP, effort = F0, t_max = 50, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
-  sim2 <- project(finalParams(sim1), effort = c(Forage = 0, Predator = f_over), t_max = 150, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
-
-  p_moratorium <- finalParams(sim2)
-  initialN(p_moratorium)["Predator", ] <- initialN(params_RFP)["Predator", ] * 5e-3
-  sim3 <- project(p_moratorium, effort = F0, t_max = 120, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
-
-  p_harvest_forage <- finalParams(sim3)
-  initialN(p_harvest_forage)["Predator", ] <- initialN(params_RFP)["Predator", ] * 5e-3
-  sim4 <- project(p_harvest_forage, effort = c(Forage = f_forage_restore, Predator = 0), t_max = 150, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
-
-  sim5 <- project(finalParams(sim4), effort = F0, t_max = 100, dt = 0.1, t_save = 1, method = "tr_bdf2", progress_bar = FALSE)
-
-  extract_ts <- function(sim, t_offset) {
-    b <- getBiomass(sim)
-    t_vec <- as.numeric(rownames(b)) + t_offset
-    rbind(
-      data.frame(Year = t_vec, Species = "Forage", Biomass = as.numeric(b[, "Forage"])),
-      data.frame(Year = t_vec, Species = "Predator", Biomass = as.numeric(b[, "Predator"]))
-    )
-  }
-
-  df_ts <- rbind(
-    extract_ts(sim1, 0),
-    extract_ts(sim2, 50)[-c(1, 2), ],
-    extract_ts(sim3, 200)[-c(1, 2), ],
-    extract_ts(sim4, 320)[-c(1, 2), ],
-    extract_ts(sim5, 470)[-c(1, 2), ]
-  )
-  b4 <- getBiomass(sim4)
-  b5 <- getBiomass(sim5)
+  sims <- run_management(params_RFP, f_over, f_forage_restore)
+  b4 <- getBiomass(sims[[4]])
+  b5 <- getBiomass(sims[[5]])
   res$hysteresis <- list(
     f_over = f_over, f_forage_restore = f_forage_restore,
-    end_phase2 = getBiomass(sim2)[nrow(getBiomass(sim2)), ],
+    end_phase2 = getBiomass(sims[[2]])[nrow(getBiomass(sims[[2]])), ],
     end_phase4 = b4[nrow(b4), ], end_phase5 = b5[nrow(b5), ],
     year_pred_above_half_RFP = 320 + as.numeric(rownames(b4))[
       which(b4[, "Predator"] > 0.5 * getBiomass(params_RFP)["Predator"])[1]]
   )
-
-  fig4 <- ggplot(df_ts, aes(x = Year, y = Biomass, colour = Species)) +
-    geom_line(linewidth = 1) +
-    scale_y_log10(limits = c(1e-1, 5e3)) +
-    scale_colour_manual(values = c(Forage = "#0072B2", Predator = "#D55E00")) +
-    geom_vline(xintercept = c(50, 200, 320, 470), linetype = "dashed", colour = "grey40") +
-    annotate("text", x = 25,  y = 3800, label = "1. Unfished\n(State RFP)", size = 3) +
-    annotate("text", x = 125, y = 3800, label = sprintf("2. Predator fished\n(F_Pred = %.2f)\n-> Collapse to RF", f_over), size = 3) +
-    annotate("text", x = 260, y = 3800, label = "3. Moratorium + Seed\n(F_Pred = 0, F_For = 0)\n-> Cannot re-enter", size = 3) +
-    annotate("text", x = 395, y = 3800, label = sprintf("4. Harvest Forage + Seed\n(F_Forage = %.2f)\n-> Predator recovers", f_forage_restore), size = 3) +
-    annotate("text", x = 520, y = 3800, label = "5. Unfished\n(State RFP\nrestored)", size = 3) +
-    labs(
-      title = "Cultivation-Depensation Hysteresis: Collapse, Failed Moratorium, and Recovery via Forage Harvesting",
-      x = "Time [years]",
-      y = "Biomass [g] (log10 scale)"
-    ) +
-    theme_bw(base_size = 10.5)
-  ggsave("plots/hysteresis_and_recovery.png", fig4, width = 11, height = 5.5, dpi = 150)
+  res$plot_data$management <- management_ts(sims)
 
   # -------------------------------------------------------------------------
-  # Plot 5: Predator Invasion Fitness in State RF & 2D Exploitation Regime Diagram
+  # Predator invasion fitness in State RF and the 2D exploitation regime diagram
   # -------------------------------------------------------------------------
   cat("Predator R0 in State RF along F_Forage...\n")
   Ff_fine <- seq(0, 0.70, by = 0.025)
@@ -867,83 +1081,6 @@ if (sys.nframe() == 0) {
   res$tcsn_F_Forage <- if (any(bounds$RFP_low)) min(bounds$F_Forage[bounds$RFP_low]) else NA
 
   res$F_forage_rec <- find_F_forage_rec(params_RFP, params_RF, lower = res$F_forage_inv)
-
-  # The boundaries vary smoothly with F_Forage, so interpolate them onto a finer
-  # grid for drawing; F_inv starts from zero at F_Forage,inv.
-  Ff_draw <- seq(0, 0.7, by = 0.0025)
-  has_inv <- !is.na(bounds$F_inv)
-  inv_x <- c(res$F_forage_inv, bounds$F_Forage[has_inv])
-  inv_y <- c(0, bounds$F_inv[has_inv])
-  bounds_draw <- data.frame(
-    F_Forage = Ff_draw,
-    F_up = approx(bounds$F_Forage, bounds$F_up, xout = Ff_draw)$y,
-    F_inv = ifelse(Ff_draw < res$F_forage_inv, NA, approx(inv_x, inv_y, xout = Ff_draw, rule = 2)$y),
-    RFP_low = approx(bounds$F_Forage, as.numeric(bounds$RFP_low), xout = Ff_draw, method = "constant", f = 1)$y > 0.5
-  )
-  low_x <- c(bounds$F_Forage, res$F_forage_inv)
-  low_y <- c(ifelse(bounds$RFP_low | is.na(bounds$F_inv), bounds$F_low, NA), 0)
-  ok <- !is.na(low_y)
-  bounds_draw$F_low <- ifelse(bounds_draw$RFP_low,
-                              approx(low_x[ok], low_y[ok], xout = Ff_draw, rule = 2)$y,
-                              pmax(0, ifelse(is.na(bounds_draw$F_inv), 0, bounds_draw$F_inv)))
-  regimes <- classify_regimes(bounds_draw, seq(0, 0.6, by = 0.0025))
-  # Listed in legend order (passed as breaks below)
-  regime_cols <- c(
-    "Bistable: RFP and RF" = "#E69F00",
-    "Bistable: RFP and low-predator state" = "#F0E442",
-    "Coexistence only" = "#009E73",
-    "Low-predator coexistence only" = "#CC79A7",
-    "State RF only" = "#56B4E9"
-  )
-  p_r0 <- ggplot(df_inv_curve, aes(x = F_Forage, y = R0_Pred_RF)) +
-    geom_line(linewidth = 1.1, colour = "#D55E00") +
-    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey30") +
-    geom_vline(xintercept = res$F_forage_inv, linetype = "dotted", colour = "#0072B2") +
-    annotate("text", x = res$F_forage_inv + 0.007, y = 0.65,
-             label = sprintf("Invasion threshold\nF_Forage = %.3f /yr\n(R0_Pred = 1)", res$F_forage_inv),
-             hjust = 0, size = 3.1, colour = "#0072B2") +
-    labs(
-      title = "A. Predator Invasion Fitness in State RF",
-      x = "Forage fishing mortality F_Forage [1/year]",
-      y = "Predator invasion R0 in State RF"
-    ) +
-    theme_bw(base_size = 10.5)
-
-  cusp_draw <- ifelse(is.na(res$cusp_F_Forage), Inf, res$cusp_F_Forage)
-  boundary_types <- c("Upper limit of abundant coexistence (fold)" = "solid",
-                      "Lower limit of low-predator state" = "dotted",
-                      "Predator invasion of State RF (R0_Pred = 1)" = "dashed")
-  bound_lines <- rbind(
-    data.frame(F_Forage = bounds_draw$F_Forage,
-               F_Pred = ifelse(bounds_draw$F_Forage <= cusp_draw, bounds_draw$F_up, NA),
-               Boundary = names(boundary_types)[1]),
-    data.frame(F_Forage = bounds_draw$F_Forage,
-               F_Pred = ifelse(bounds_draw$RFP_low & bounds_draw$F_Forage <= cusp_draw, bounds_draw$F_low, NA),
-               Boundary = names(boundary_types)[2]),
-    data.frame(F_Forage = bounds_draw$F_Forage, F_Pred = bounds_draw$F_inv,
-               Boundary = names(boundary_types)[3])
-  )
-  bound_lines <- bound_lines[!is.na(bound_lines$F_Pred) & bound_lines$F_Pred > 0, ]
-  bound_lines$Boundary <- factor(bound_lines$Boundary, levels = names(boundary_types))
-  p_phase <- ggplot() +
-    geom_tile(data = regimes, aes(x = F_Forage, y = F_Pred, fill = Regime),
-              width = 0.0025, height = 0.0025, alpha = 0.55) +
-    geom_line(data = bound_lines, aes(x = F_Forage, y = F_Pred, linetype = Boundary), linewidth = 0.8) +
-    scale_fill_manual(values = regime_cols, breaks = names(regime_cols)) +
-    scale_linetype_manual(values = boundary_types) +
-    coord_cartesian(xlim = c(0, 0.70), ylim = c(0, 0.6), expand = FALSE) +
-    labs(
-      title = "B. Two-Parameter Exploitation Regime Diagram",
-      x = "Forage fishing mortality F_Forage [1/year]",
-      y = "Predator fishing mortality F_Pred [1/year]",
-      fill = NULL, linetype = NULL
-    ) +
-    guides(fill = guide_legend(ncol = 1, order = 1), linetype = guide_legend(ncol = 1, order = 2)) +
-    theme_bw(base_size = 10.5) +
-    theme(legend.position = "right")
-
-  fig5 <- (p_r0 | p_phase) + plot_layout(widths = c(1, 1.6))
-  ggsave("plots/regime_diagram_2D.png", fig5, width = 14, height = 5.6, dpi = 150)
 
   # -------------------------------------------------------------------------
   # Robustness: grid resolution, resource cutoff, intraspecific predation
@@ -1010,51 +1147,8 @@ if (sys.nframe() == 0) {
   res$theta_FF_crit <- theta_crit("theta_FF")
   res$theta_PP_crit <- theta_crit("theta_PP")
 
-  ts <- res$theta_scan
-  ts$Parameter <- factor(ts$Parameter, levels = c("theta_FF", "theta_PP"),
-                         labels = c("Forage cannibalism theta_For,For", "Predator cannibalism theta_Pred,Pred"))
-  crit <- data.frame(Parameter = levels(ts$Parameter), theta = c(res$theta_FF_crit, res$theta_PP_crit))
-  fig6 <- ggplot(ts, aes(x = theta, y = R0_Pred_RF)) +
-    geom_line(linewidth = 1, colour = "#D55E00") +
-    geom_point(size = 2, colour = "#D55E00") +
-    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey30") +
-    geom_vline(data = crit[!is.na(crit$theta), ], aes(xintercept = theta),
-               linetype = "dotted", colour = "#0072B2") +
-    facet_wrap(~Parameter) +
-    scale_y_log10() +
-    labs(
-      title = "Predator invasion R0 in State RF versus the strength of cannibalism",
-      x = "Interaction strength (the other entries of the interaction matrix unchanged)",
-      y = "Predator invasion R0 in State RF (log scale)"
-    ) +
-    theme_bw(base_size = 10.5)
-  ggsave("plots/robustness_cannibalism.png", fig6, width = 10, height = 4.5, dpi = 150)
-
-  ds <- res$diffusion_scan
-  ds_long <- rbind(
-    data.frame(c_diff = ds$c_diff, Value = ds$F_crit, Quantity = "F_crit (collapse, F_Forage = 0)"),
-    data.frame(c_diff = ds$c_diff, Value = ds$F_forage_inv, Quantity = "F_Forage,inv (predator can invade RF)"),
-    data.frame(c_diff = ds$c_diff, Value = ds$F_forage_rec, Quantity = "F_Forage,rec (predator recovers fully)")
-  )
-  p_thr <- ggplot(ds_long, aes(x = c_diff, y = Value, colour = Quantity)) +
-    geom_line(linewidth = 1) +
-    geom_point(size = 2) +
-    scale_x_log10() +
-    labs(title = "A. Fishing thresholds", x = "Size diffusion c = d sigma^2 / d ln w",
-         y = "Fishing mortality [1/year]", colour = NULL) +
-    theme_bw(base_size = 10.5) +
-    theme(legend.position = "bottom", legend.direction = "vertical")
-  p_r0d <- ggplot(ds, aes(x = c_diff, y = R0_Pred_RF)) +
-    geom_line(linewidth = 1, colour = "#D55E00") +
-    geom_point(size = 2, colour = "#D55E00") +
-    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey30") +
-    scale_x_log10() +
-    labs(title = "B. Predator invasion R0 in State RF", x = "Size diffusion c = d sigma^2 / d ln w",
-         y = "R0_Pred(State RF)") +
-    theme_bw(base_size = 10.5)
-  ggsave("plots/robustness_diffusion.png", p_thr | p_r0d, width = 10, height = 4.8, dpi = 150)
-
   saveRDS(res, "results/cultivation_results.rds")
+  make_figures(res, params_RFP)
   cat(sprintf("\nPredator collapse threshold (F_Forage = 0): F_crit = %.3f /year\n", res$F_crit))
   cat("All plots saved to plots/, results to results/cultivation_results.rds,\n")
   cat("and model saved to cultivation_depensation_params.rds.\n")
