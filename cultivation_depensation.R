@@ -94,10 +94,12 @@ R0_from_rates <- function(p, g, mort, e_repro, D, species) {
 #' that length, whereas mizer's default ogive (`ogive_l25 = NA`) is much steeper.
 #'
 #' The resource capacity tapers off smoothly around `w_pp_cutoff`,
-#' kappa w^-lambda / (1 + (w / w_pp_cutoff)^taper); a sharp cutoff
-#' (`taper = NA`) puts a discontinuity into the prey spectrum whose position
-#' relative to the size grid makes the feeding integrals only first-order
-#' accurate.
+#' kappa w^-lambda / (1 + (w / w_pp_cutoff)^taper), so that the food of large
+#' predators declines gradually rather than ending at an arbitrary size.
+#' `taper = NA` gives mizer's sharp cutoff at `w_pp_cutoff` instead. With
+#' bin averaging the bin containing the cutoff gets its exact partial average,
+#' so the feeding integrals stay second order; only with point sampling
+#' (`flux = "upwind"`) is the cutoff rounded to a grid point, an O(dw) error.
 #'
 #' Size diffusion continues where mean growth stops, so without further
 #' mortality adults spread far beyond w_inf and the results depend on where
