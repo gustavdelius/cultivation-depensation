@@ -74,12 +74,7 @@ The abundance density of each fish species satisfies the McKendrick--von Foerste
   \frac{\partial N_i}{\partial t} + \frac{\partial \big(g_i\,N_i\big)}{\partial w} - \frac{1}{2}\frac{\partial^2 \big(D_i\,N_i\big)}{\partial w^2} = -\mu_i\,N_i,
   (\#eq:mvf)
 \end{equation}
-on the size range $[w_{\min,i}, w_{\max,i}]$. The diffusion rate $D_i(w)$ represents the variability of growth among individuals of the same size, which arises from the randomness of prey encounters [the jump-growth term of @datta2010jump] and, more importantly, from individual differences in foraging success, condition, physiology and environment. Without it, all individuals of a cohort would grow along the same trajectory. Under Eq. \@ref(eq:mvf) the variance of body mass within a cohort grows at rate $D_i$, so the variance $\sigma^2$ of $\ln w$ increases by
-\begin{equation}
-  \frac{d\sigma^2}{d \ln w} = \frac{D_i(w)}{g_i(w)\,w} \equiv c
-  (\#eq:cdiff)
-\end{equation}
-per unit of $\ln w$ that the cohort grows. We take $D_i(w) = D_{\text{ext},i}\,w^{n+1}$ and choose $D_{\text{ext},i} = c\,(\alpha f_0 h_i - k_{s,i})$ so that $c$ is approximately constant over the juvenile size range. In the reference model $c = `r fmt(res$c_diff, 2)`$: a cohort that grows from egg ($10^{-3}$ g) to the predator's maturation size spans $\ln(250/10^{-3}) \approx 12.4$ units of $\ln w$ and acquires a standard deviation of $\ln w$ of about `r fmt(sqrt(12.4 * res$c_diff), 1)`, i.e. adults of the same age differ in mass by a typical factor of `r fmt(exp(sqrt(12.4 * res$c_diff)), 1)`. Because this level is uncertain, we report all thresholds for $c$ between 0.02 and 0.3 (Section \@ref(robustness)). Predators of mass $w$ prefer prey of mass $w'$ according to the lognormal kernel
+on the size range $[w_{\min,i}, w_{\max,i}]$, with growth rate $g_i(w, t)$, size diffusion rate $D_i(w)$ and mortality rate $\mu_i(w, t)$ specified below. Predators of mass $w$ prefer prey of mass $w'$ according to the lognormal kernel
 \begin{equation}
   \phi_i(w / w') = \exp\!\left[-\frac{\big(\ln(w / (w'\,\beta_i))\big)^2}{2\,\sigma_i^2}\right],
   (\#eq:kernel)
@@ -99,7 +94,14 @@ Assimilated energy (efficiency $\alpha = 0.6$) minus metabolic costs $k_{s,i}\,w
   E_{r,i}(w, t) &= \max\!\Big(0,\; \alpha\,f_i(w, t)\,h_i\,w^n - k_{s,i}\,w^p\Big), (\#eq:er) \\
   g_i(w, t) &= E_{r,i}(w, t)\,\big[1 - \psi_i(w)\big]. (\#eq:growth)
 \end{align}
-The investment function $\psi_i(w) = m_i(w)\,(w / w_{\infty,i})^{1-n}$ is the product of the maturity ogive $m_i(w) = [1 + (w/w_{\text{mat},i})^{-U_i}]^{-1}$ and an allometric factor that reaches one at $w_{\infty,i}$, so that growth stops at $w_{\infty,i}$. We set the steepness $U_i = \ln 3 / \ln(w_{\text{mat},i}/w_{\text{mat25},i})$ by placing 25% maturity at 90% of the length at 50% maturity, $w_{\text{mat25},i} = 0.9^3\,w_{\text{mat},i}$, which gives $U \approx 3.5$ and a 25--75% maturation range of about 20% of the length at maturation. `mizer`'s default, $U = 10$, corresponds to a range of only 7%, steeper than typical empirical maturity ogives, and switches from immature to mature within two or three size classes of a 160-class grid. Mean growth stops at $w_{\infty,i}$, but size diffusion carries some individuals beyond it; a senescence mortality (below) keeps them from spreading further.
+The investment function $\psi_i(w) = m_i(w)\,(w / w_{\infty,i})^{1-n}$ is the product of the maturity ogive $m_i(w) = [1 + (w/w_{\text{mat},i})^{-U_i}]^{-1}$ and an allometric factor that reaches one at $w_{\infty,i}$, so that growth stops at $w_{\infty,i}$. We set the steepness $U_i = \ln 3 / \ln(w_{\text{mat},i}/w_{\text{mat25},i})$ by placing 25% maturity at 90% of the length at 50% maturity, $w_{\text{mat25},i} = 0.9^3\,w_{\text{mat},i}$, which gives $U \approx 3.5$ and a 25--75% maturation range of about 20% of the length at maturation. `mizer`'s default, $U = 10$, corresponds to a range of only 7%, steeper than typical empirical maturity ogives, and switches from immature to mature within two or three size classes of a 160-class grid.
+
+The diffusion rate $D_i(w)$ in Eq. \@ref(eq:mvf) represents the variability of growth among individuals of the same size, which arises from the randomness of prey encounters [the jump-growth term of @datta2010jump] and, more importantly, from individual differences in foraging success, condition, physiology and environment. Without it, all individuals of a cohort would grow along the same trajectory. Under Eq. \@ref(eq:mvf) the variance of body mass within a cohort grows at rate $D_i$, so the variance $\sigma^2$ of $\ln w$ increases by
+\begin{equation}
+  \frac{d\sigma^2}{d \ln w} = \frac{D_i(w)}{g_i(w)\,w} \equiv c
+  (\#eq:cdiff)
+\end{equation}
+per unit of $\ln w$ that the cohort grows. Juveniles ($\psi_i \approx 0$) feeding at the reference feeding level $f_0$ (Section \@ref(community-parameterization)) grow at approximately $g_i(w) \approx (\alpha f_0 h_i - k_{s,i})\,w^n$ by Eqs. \@ref(eq:er) and \@ref(eq:growth). We therefore take $D_i(w) = D_{\text{ext},i}\,w^{n+1}$ and choose $D_{\text{ext},i} = c\,(\alpha f_0 h_i - k_{s,i})$, so that $c$ is approximately constant over the juvenile size range. In the reference model $c = `r fmt(res$c_diff, 2)`$: a cohort that grows from egg ($10^{-3}$ g) to the predator's maturation size spans $\ln(250/10^{-3}) \approx 12.4$ units of $\ln w$ and acquires a standard deviation of $\ln w$ of about `r fmt(sqrt(12.4 * res$c_diff), 1)`, i.e. adults of the same age differ in mass by a typical factor of `r fmt(exp(sqrt(12.4 * res$c_diff)), 1)`. Because this level is uncertain, we report all thresholds for $c$ between 0.02 and 0.3 (Section \@ref(robustness)). Mean growth stops at $w_{\infty,i}$, but size diffusion carries some individuals beyond it; a senescence mortality (below) keeps them from spreading further.
 
 Total mortality $\mu_i(w, t) = \mu_{p,i}(w, t) + \mu_{\text{ext},i}(w) + F_i\,S_i(w)$ comprises:
 
@@ -211,7 +213,6 @@ Without fishing the model has the four boundary and interior equilibria listed i
 ```{r states-table}
 s <- res$states
 states_df <- data.frame(
-  State = c("State R", "State RFP", "State RP", "State RF"),
   Composition = c("Resource only", "Resource + Forage + Predator", "Resource + Predator", "Resource + Forage"),
   B_For = fmt(s$Forage_Biomass, 1),
   B_Pred = fmt(s$Predator_Biomass, 1),
@@ -222,14 +223,14 @@ states_df <- data.frame(
   Stable = ifelse(s$lambda_full < 0, "Yes", "No")
 )
 colnames(states_df) <- c(
-  "State", "Resident taxa", "$B_{\\text{For}}^*$ [g]", "$B_{\\text{Pred}}^*$ [g]",
+  "Resident taxa", "$B_{\\text{For}}^*$ [g]", "$B_{\\text{Pred}}^*$ [g]",
   "$R_{0,\\text{For}}$", "$R_{0,\\text{Pred}}$", "$\\lambda_{\\text{res}}$", "$\\lambda_{\\text{full}}$", "Stable"
 )
 knitr::kable(
   states_df,
   booktabs = TRUE,
   escape = FALSE,
-  align = "llrrrrrrc",
+  align = "lrrrrrrc",
   caption = "The four boundary and interior equilibria without fishing. $R_0$ of an absent species is its invasion reproduction number; for a resident species it equals $1/(1 - L_R)$. $\\lambda_{\\text{res}}$ is the leading eigenvalue [year$^{-1}$] within the resident subspace (for State R, the slowest resource relaxation rate), $\\lambda_{\\text{full}}$ the leading eigenvalue including the invasion exponents of absent species. Eigenvalues of unreachable size classes are excluded. Stable: $\\lambda_{\\text{full}} < 0$."
 )
 ```
