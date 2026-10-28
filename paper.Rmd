@@ -337,13 +337,14 @@ rob_df <- data.frame(
   B_For_RF = fmt(rb$B_For_RF, 0),
   R0_For_RP = fmt(rb$R0_For_RP), R0_Pred_RF = fmt(rb$R0_Pred_RF, 3),
   F_crit = fmt(rb$F_crit, 3), F_inv = fmt(rb$F_forage_inv, 3), F_rec = fmt(rb$F_forage_rec, 3),
-  diet = fmt(rb$Forage_in_diet, 2)
+  # The table is not escaped, so LaTeX needs the % sign escaped by hand
+  diet = paste0(fmt(100 * rb$Forage_in_diet, 0), if (knitr::is_latex_output()) "\\%" else "%")
 )
 colnames(rob_df) <- c("Variant", "$B_{\\text{For}}(\\text{RF})$", "$R_{0,\\text{For}}(\\text{RP})$",
                       "$R_{0,\\text{Pred}}(\\text{RF})$", "$F_{\\text{crit}}$", "$F_{\\text{Forage,inv}}$",
-                      "$F_{\\text{Forage,rec}}$", "Forage share of diet")
+                      "$F_{\\text{Forage,rec}}$", "F in diet")
 knitr::kable(rob_df, booktabs = TRUE, escape = FALSE, align = "lrrrrrrr",
-             caption = "Dependence of the results on numerical resolution and model structure. Each variant is rebuilt and recalibrated to the same State RFP targets. Bistability between RFP and RF without fishing requires $R_{0,\\text{Pred}}(\\text{RF}) < 1$. The reference model has 320 size classes. The original model is the first-order discretisation with 80 size classes and without physical diffusion used in the first version of this study. In the last variant the resource tapers off at $w_R = 1$ g instead of 10 g.")
+             caption = "Dependence of the results on numerical resolution and model structure. Each variant is rebuilt and recalibrated to the same State RFP targets. Bistability between RFP and RF without fishing requires $R_{0,\\text{Pred}}(\\text{RF}) < 1$. The reference model has 320 size classes. The original model is the first-order discretisation with 80 size classes and without physical diffusion used in the first version of this study. In the last variant the resource tapers off at $w_R = 1$ g instead of 10 g. F in diet: percentage of the predator's food that comes from forage fish at State RFP.")
 ```
 
 ```{r}
