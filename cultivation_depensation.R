@@ -928,7 +928,7 @@ if (sys.nframe() == 0) {
       y = "Predator fishing mortality F_Pred [1/year]",
       fill = NULL, linetype = NULL
     ) +
-    guides(fill = guide_legend(ncol = 1), linetype = guide_legend(ncol = 1)) +
+    guides(fill = guide_legend(ncol = 1, order = 1), linetype = guide_legend(ncol = 1, order = 2)) +
     theme_bw(base_size = 10.5) +
     theme(legend.position = "right")
 
