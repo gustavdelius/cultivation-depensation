@@ -327,8 +327,13 @@ knitr::include_graphics("plots/regime_diagram_2D.png")
 
 ```{r robustness-table}
 rb <- res$robustness
+# Short labels for the table; the caption gives the details
+short <- c("Reference (320 size classes)" = "Reference",
+           "160 size classes" = "160 classes", "640 size classes" = "640 classes",
+           "Original model (first-order, 80 classes, no diffusion)" = "Original",
+           "Resource tapered at 1 g" = "$w_R = 1$ g")
 rob_df <- data.frame(
-  Variant = rb$Variant,
+  Variant = ifelse(rb$Variant %in% names(short), short[rb$Variant], rb$Variant),
   B_For_RF = fmt(rb$B_For_RF, 0),
   R0_For_RP = fmt(rb$R0_For_RP), R0_Pred_RF = fmt(rb$R0_Pred_RF, 3),
   F_crit = fmt(rb$F_crit, 3), F_inv = fmt(rb$F_forage_inv, 3), F_rec = fmt(rb$F_forage_rec, 3),
@@ -338,7 +343,7 @@ colnames(rob_df) <- c("Variant", "$B_{\\text{For}}(\\text{RF})$", "$R_{0,\\text{
                       "$R_{0,\\text{Pred}}(\\text{RF})$", "$F_{\\text{crit}}$", "$F_{\\text{Forage,inv}}$",
                       "$F_{\\text{Forage,rec}}$", "Forage share of diet")
 knitr::kable(rob_df, booktabs = TRUE, escape = FALSE, align = "lrrrrrrr",
-             caption = "Dependence of the results on numerical resolution and model structure. Each variant is rebuilt and recalibrated to the same State RFP targets. Bistability between RFP and RF without fishing requires $R_{0,\\text{Pred}}(\\text{RF}) < 1$. The original model is the first-order discretisation without physical diffusion used in the first version of this study.")
+             caption = "Dependence of the results on numerical resolution and model structure. Each variant is rebuilt and recalibrated to the same State RFP targets. Bistability between RFP and RF without fishing requires $R_{0,\\text{Pred}}(\\text{RF}) < 1$. The reference model has 320 size classes. The original model is the first-order discretisation with 80 size classes and without physical diffusion used in the first version of this study. In the last variant the resource tapers off at $w_R = 1$ g instead of 10 g.")
 ```
 
 ```{r}
