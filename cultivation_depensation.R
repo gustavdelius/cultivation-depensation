@@ -15,7 +15,9 @@
 # `Rscript cultivation_depensation.R --figures` only redraws the figures from
 # the saved results, which takes seconds, and
 # `Rscript cultivation_depensation.R --robustness` repeats only the robustness
-# checks (about an hour), keeping the other saved results.
+# checks (about an hour), keeping the other saved results, and
+# `Rscript cultivation_depensation.R --competition` repeats only the scan of
+# the strength of competition for the resource.
 
 suppressPackageStartupMessages({
   library(mizer)
@@ -936,6 +938,66 @@ make_figures <- function(res, params_RFP, base_size = 11, width = 7.5) {
          y = "R0_Pred(State RF)") +
     th
   save("robustness_diffusion.png", p_thr | p_r0d, height = 4.2)
+
+  # Figure 8: dependence on the strength of competition for the resource
+  cs <- res$competition_scan
+  if (is.null(cs)) return(invisible())
+  r0_ref <- res$resource$r_pp
+  # Dotted: the reference model; thin blue: R0_Pred(State RF) = 1, below
+  # which the predator can invade State RF
+  ref_line <- list(
+    geom_vline(xintercept = res$r0_crit, linewidth = 0.4, colour = "#0072B2"),
+    geom_vline(xintercept = r0_ref, linetype = "dotted", colour = "grey40"))
+  x_r0 <- scale_x_log10(breaks = c(0.1, 1, 10, 100, 1000), labels = scales::label_number(drop0trailing = TRUE))
+  xlab_r0 <- "Resource regeneration rate r0"
+  r0_types <- c("State RF growth and mortality" = "solid",
+                "RF mortality, RFP growth" = "dashed",
+                "RF growth, RFP mortality" = "dotdash")
+  cs_r0 <- rbind(
+    data.frame(r0 = cs$r0, R0 = cs$R0_Pred_RF, Rates = names(r0_types)[1]),
+    data.frame(r0 = cs$r0, R0 = cs$R0_growthRFP_mortRF, Rates = names(r0_types)[2]),
+    data.frame(r0 = cs$r0, R0 = cs$R0_growthRF_mortRFP, Rates = names(r0_types)[3])
+  )
+  cs_r0$Rates <- factor(cs_r0$Rates, levels = names(r0_types))
+  p_c_r0 <- ggplot(cs_r0, aes(x = r0, y = R0, linetype = Rates)) +
+    ref_line + geom_hline(yintercept = 1, colour = "grey30", linewidth = 0.4) +
+    geom_line(linewidth = 0.9, colour = "#D55E00") +
+    geom_point(size = 1.6, colour = "#D55E00") +
+    x_r0 + scale_y_log10() + scale_linetype_manual(values = r0_types) +
+    guides(linetype = guide_legend(ncol = 1)) +
+    labs(title = "A. Predator R0 in State RF", x = xlab_r0, y = "R0_Pred", linetype = NULL) +
+    th + theme(legend.position = "bottom")
+  p_c_for <- ggplot(cs, aes(x = r0, y = B_For_RF)) + ref_line +
+    geom_line(linewidth = 0.9, colour = "#0072B2") +
+    geom_point(size = 1.6, colour = "#0072B2") +
+    x_r0 +
+    labs(title = "B. Forage fish in State RF", x = xlab_r0, y = "Forage-fish biomass [g]") +
+    th
+  t_states <- c("State RFP", "State RF")
+  cs_t <- rbind(data.frame(r0 = cs$r0, t = cs$t_to_mat_RFP, State = t_states[1]),
+                data.frame(r0 = cs$r0, t = cs$t_to_mat_RF, State = t_states[2]))
+  cs_t$State <- factor(cs_t$State, levels = t_states)
+  p_c_t <- ggplot(cs_t, aes(x = r0, y = t, colour = State, linetype = State)) + ref_line +
+    geom_line(linewidth = 0.9) + geom_point(size = 1.6) +
+    x_r0 +
+    scale_colour_manual(values = setNames(c("#009E73", "#CC79A7"), t_states)) +
+    labs(title = "C. Predator age at maturation", x = xlab_r0, y = "Time from egg to w_mat [years]",
+         colour = NULL, linetype = NULL) +
+    th + theme(legend.position = "bottom")
+  thr_names <- c("F_crit (collapse, F_Forage = 0)", "F_Forage,inv (predator can invade RF)",
+                 "F_Forage,rec (predator recovers fully)")
+  cs_thr <- rbind(data.frame(r0 = cs$r0, Value = cs$F_crit, Quantity = thr_names[1]),
+                  data.frame(r0 = cs$r0, Value = cs$F_forage_inv, Quantity = thr_names[2]),
+                  data.frame(r0 = cs$r0, Value = cs$F_forage_rec, Quantity = thr_names[3]))
+  cs_thr$Quantity <- factor(cs_thr$Quantity, levels = thr_names)
+  p_c_thr <- ggplot(cs_thr, aes(x = r0, y = Value, colour = Quantity)) + ref_line +
+    geom_line(linewidth = 0.9) + geom_point(size = 1.6) +
+    x_r0 +
+    guides(colour = guide_legend(ncol = 1)) +
+    labs(title = "D. Fishing thresholds", x = xlab_r0, y = "Fishing mortality [1/year]",
+         colour = NULL) +
+    th + theme(legend.position = "bottom")
+  save("competition_resource.png", (p_c_r0 | p_c_for) / (p_c_t | p_c_thr), height = 7.8)
 }
 
 # ---------------------------------------------------------------------------
@@ -1063,6 +1125,141 @@ run_robustness <- function(res, params_RFP, n_cores) {
   res
 }
 
+# ---------------------------------------------------------------------------
+# Competition for the resource
+# ---------------------------------------------------------------------------
+
+#' The reference model with the resource regeneration rate scaled to `r0`
+#'
+#' The capacity is rebalanced so that State RFP, and with it every fish
+#' parameter, stays exactly as in `params_RFP`. Only the response of the
+#' resource to a change in grazing differs: with a small `r0` the fish deplete
+#' the resource strongly and compete strongly for it; as `r0` grows the
+#' resource approaches a fixed background and the competition vanishes.
+with_resource_rate <- function(params_RFP, r0) {
+  p <- params_RFP
+  resource_rate(p, balance = TRUE) <-
+    resource_rate(params_RFP) * r0 / resource_params(params_RFP)$r_pp
+  p
+}
+
+#' Outcome of a predator reintroduction into State RF without fishing
+#'
+#' The predator is seeded at 0.5% of its State RFP abundance, as in
+#' `find_F_forage_rec()`. Also returns the predator fishing mortality below
+#' which the predator can invade State RF (`F_inv_0`, zero if it cannot invade
+#' even without fishing).
+reintroduction_outcome <- function(pRFP, pRF) {
+  F0 <- c(Forage = 0, Predator = 0)
+  r0 <- function(Fp) get_R0(pRF, effort = c(Forage = 0, Predator = Fp),
+                            species = "Predator")["Predator"] - 1
+  F_inv <- if (r0(0) > 0) uniroot(r0, c(0, 2), tol = 1e-5)$root else 0
+  p <- pRF
+  initialN(p)["Predator", ] <- initialN(pRFP)["Predator", ] * 5e-3
+  b <- getBiomass(settle(p, F0, t_max = 1000))
+  data.frame(F_inv_0 = F_inv, B_For_reintro = unname(b["Forage"]),
+             B_Pred_reintro = unname(b["Predator"]))
+}
+
+#' Feeding of adult forage fish and juvenile predators in State RF
+#'
+#' Abundance and mean feeding level of adult forage fish (4-20 g), whose
+#' predation on predator larvae is proportional to their number times one
+#' minus their feeding level, and the mean feeding level of predator larvae
+#' (up to 1 g) and juveniles (1-50 g) in States RF and RFP.
+feeding_summary <- function(pRFP, pRF) {
+  wv <- w(pRF)
+  f_RF <- getFeedingLevel(pRF)
+  f_RFP <- getFeedingLevel(pRFP)
+  ad <- wv >= 4 & wv <= 20
+  n_ad <- initialN(pRF)["Forage", ad] * dw(pRF)[ad]
+  larv <- wv <= 1
+  juv <- wv >= 1 & wv <= 50
+  data.frame(N_forage_adult_RF = sum(n_ad),
+             f_forage_adult_RF = sum(f_RF["Forage", ad] * n_ad) / sum(n_ad),
+             f_pred_larv_RFP = mean(f_RFP["Predator", larv]),
+             f_pred_larv_RF = mean(f_RF["Predator", larv]),
+             f_pred_juv_RFP = mean(f_RFP["Predator", juv]),
+             f_pred_juv_RF = mean(f_RF["Predator", juv]))
+}
+
+#' Summary of the reference model with resource regeneration rate `r0`
+competition_summary <- function(params_RFP, r0) {
+  F0 <- c(Forage = 0, Predator = 0)
+  pRFP <- with_resource_rate(params_RFP, r0)
+  st <- get_fixed_points(pRFP)
+  pRF <- st$State_RF
+  wf <- w_full(pRFP)
+  cap <- resource_capacity(pRFP)
+  # Resource sizes eaten by fish larvae and juveniles; the lowest classes are
+  # hardly grazed and the top ones lie in the taper
+  grazed <- cap > 0 & wf >= 1e-6 & wf <= 10
+  level <- function(p) initialNResource(p)[grazed] / cap[grazed]
+  # Time for a predator to grow from egg to w_max along its mean trajectory
+  wv <- w(pRFP)
+  w_mat <- species_params(pRFP)["Predator", "w_mat"]
+  t_to <- function(p, w_max) sum((dw(p) / getEGrowth(p)["Predator", ])[wv < w_max])
+  ev <- dynamic_eigenvalues(pRFP, F0)
+  lead <- ev[which.max(Re(ev))]
+  regime <- map_regime(pRFP, pRF, 0)
+  F_inv <- find_F_forage_inv(pRF)
+  out <- data.frame(
+    r0 = r0,
+    reintroduction_outcome(pRFP, pRF),
+    min_level_RFP = min(level(pRFP)), min_level_RF = min(level(pRF)),
+    B_For_RF = unname(getBiomass(pRF)["Forage"]),
+    B_Pred_RP = unname(getBiomass(st$State_RP)["Predator"]),
+    R0_For_RP = unname(get_R0(st$State_RP, species = "Forage")),
+    R0_Pred_RF = unname(get_R0(pRF, species = "Predator")),
+    R0_growthRFP_mortRF = unname(R0_mix(pRFP, pRF)),
+    R0_growthRF_mortRFP = unname(R0_mix(pRF, pRFP)),
+    t_to_1g_RFP = t_to(pRFP, 1), t_to_1g_RF = t_to(pRF, 1),
+    t_to_mat_RFP = t_to(pRFP, w_mat), t_to_mat_RF = t_to(pRF, w_mat),
+    max_larval_predmort_RF = max(getPredMort(pRF)["Predator", wv <= 1]),
+    feeding_summary(pRFP, pRF),
+    lead_RFP = Re(lead), lead_RFP_im = abs(Im(lead)),
+    drift_RFP = biomass_drift(pRFP, F0), drift_RF = biomass_drift(pRF, F0),
+    F_crit = regime$F_up, B_up = regime$B_up, F_low_0 = regime$F_low,
+    RFP_low_0 = regime$RFP_low, F_forage_inv = F_inv
+  )
+  out$F_forage_rec <- find_F_forage_rec(pRFP, pRF, lower = F_inv)
+  out
+}
+
+#' Dependence of the results on the strength of competition for the resource
+#'
+#' Scans the resource regeneration rate r0 of the reference model, keeping
+#' State RFP fixed, and locates the values of r0 at which the predator becomes
+#' able to invade State RF. Adds the table to `res` and writes it to
+#' results/competition_scan.csv.
+run_competition <- function(res, params_RFP, n_cores) {
+  cat("Competition for the resource...\n")
+  r0_grid <- c(0.25, 0.5, 1, 2, 5, 10, 20, 50, 100, 1000)
+  scan <- parallel::mclapply(r0_grid, function(r0) {
+    tryCatch(competition_summary(params_RFP, r0), error = function(e) {
+      message("r0 = ", r0, " failed: ", conditionMessage(e))
+      data.frame(r0 = r0)
+    })
+  }, mc.cores = n_cores)
+  cols <- unique(unlist(lapply(scan, names)))
+  res$competition_scan <- do.call(rbind, lapply(scan, function(x) {
+    x[setdiff(cols, names(x))] <- NA; x[cols]
+  }))
+  print(res$competition_scan, row.names = FALSE)
+  # Regeneration rates at which R0_Pred(State RF) crosses one
+  cs <- res$competition_scan
+  f <- function(lr0) {
+    st <- get_fixed_points(with_resource_rate(params_RFP, exp(lr0)))
+    log(get_R0(st$State_RF, species = "Predator"))
+  }
+  k <- which(diff(sign(log(cs$R0_Pred_RF))) != 0)
+  res$r0_crit <- vapply(k, function(i)
+    exp(uniroot(f, log(cs$r0[c(i, i + 1)]), tol = 1e-4)$root), numeric(1))
+  cat("R0_Pred(State RF) = 1 at r0 =", res$r0_crit, "\n")
+  write.csv(res$competition_scan, "results/competition_scan.csv", row.names = FALSE)
+  res
+}
+
 if (sys.nframe() == 0 && "--figures" %in% commandArgs(trailingOnly = TRUE)) {
   # Redraw the figures from the saved results without repeating the calculations
   make_figures(readRDS("results/cultivation_results.rds"),
@@ -1073,6 +1270,14 @@ if (sys.nframe() == 0 && "--figures" %in% commandArgs(trailingOnly = TRUE)) {
   res <- readRDS("results/cultivation_results.rds")
   params_RFP <- readParams("cultivation_depensation_params.rds")
   res <- run_robustness(res, params_RFP, n_cores)
+  saveRDS(res, "results/cultivation_results.rds")
+  make_figures(res, params_RFP)
+} else if (sys.nframe() == 0 && "--competition" %in% commandArgs(trailingOnly = TRUE)) {
+  # Repeat only the resource-competition scan, keeping the other saved results
+  n_cores <- max(1, as.integer(Sys.getenv("MC_CORES", min(4, parallel::detectCores()))))
+  res <- readRDS("results/cultivation_results.rds")
+  params_RFP <- readParams("cultivation_depensation_params.rds")
+  res <- run_competition(res, params_RFP, n_cores)
   saveRDS(res, "results/cultivation_results.rds")
   make_figures(res, params_RFP)
 } else if (sys.nframe() == 0) {
@@ -1284,6 +1489,7 @@ if (sys.nframe() == 0 && "--figures" %in% commandArgs(trailingOnly = TRUE)) {
   res$F_forage_rec <- find_F_forage_rec(params_RFP, params_RF, lower = res$F_forage_inv)
 
   res <- run_robustness(res, params_RFP, n_cores)
+  res <- run_competition(res, params_RFP, n_cores)
 
   saveRDS(res, "results/cultivation_results.rds")
   make_figures(res, params_RFP)
